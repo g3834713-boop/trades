@@ -19,19 +19,38 @@ window.AuthService = {
     
     if (error) throw error;
     
-    // Sync user to backend
-    if (data.user) {
-      await fetch(`${CONFIG.API_URL}/users/sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${data.session.access_token}`
-        },
-        body: JSON.stringify({
-          fullName,
-          phone
-        })
-      });
+    // Check if email confirmation is required
+    if (!data.session && data.user) {
+      // Email confirmation required - user created but not logged in yet
+      return { 
+        user: data.user, 
+        requiresEmailConfirmation: true,
+        message: 'Please check your email to confirm your account before logging in.'
+      };
+    }
+    
+    // Sync user to backend (only if session exists)
+    if (data.user && data.session) {
+      try {
+        const response = await fetch(`${CONFIG.API_URL}/users/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${data.session.access_token}`
+          },
+          body: JSON.stringify({
+            fullName,
+            phone
+          })
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to sync user to backend');
+        }
+      } catch (syncError) {
+        console.error('Error syncing user:', syncError);
+        // Don't throw - registration was successful even if sync failed
+      }
     }
     
     return data;

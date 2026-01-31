@@ -659,6 +659,13 @@
 
                         const result = await window.AuthService.register(email, password, fullName, formattedPhone);
                         
+                        // Check if email confirmation is required
+                        if (result.requiresEmailConfirmation) {
+                            alert('Account created! Please check your email to confirm your account, then login.');
+                            window.location.href = 'index.html';
+                            return;
+                        }
+                        
                         // Show success message
                         document.getElementById('successMessage').classList.add('show');
                         submitBtn.textContent = 'Account Created!';
