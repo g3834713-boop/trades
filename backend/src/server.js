@@ -33,6 +33,36 @@ app.post('/users/sync', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Get user profile
+app.get('/users/me', requireAuth, async (req, res) => {
+  const { rows } = await query(
+    `select u.id, u.email, u.full_name, u.phone, u.created_at,
+            w.balance, w.bonus
+     from app_users u
+     left join wallets w on u.id = w.user_id
+     where u.id = $1`,
+    [req.user.id]
+  );
+  
+  if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+  res.json(rows[0]);
+});
+
+// Admin: get all users
+app.get('/admin/users', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await query(
+    `select u.id, u.email, u.full_name, u.phone, u.created_at,
+            w.balance, w.bonus,
+            (select count(*) from payments where user_id = u.id) as payment_count,
+            (select count(*) from transactions where user_id = u.id) as transaction_count
+     from app_users u
+     left join wallets w on u.id = w.user_id
+     order by u.created_at desc`
+  );
+  
+  res.json(rows);
+});
+
 // Wallet
 app.get('/wallet', requireAuth, async (req, res) => {
   const { id } = req.user;

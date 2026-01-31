@@ -1310,13 +1310,17 @@
                     return;
                 }
 
-                const user = await window.AuthService.getUser();
-                const wallet = await window.API.getWallet();
+                // Fetch complete user profile from backend
+                const userProfile = await window.API.getUserProfile();
                 
-                document.getElementById('profileName').textContent = user.user_metadata?.full_name || user.email;
-                document.getElementById('profileId').textContent = user.id.substring(0, 8).toUpperCase();
-                document.getElementById('balanceDisplay').textContent = `GHC ${wallet.balance.toFixed(2)}`;
-                document.getElementById('bonusDisplay').textContent = `GHC ${wallet.bonus.toFixed(2)}`;
+                // Display user information
+                document.getElementById('profileName').textContent = userProfile.full_name || userProfile.email;
+                document.getElementById('profileId').textContent = 'ID-' + userProfile.id.substring(0, 8).toUpperCase();
+                document.getElementById('balanceDisplay').textContent = `GHC ${(userProfile.balance || 0).toFixed(2)}`;
+                document.getElementById('bonusDisplay').textContent = `GHC ${(userProfile.bonus || 0).toFixed(2)}`;
+                
+                // Store user data globally for other functions
+                window.currentUserProfile = userProfile;
             } catch (error) {
                 console.error('Error loading profile:', error);
                 window.location.href = 'index.html';

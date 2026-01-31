@@ -1227,12 +1227,12 @@
 
         async function loadAccountData() {
             try {
-                const user = await window.AuthService.getUser();
-                if (user) {
-                    document.getElementById('accountName').value = user.user_metadata?.full_name || user.email || '';
-                    document.getElementById('accountEmail').value = user.email || '';
-                    document.getElementById('accountPhone').value = user.user_metadata?.phone || '';
-                    document.getElementById('accountId').value = user.id.substring(0, 8).toUpperCase();
+                const profile = window.currentUserProfile || await window.API.getUserProfile();
+                if (profile) {
+                    document.getElementById('accountName').value = profile.full_name || profile.email || '';
+                    document.getElementById('accountEmail').value = profile.email || '';
+                    document.getElementById('accountPhone').value = profile.phone || '';
+                    document.getElementById('accountId').value = 'ID-' + profile.id.substring(0, 8).toUpperCase();
                 }
             } catch (error) {
                 console.error('Error loading account data:', error);
@@ -1594,10 +1594,13 @@
                     return;
                 }
 
-                // Fetch wallet balance from API
-                const wallet = await window.API.getWallet();
-                const totalBalance = wallet.balance + wallet.bonus;
+                // Fetch complete user profile from backend
+                const userProfile = await window.API.getUserProfile();
+                const totalBalance = (userProfile.balance || 0) + (userProfile.bonus || 0);
                 document.getElementById('commissionDisplay').textContent = `GHC ${totalBalance.toFixed(2)}`;
+                
+                // Store user profile globally
+                window.currentUserProfile = userProfile;
             } catch (error) {
                 console.error('Error loading wallet:', error);
                 window.location.href = 'index.html';

@@ -817,63 +817,77 @@
         }
 
         // Load Dashboard
-        function loadDashboard() {
-            // Get system stats from DataManager
-            const stats = DataManager.getSystemStats();
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-            
-            document.getElementById('totalUsers').textContent = stats.totalUsers;
-            document.getElementById('totalDeposits').textContent = `GHC ${stats.totalBalance.toFixed(2)}`;
-            document.getElementById('totalPayouts').textContent = `GHC ${stats.totalWithdrawals.toFixed(2)}`;
-            document.getElementById('activeTasks').textContent = stats.activeTasks;
+        async function loadDashboard() {
+            try {
+                // Get all users from backend
+                const allUsers = await window.API.getAllUsers();
+                const payments = await window.API.getPayments();
+                
+                // Calculate stats
+                const totalUsers = allUsers.length;
+                const totalBalance = allUsers.reduce((sum, u) => sum + (u.balance || 0), 0);
+                const totalBonus = allUsers.reduce((sum, u) => sum + (u.bonus || 0), 0);
+                const pendingPayments = payments.filter(p => p.status === 'pending' || p.status === 'submitted').length;
+                
+                document.getElementById('totalUsers').textContent = totalUsers;
+                document.getElementById('totalDeposits').textContent = `GHC ${totalBalance.toFixed(2)}`;
+                document.getElementById('totalPayouts').textContent = `GHC ${totalBonus.toFixed(2)}`;
+                document.getElementById('activeTasks').textContent = pendingPayments;
 
-            // Display recent users
-            const recentUsers = allUsers.slice(-5).reverse();
-            let html = '';
-            if (recentUsers.length === 0) {
-                html = '<div class="empty-state"><p>No users registered yet</p></div>';
-            } else {
-                html = '<div class="table-header" style="grid-template-columns: repeat(4, 1fr);"><div>Name</div><div>Email</div><div>Balance</div><div>Joined</div></div>';
-                recentUsers.forEach(user => {
-                    const finance = DataManager.getUserFinance(user.userId);
-                    const joinDate = new Date(user.registeredAt).toLocaleDateString();
-                    html += `<div class="table-row" style="grid-template-columns: repeat(4, 1fr);">
-                        <div class="table-cell">${user.fullName}</div>
-                        <div class="table-cell">${user.email}</div>
-                        <div class="table-cell">GHC ${finance.balance.toFixed(2)}</div>
-                        <div class="table-cell">${joinDate}</div>
-                    </div>`;
-                });
+                // Display recent users (last 5)
+                const recentUsers = allUsers.slice(0, 5);
+                let html = '';
+                if (recentUsers.length === 0) {
+                    html = '<div class="empty-state"><p>No users registered yet</p></div>';
+                } else {
+                    html = '<div class="table-header" style="grid-template-columns: repeat(4, 1fr);"><div>Name</div><div>Email</div><div>Balance</div><div>Joined</div></div>';
+                    recentUsers.forEach(user => {
+                        const joinDate = new Date(user.created_at).toLocaleDateString();
+                        html += `<div class="table-row" style="grid-template-columns: repeat(4, 1fr);">
+                            <div class="table-cell">${user.full_name || user.email}</div>
+                            <div class="table-cell">${user.email}</div>
+                            <div class="table-cell">GHC ${(user.balance || 0).toFixed(2)}</div>
+                            <div class="table-cell">${joinDate}</div>
+                        </div>`;
+                    });
+                }
+                document.getElementById('recentUsersContainer').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
             }
-            document.getElementById('recentUsersContainer').innerHTML = html;
         }
 
         // Load Users
-        function loadUsers() {
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-            let html = '';
+        async function loadUsers() {
+            try {
+                const allUsers = await window.API.getAllUsers();
+                let html = '';
 
-            if (allUsers.length === 0) {
-                html = '<div class="empty-state"><p>No users registered</p></div>';
-            } else {
-                allUsers.forEach(user => {
-                    const userId = user.id || user.userId;
-                    const finance = DataManager.getUserFinance(userId);
-                    const balance = finance ? finance.balance : 0;
-                    html += `<div class="table-row">
-                        <div class="table-cell">${user.fullName}</div>
-                        <div class="table-cell">${user.email}</div>
-                        <div class="table-cell">${userId}</div>
-                        <div class="table-cell">GHC ${balance.toFixed(2)}</div>
-                        <div class="table-action">
-                            <button class="btn btn-primary" onclick="editUserBalance('${user.email}')">Edit</button>
-                            <button class="btn btn-danger" onclick="deleteUser('${user.email}')">Delete</button>
-                        </div>
-                    </div>`;
-                });
+                if (allUsers.length === 0) {
+                    html = '<div class="empty-state"><p>No users registered</p></div>';
+                } else {
+                    allUsers.forEach(user => {
+                        const userId = user.id.substring(0, 8).toUpperCase();
+                        const balance = user.balance || 0;
+                        const bonus = user.bonus || 0;
+                        const joinDate = new Date(user.created_at).toLocaleDateString();
+                        html += `<div class="table-row">
+                            <div class="table-cell">${user.full_name || user.email}</div>
+                            <div class="table-cell">${user.email}</div>
+                            <div class="table-cell">ID-${userId}</div>
+                            <div class="table-cell">GHC ${balance.toFixed(2)} <span style="color: #667eea;">(+${bonus.toFixed(2)} bonus)</span></div>
+                            <div class="table-action">
+                                <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${user.full_name || user.email}')">Add Funds</button>
+                            </div>
+                        </div>`;
+                    });
+                }
+
+                document.getElementById('usersTableBody').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('usersTableBody').innerHTML = '<div class="empty-state"><p>Error loading users</p></div>';
             }
-
-            document.getElementById('usersTableBody').innerHTML = html;
         }
 
         // Load Tasks
@@ -1114,55 +1128,62 @@
         }
 
         // Modal Functions
-        function openDepositModal() {
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-            let options = '<option value="">Select a user</option>';
-            allUsers.forEach(user => {
-                options += `<option value="${user.email}">${user.fullName}</option>`;
-            });
-            document.getElementById('depositUserSelect').innerHTML = options;
+        async function openDepositModal() {
+            try {
+                const allUsers = await window.API.getAllUsers();
+                let options = '<option value="">Select a user</option>';
+                allUsers.forEach(user => {
+                    options += `<option value="${user.id}">${user.full_name || user.email}</option>`;
+                });
+                document.getElementById('depositUserSelect').innerHTML = options;
+                document.getElementById('depositModal').classList.add('show');
+            } catch (error) {
+                console.error('Error loading users:', error);
+                alert('Failed to load users');
+            }
+        }
+
+        function openAddDepositModal(userId, userName) {
+            // Store selected user
+            window.selectedDepositUser = { id: userId, name: userName };
+            
+            // Pre-fill modal
             document.getElementById('depositModal').classList.add('show');
+            
+            // You can add a display field if needed
+            alert(`Adding funds to: ${userName}`);
         }
 
         function closeDepositModal() {
             document.getElementById('depositModal').classList.remove('show');
+            window.selectedDepositUser = null;
         }
 
-        function processDeposit() {
-            const userEmail = document.getElementById('depositUserSelect').value;
-            const amount = parseFloat(document.getElementById('depositAmount').value);
+        async function processDeposit() {
+            const userId = window.selectedDepositUser ? window.selectedDepositUser.id : document.getElementById('depositUserSelect').value;
+            const amount = parseFloat(document.getElementById('depositAmount').value) || 0;
             const bonus = parseFloat(document.getElementById('depositBonus').value) || 0;
+            const reason = document.getElementById('depositDescription').value || 'Admin deposit';
 
-            if (!userEmail || !amount) {
-                alert('Please fill in all fields');
+            if (!userId || (amount <= 0 && bonus <= 0)) {
+                alert('Please select a user and enter amount or bonus');
                 return;
             }
 
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-            const user = allUsers.find(u => u.email === userEmail);
-
-            if (user) {
-                // Add to DataManager
-                const reason = document.getElementById('depositDescription').value || 'Admin deposit';
-                const result = DataManager.addDeposit(user.userId, amount, bonus, reason);
-                
-                if (result) {
-                    // Update user object for backward compatibility
-                    user.balance = result.balance;
-                    user.bonus = result.bonus;
-                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
-
-                    alert(`GHC ${amount.toFixed(2)} added to ${user.fullName}'s account`);
-                    closeDepositModal();
-                    document.getElementById('depositAmount').value = '';
-                    document.getElementById('depositBonus').value = '';
-                    document.getElementById('depositDescription').value = '';
-                    loadDeposits();
-                    loadDashboard();
-                    DataManager.syncAllPages(user.userId);
-                } else {
-                    alert('Failed to process deposit');
-                }
+            try {
+                await window.API.addDeposit(userId, amount, bonus, reason);
+                alert(`Successfully added GHC ${amount.toFixed(2)} (Balance) + GHC ${bonus.toFixed(2)} (Bonus)`);
+                closeDepositModal();
+                document.getElementById('depositAmount').value = '';
+                document.getElementById('depositBonus').value = '';
+                document.getElementById('depositDescription').value = '';
+                loadDeposits();
+                loadDashboard();
+                loadUsers();
+            } catch (error) {
+                console.error('Deposit error:', error);
+                alert(error.message || 'Failed to process deposit');
+            }
             }
         }
 

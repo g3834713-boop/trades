@@ -115,6 +115,10 @@ window.API = {
     return this.call('/transactions');
   },
 
+  async getUserProfile() {
+    return this.call('/users/me');
+  },
+
   async createPayment(amount, method, phone) {
     return this.call('/payments', {
       method: 'POST',
@@ -144,5 +148,9 @@ window.API = {
       method: 'POST',
       body: JSON.stringify({ userId, amount, bonus, reason })
     });
+  },
+
+  async getAllUsers() {
+    return this.call('/admin/users');
   }
 };
