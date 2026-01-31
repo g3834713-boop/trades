@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DailyTrade - Admin Panel</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="dataManager.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script type="module" src="auth.js"></script>
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
         * {
@@ -928,52 +930,54 @@
         }
 
         // Load Payments (Payment Requests)
-        function loadPayments() {
-            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
-            const adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
-            let html = '';
+        async function loadPayments() {
+            try {
+                const payments = await window.API.getPayments();
+                let html = '';
 
-            if (pendingPayments.length === 0) {
-                html = '<div class="empty-state"><p>No payment requests</p></div>';
-            } else {
-                pendingPayments.forEach((payment) => {
-                    const date = new Date(payment.requestedAt).toLocaleDateString();
-                    const paymentNumber = adminPaymentNumbers[payment.id] || 'Not Assigned';
-                    const transactionId = payment.transactionId || 'Not Submitted';
-                    const statusColor = payment.status === 'pending' ? '#f39c12'
-                        : (payment.status === 'submitted' ? '#3498db'
-                        : (payment.status === 'completed' ? '#27ae60' : '#e74c3c'));
-                    const statusText = payment.status === 'pending' ? 'Pending'
-                        : (payment.status === 'submitted' ? 'Submitted'
-                        : (payment.status === 'completed' ? 'Completed' : 'Cancelled'));
-                    
-                    const methodNames = {
-                        'mtn': 'MTN',
-                        'vodafone': 'Vodafone',
-                        'bank': 'Bank'
-                    };
-                    
-                    html += `<div class="table-row">
-                        <div class="table-cell">${payment.userName}</div>
-                        <div class="table-cell">GHC ${payment.amount.toFixed(2)}</div>
-                        <div class="table-cell">${methodNames[payment.paymentMethod] || payment.paymentMethod}</div>
-                        <div class="table-cell"><span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${statusText}</span></div>
-                        <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${paymentNumber}</code></div>
-                        <div class="table-cell"><code style="background: #f9f9f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${transactionId}</code></div>
-                        <div class="table-action">
-                            ${payment.status === 'pending' || payment.status === 'submitted' ? `
-                                <button class="btn btn-primary" onclick="openAssignPaymentModal('${payment.id}')">Assign #</button>
-                                <button class="btn btn-success" onclick="completePayment('${payment.id}')">Complete</button>
-                                <button class="btn btn-danger" onclick="cancelPayment('${payment.id}')">Cancel</button>
-                            ` : `
-                                <button class="btn btn-secondary" onclick="viewPaymentDetails('${payment.id}')" style="opacity: 0.6;">View</button>
-                            `}
-                        </div>
-                    </div>`;
-                });
+                if (payments.length === 0) {
+                    html = '<div class="empty-state"><p>No payment requests</p></div>';
+                } else {
+                    payments.forEach((payment) => {
+                        const date = new Date(payment.requested_at).toLocaleDateString();
+                        const paymentNumber = payment.payment_number || 'Not Assigned';
+                        const transactionId = payment.transaction_id || 'Not Submitted';
+                        const statusColor = payment.status === 'pending' ? '#f39c12'
+                            : (payment.status === 'submitted' ? '#3498db'
+                            : (payment.status === 'completed' ? '#27ae60' : '#e74c3c'));
+                        const statusText = payment.status === 'pending' ? 'Pending'
+                            : (payment.status === 'submitted' ? 'Submitted'
+                            : (payment.status === 'completed' ? 'Completed' : 'Cancelled'));
+                        
+                        const methodNames = {
+                            'mtn': 'MTN',
+                            'vodafone': 'Vodafone',
+                            'bank': 'Bank'
+                        };
+                        
+                        html += `<div class="table-row">
+                            <div class="table-cell">${payment.user_email || 'N/A'}</div>
+                            <div class="table-cell">GHC ${payment.amount.toFixed(2)}</div>
+                            <div class="table-cell">${methodNames[payment.method] || payment.method}</div>
+                            <div class="table-cell"><span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${statusText}</span></div>
+                            <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${paymentNumber}</code></div>
+                            <div class="table-cell"><code style="background: #f9f9f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${transactionId}</code></div>
+                            <div class="table-action">
+                                ${payment.status === 'pending' || payment.status === 'submitted' ? `
+                                    <button class="btn btn-success" onclick="completePayment('${payment.id}')">Complete</button>
+                                ` : `
+                                    <button class="btn btn-secondary" style="opacity: 0.6;">View</button>
+                                `}
+                            </div>
+                        </div>`;
+                    });
+                }
+
+                document.getElementById('paymentsTableBody').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading payments:', error);
+                document.getElementById('paymentsTableBody').innerHTML = '<div class="empty-state"><p>Error loading payments</p></div>';
             }
-
-            document.getElementById('paymentsTableBody').innerHTML = html;
         }
 
         // Filter Payments
@@ -1480,47 +1484,16 @@
             loadPayments();
         }
 
-        function completePayment(paymentId) {
-            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
-            const payment = pendingPayments.find(p => p.id === paymentId);
-            
-            if (!payment) {
-                alert('Payment not found');
-                return;
-            }
-
-            if (!payment.transactionId) {
-                alert('Transaction ID has not been submitted by the user yet.');
-                return;
-            }
-            
-            if (confirm(`Complete payment of GHC ${payment.amount.toFixed(2)} from ${payment.userName}?`)) {
-                // Update payment status
-                payment.status = 'completed';
-                payment.completedAt = new Date().toISOString();
-                
-                // Update in pendingPayments
-                const index = pendingPayments.findIndex(p => p.id === paymentId);
-                if (index !== -1) {
-                    pendingPayments[index] = payment;
-                    localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
+        async function completePayment(paymentId) {
+            if (confirm(`Complete this payment?`)) {
+                try {
+                    await window.API.completePayment(paymentId);
+                    alert('Payment completed successfully! Balance credited to user.');
+                    loadPayments();
+                } catch (error) {
+                    console.error('Error completing payment:', error);
+                    alert(error.message || 'Failed to complete payment');
                 }
-                
-                // Add to user's balance via DataManager
-                const result = DataManager.addDeposit(payment.userId, payment.amount, 0, 'Payment confirmed');
-                if (result) {
-                    const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-                    const userIndex = allUsers.findIndex(u => u.userId === payment.userId);
-                    if (userIndex !== -1) {
-                        allUsers[userIndex].balance = result.balance;
-                        allUsers[userIndex].bonus = result.bonus;
-                        localStorage.setItem('allUsers', JSON.stringify(allUsers));
-                    }
-                    DataManager.syncAllPages(payment.userId);
-                }
-                
-                alert(`Payment completed! GHC ${payment.amount.toFixed(2)} added to user's balance.`);
-                loadPayments();
             }
         }
 
@@ -1701,35 +1674,35 @@
         }
 
         // Initialize on load
-        window.addEventListener('DOMContentLoaded', function() {
-            // Check if admin is logged in (check both session and local storage)
-            const isLoggedIn = sessionStorage.getItem('adminLoggedIn') === 'true' || 
-                               localStorage.getItem('adminLoggedIn') === 'true';
-            
-            if (!isLoggedIn) {
-                // Wait a moment before redirecting to allow page to stabilize
-                setTimeout(() => {
-                    window.location.href = 'admin-login.html';
-                }, 500);
-                return;
-            }
-
-            // User is logged in, initialize the admin panel
+        window.addEventListener('DOMContentLoaded', async function() {
+            // Check if admin is authenticated via Supabase
             try {
-                // Initialize all users in DataManager
-                const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-                allUsers.forEach(user => {
-                    const userId = user.id || user.userId;
-                    if (userId) {
-                        DataManager.initializeUser(userId);
-                    }
-                });
-                
+                if (typeof window.AuthService === 'undefined') {
+                    window.location.href = 'admin-login.html';
+                    return;
+                }
+
+                const session = await window.AuthService.getSession();
+                if (!session) {
+                    window.location.href = 'admin-login.html';
+                    return;
+                }
+
+                const user = await window.AuthService.getUser();
+                // Check if user is admin (admin0@gmail.com)
+                if (user.email !== 'admin0@gmail.com') {
+                    alert('Access denied. Admin only.');
+                    await window.AuthService.logout();
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                // User is authenticated as admin, initialize the admin panel
                 initializeAdmin();
                 loadDashboard();
             } catch (error) {
                 console.error('Error loading admin panel:', error);
-                alert('Error loading admin panel. Please refresh the page.');
+                window.location.href = 'admin-login.html';
             }
         });
     </script>

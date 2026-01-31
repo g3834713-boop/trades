@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DailyTrade - Home</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="dataManager.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script type="module" src="auth.js"></script>
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
         * {
@@ -1227,7 +1229,7 @@
             }
         }
 
-        function submitRecharge() {
+        async function submitRecharge() {
             const paymentMethod = document.getElementById('rechargePaymentMethod').value;
             const amount = document.getElementById('rechargeAmount').value;
             const phone = document.getElementById('rechargePhone').value;
@@ -1243,49 +1245,20 @@
                 return;
             }
             
-            // Get current user
-            const currentUserStr = localStorage.getItem('currentUser');
-            if (!currentUserStr) {
-                alert('User not found');
-                return;
+            try {
+                // Create payment request via API
+                const payment = await window.API.createPayment(parseFloat(amount), paymentMethod, phone);
+                
+                // Display payment number modal
+                displayPaymentNumberModal(payment);
+                
+                // Clear form
+                document.getElementById('rechargeAmount').value = '';
+                document.getElementById('rechargePhone').value = '';
+            } catch (error) {
+                console.error('Payment creation error:', error);
+                alert(error.message || 'Failed to create payment request');
             }
-            
-            const currentUser = JSON.parse(currentUserStr);
-            const userId = currentUser.id || currentUser.userId;
-            
-            // Create payment request
-            const paymentRequest = {
-                id: 'PAY_' + Date.now(),
-                userId: userId,
-                userName: currentUser.fullName,
-                userEmail: currentUser.email,
-                amount: parseFloat(amount),
-                paymentMethod: paymentMethod,
-                phone: phone,
-                status: 'pending',
-                paymentNumber: null, // Will be assigned by admin
-                transactionId: null,
-                transactionSubmittedAt: null,
-                requestedAt: new Date().toISOString(),
-                createdAt: new Date().toISOString()
-            };
-            
-            // Store in localStorage
-            let pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
-            pendingPayments.push(paymentRequest);
-            localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
-            
-            // Store in user's payment history
-            let userPayments = JSON.parse(localStorage.getItem('userPayments_' + userId) || '[]');
-            userPayments.push(paymentRequest);
-            localStorage.setItem('userPayments_' + userId, JSON.stringify(userPayments));
-            
-            // Display payment number modal
-            displayPaymentNumberModal(paymentRequest);
-            
-            // Clear form
-            document.getElementById('rechargeAmount').value = '';
-            document.getElementById('rechargePhone').value = '';
         }
 
         function submitWithdraw() {
@@ -1318,14 +1291,8 @@
         
         // Display payment number modal
         function displayPaymentNumberModal(paymentRequest) {
-            // Check if admin has assigned a payment number
-            const adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
-            let paymentNumber = adminPaymentNumbers[paymentRequest.id];
-            
-            if (!paymentNumber) {
-                // If no payment number assigned, show pending message
-                paymentNumber = 'PENDING_' + paymentRequest.id.substring(4);
-            }
+            // Display payment number from backend response
+            const paymentNumber = paymentRequest.payment_number || `PENDING_${paymentRequest.id.substring(0, 8)}`;
             
             // Update display
             document.getElementById('displayPaymentNumber').textContent = paymentNumber;
@@ -1336,7 +1303,7 @@
                 'vodafone': 'Vodafone Cash',
                 'bank': 'Bank Transfer'
             };
-            document.getElementById('displayMethod').textContent = methodNames[paymentRequest.paymentMethod] || paymentRequest.paymentMethod;
+            document.getElementById('displayMethod').textContent = methodNames[paymentRequest.method] || paymentRequest.method;
             
             // Store current payment request for copy function
             window.currentPaymentRequest = paymentRequest;
@@ -1368,7 +1335,7 @@
             }, 2000);
         }
 
-        function submitTransactionId() {
+        async function submitTransactionId() {
             const transactionId = document.getElementById('transactionIdInput').value.trim();
             if (!transactionId) {
                 alert('Please enter the transaction ID');
@@ -1382,22 +1349,19 @@
 
             const paymentId = window.currentPaymentRequest.id;
 
-            // Update pending payments
-            let pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
-            const pendingIndex = pendingPayments.findIndex(p => p.id === paymentId);
-            if (pendingIndex !== -1) {
-                pendingPayments[pendingIndex].transactionId = transactionId;
-                pendingPayments[pendingIndex].transactionSubmittedAt = new Date().toISOString();
-                if (pendingPayments[pendingIndex].status === 'pending') {
-                    pendingPayments[pendingIndex].status = 'submitted';
-                }
-                localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
+            try {
+                // Submit transaction ID via API
+                await window.API.submitTransaction(paymentId, transactionId);
+                
+                alert('Transaction ID submitted successfully! Admin will verify and credit your account.');
+                document.getElementById('transactionIdInput').value = '';
+                closeActionModal('paymentNumberModal');
+                closeActionModal('rechargeModal');
+            } catch (error) {
+                console.error('Transaction ID submission error:', error);
+                alert(error.message || 'Failed to submit transaction ID');
             }
-
-            // Update user payment history
-            const userId = window.currentPaymentRequest.userId;
-            let userPayments = JSON.parse(localStorage.getItem('userPayments_' + userId) || '[]');
-            const userIndex = userPayments.findIndex(p => p.id === paymentId);
+        }
             if (userIndex !== -1) {
                 userPayments[userIndex].transactionId = transactionId;
                 userPayments[userIndex].transactionSubmittedAt = new Date().toISOString();
@@ -1579,15 +1543,29 @@
         });
 
         // Load user data and apply language on page load
-        window.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('DOMContentLoaded', async function() {
             applyTranslations();
-            const userData = localStorage.getItem('currentUser');
-            if (userData) {
-                const user = JSON.parse(userData);
-                // Initialize financial data if not exists
-                DataManager.initializeUser(user.userId);
-                const finance = DataManager.getUserFinance(user.userId);
-                document.getElementById('commissionDisplay').textContent = `GHC ${finance.balance.toFixed(2)}`;
+            
+            try {
+                // Check if user is authenticated
+                if (typeof window.AuthService === 'undefined') {
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                const session = await window.AuthService.getSession();
+                if (!session) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                // Fetch wallet balance from API
+                const wallet = await window.API.getWallet();
+                const totalBalance = wallet.balance + wallet.bonus;
+                document.getElementById('commissionDisplay').textContent = `GHC ${totalBalance.toFixed(2)}`;
+            } catch (error) {
+                console.error('Error loading wallet:', error);
+                window.location.href = 'index.html';
             }
         });
 
@@ -1599,9 +1577,9 @@
             }
         });
 
-        function logout() {
+        async function logout() {
             if (confirm('Are you sure you want to logout?')) {
-                localStorage.removeItem('isLoggedIn');
+                await window.AuthService.logout();
                 window.location.href = 'index.html';
             }
         }

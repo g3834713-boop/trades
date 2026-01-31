@@ -1,0 +1,129 @@
+// Supabase Auth Integration
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+
+// Auth helpers
+window.AuthService = {
+  async register(email, password, fullName, phone) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          phone: phone
+        }
+      }
+    });
+    
+    if (error) throw error;
+    
+    // Sync user to backend
+    if (data.user) {
+      await fetch(`${CONFIG.API_URL}/users/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.session.access_token}`
+        },
+        body: JSON.stringify({
+          fullName,
+          phone
+        })
+      });
+    }
+    
+    return data;
+  },
+
+  async login(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async logout() {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  },
+
+  async getSession() {
+    const { data } = await supabase.auth.getSession();
+    return data.session;
+  },
+
+  async getUser() {
+    const { data } = await supabase.auth.getUser();
+    return data.user;
+  }
+};
+
+// API client
+window.API = {
+  async call(endpoint, options = {}) {
+    const session = await supabase.auth.getSession();
+    const token = session.data.session?.access_token;
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...options.headers
+    };
+
+    const response = await fetch(`${CONFIG.API_URL}${endpoint}`, {
+      ...options,
+      headers
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || 'API request failed');
+    }
+
+    return response.json();
+  },
+
+  async getWallet() {
+    return this.call('/wallet');
+  },
+
+  async getTransactions() {
+    return this.call('/transactions');
+  },
+
+  async createPayment(amount, method, phone) {
+    return this.call('/payments', {
+      method: 'POST',
+      body: JSON.stringify({ amount, method, phone })
+    });
+  },
+
+  async submitTransaction(paymentId, transactionId) {
+    return this.call(`/payments/${paymentId}/transaction`, {
+      method: 'POST',
+      body: JSON.stringify({ transactionId })
+    });
+  },
+
+  async getPayments() {
+    return this.call('/admin/payments');
+  },
+
+  async completePayment(paymentId) {
+    return this.call(`/admin/payments/${paymentId}/complete`, {
+      method: 'POST'
+    });
+  },
+
+  async addDeposit(userId, amount, bonus, reason) {
+    return this.call('/admin/deposits', {
+      method: 'POST',
+      body: JSON.stringify({ userId, amount, bonus, reason })
+    });
+  }
+};

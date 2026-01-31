@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DailyTrade - My Profile</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="dataManager.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script type="module" src="auth.js"></script>
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
         * {
@@ -1292,17 +1294,32 @@
         }
 
         // Load user data on page load
-        window.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('DOMContentLoaded', async function() {
             applyTranslations();
-            const userData = localStorage.getItem('currentUser');
-            if (userData) {
-                const user = JSON.parse(userData);
-                DataManager.initializeUser(user.userId);
-                const finance = DataManager.getUserFinance(user.userId);
-                document.getElementById('profileName').textContent = user.fullName;
-                document.getElementById('profileId').textContent = user.userId;
-                document.getElementById('balanceDisplay').textContent = `GHC ${finance.balance.toFixed(2)}`;
-                document.getElementById('bonusDisplay').textContent = `GHC ${finance.bonus.toFixed(2)}`;
+            
+            try {
+                // Check if user is authenticated
+                if (typeof window.AuthService === 'undefined') {
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                const session = await window.AuthService.getSession();
+                if (!session) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                const user = await window.AuthService.getUser();
+                const wallet = await window.API.getWallet();
+                
+                document.getElementById('profileName').textContent = user.user_metadata?.full_name || user.email;
+                document.getElementById('profileId').textContent = user.id.substring(0, 8).toUpperCase();
+                document.getElementById('balanceDisplay').textContent = `GHC ${wallet.balance.toFixed(2)}`;
+                document.getElementById('bonusDisplay').textContent = `GHC ${wallet.bonus.toFixed(2)}`;
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                window.location.href = 'index.html';
             }
         });
 
@@ -1320,13 +1337,10 @@
         });
 
         // Funding Records Functions
-        function loadFundingRecords() {
-            const userData = localStorage.getItem('currentUser');
-            if (!userData) return;
-            
-            const user = JSON.parse(userData);
-            const transactions = DataManager.getUserTransactions(user.userId);
-            const fundingList = document.getElementById('fundingList');
+        async function loadFundingRecords() {
+            try {
+                const transactions = await window.API.getTransactions();
+                const fundingList = document.getElementById('fundingList');
             
             if (!transactions || transactions.length === 0) {
                 fundingList.innerHTML = `
