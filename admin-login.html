@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DailyTrade - Admin Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-logo {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .login-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .login-subtitle {
+            font-size: 13px;
+            color: #999;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Roboto', sans-serif;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .password-group {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #999;
+            font-size: 18px;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .login-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            display: none;
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .success-message {
+            display: none;
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .default-creds {
+            background: #f0f4ff;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .default-creds strong {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="login-logo">👑</div>
+            <div class="login-title">Admin Panel</div>
+            <div class="login-subtitle">DailyTrade Management System</div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
+
+        <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+            <div class="form-group">
+                <label class="form-label">Admin Username</label>
+                <input type="text" class="form-input" id="adminUsername" placeholder="admin" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <div class="password-group">
+                    <input type="password" class="form-input" id="adminPassword" placeholder="Enter password" required style="padding-right: 40px;">
+                    <span class="password-toggle" onclick="toggleAdminPassword()">
+                        <i class="las la-eye" id="adminEyeIcon"></i>
+                    </span>
+                </div>
+            </div>
+
+            <button type="submit" class="login-button">Login to Admin Panel</button>
+        </form>
+
+        <div class="default-creds">
+            <strong>Default Credentials:</strong><br>
+            Username: <strong>admin</strong><br>
+            Password: <strong>admin123</strong>
+        </div>
+    </div>
+
+    <script>
+        function toggleAdminPassword() {
+            const input = document.getElementById('adminPassword');
+            const icon = document.getElementById('adminEyeIcon');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'las la-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'las la-eye';
+            }
+        }
+
+        function handleAdminLogin(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('adminUsername').value.trim();
+            const password = document.getElementById('adminPassword').value;
+
+            // Clear previous messages
+            document.getElementById('errorMessage').classList.remove('show');
+            document.getElementById('successMessage').classList.remove('show');
+
+            // Simple hardcoded admin credentials
+            if (username === 'admin' && password === 'admin123') {
+                // Set session flag
+                sessionStorage.setItem('adminLoggedIn', 'true');
+                localStorage.setItem('adminLoggedIn', 'true');
+                
+                // Show success message
+                document.getElementById('successMessage').textContent = 'Login successful! Redirecting...';
+                document.getElementById('successMessage').classList.add('show');
+                
+                // Disable form to prevent double submission
+                document.getElementById('adminLoginForm').style.pointerEvents = 'none';
+                
+                // Redirect after a short delay
+                setTimeout(() => {
+                    window.location.href = 'admin.html';
+                }, 800);
+            } else {
+                // Show error message
+                document.getElementById('errorMessage').textContent = 'Invalid username or password';
+                document.getElementById('errorMessage').classList.add('show');
+                
+                // Clear password field
+                document.getElementById('adminPassword').value = '';
+            }
+        }
+    </script>
+</body>
+</html>

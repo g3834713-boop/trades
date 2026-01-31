@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DailyTrade - Work</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="dataManager.js"></script>
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-back {
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #667eea;
+            font-size: 20px;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* Work Cards */
+        .work-container {
+            padding: 16px 12px;
+        }
+
+        /* Order Card */
+        .order-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .order-card-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 24px;
+        }
+
+        .order-balance {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .order-balance-label {
+            font-size: 13px;
+            color: #999;
+            margin-bottom: 24px;
+        }
+
+        /* Loading Bar */
+        .loading-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .loading-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            animation: loadingAnimation 2s ease-in-out infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes loadingAnimation {
+            0% { width: 0%; }
+            50% { width: 100%; }
+            100% { width: 0%; }
+        }
+
+        .order-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .order-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .order-button:active {
+            transform: translateY(0);
+        }
+
+        .order-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Order Modal */
+        .order-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .order-modal.show {
+            display: flex;
+        }
+
+        .order-modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 40px 24px;
+            max-width: 300px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        }
+
+        .order-modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .order-modal-text {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 32px;
+        }
+
+        /* Rotating Loader */
+        .rotating-loader {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            position: relative;
+        }
+
+        .rotating-loader::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 4px solid #f0f0f0;
+            border-top-color: #667eea;
+            border-right-color: #764ba2;
+            border-radius: 50%;
+            animation: rotateSpinner 6s linear infinite;
+        }
+
+        @keyframes rotateSpinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loader-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: 600;
+            color: #667eea;
+            width: 100%;
+            line-height: 1;
+        }
+
+        /* Bonus Transfer Card */
+        .bonus-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .bonus-card-label {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .bonus-card-amount {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+
+        .bonus-transfer-btn {
+            width: 100%;
+            padding: 12px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .bonus-transfer-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .bonus-transfer-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Hall of Fame Section */
+        .hall-of-fame-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .fame-section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .fame-section-title i {
+            color: #ffc107;
+            font-size: 24px;
+        }
+
+        .commission-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .commission-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            background: #f9f9f9;
+            border-radius: 12px;
+            transition: background 0.2s;
+            border-left: 3px solid #667eea;
+        }
+
+        .commission-item:hover {
+            background: #f0f4ff;
+        }
+
+        .commission-rank {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .commission-rank.second {
+            background: linear-gradient(135deg, #c0c0c0 0%, #a0a0a0 100%);
+        }
+
+        .commission-rank.third {
+            background: linear-gradient(135deg, #cd7f32 0%, #b8660e 100%);
+        }
+
+        .commission-info {
+            flex: 1;
+            margin-left: 12px;
+        }
+
+        .commission-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .commission-amount {
+            font-size: 16px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        /* Order Details Section */
+        .order-details-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .order-details-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .order-details-title i {
+            color: #667eea;
+            font-size: 22px;
+        }
+
+        .order-details-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .detail-item {
+            display: flex;
+            gap: 16px;
+        }
+
+        .detail-number {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .detail-text {
+            flex: 1;
+        }
+
+        .detail-heading {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .detail-description {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            color: #ddd;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-title {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            color: #999;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding-top: 8px;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 0 12px 0;
+            cursor: pointer;
+            color: #999;
+            text-decoration: none;
+            transition: color 0.3s;
+            min-width: 60px;
+            font-size: 12px;
+        }
+
+        .nav-item i {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-item:hover {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="header-back" onclick="goBack()">
+                <i class="las la-arrow-left"></i>
+            </div>
+            <div class="header-title">Available Work</div>
+        </div>
+    </div>
+
+    <!-- Work Container -->
+    <div class="work-container">
+        <!-- Hall of Fame / Commission List -->
+        <div class="hall-of-fame-section">
+            <div class="fame-section-title">
+                <i class="las la-star"></i>
+                Commission Leaderboard
+            </div>
+            <div class="commission-list" id="commissionList"></div>
+        </div>
+
+        <!-- Order Details Section -->
+        <div class="order-details-section">
+            <div class="order-details-title">
+                <i class="las la-info-circle"></i>
+                How Our Order System Works
+            </div>
+            <div class="order-details-content">
+                <div class="detail-item">
+                    <div class="detail-number">1</div>
+                    <div class="detail-text">
+                        <div class="detail-heading">Daily Order Matching</div>
+                        <div class="detail-description">Every active account is eligible to receive one automated order match per day through our LBS cloud technology system.</div>
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-number">2</div>
+                    <div class="detail-text">
+                        <div class="detail-heading">Standard Commission Rate</div>
+                        <div class="detail-description">You earn a consistent 20% commission on the total order amount. Commission is calculated automatically and added to your account upon successful order completion.</div>
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-number">3</div>
+                    <div class="detail-text">
+                        <div class="detail-heading">LBS Technology Matching</div>
+                        <div class="detail-description">Our advanced Location-Based Services system automatically matches suitable products to your profile, ensuring you receive relevant orders.</div>
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-number">4</div>
+                    <div class="detail-text">
+                        <div class="detail-heading">Time-Sensitive Submission</div>
+                        <div class="detail-description">Once an order is matched to you, you must confirm and submit it within the specified time limit. Failure to submit within the deadline will result in the order being closed and the order amount being frozen from your account.</div>
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-number">5</div>
+                    <div class="detail-text">
+                        <div class="detail-heading">Account Score Impact</div>
+                        <div class="detail-description">Your account score directly reflects your reliability and performance. Late or incomplete submissions reduce your score, which affects your eligibility for future order matches and affects your reputation with merchants. If you cannot complete an order, use the "Stop Order" option to prevent penalties.</div>
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-number">6</div>
+                    <div class="detail-text">
+                        <div class="detail-heading">Withdrawal Requirements</div>
+                        <div class="detail-description">You must complete all active orders and resolve any pending disputes with merchants before you can withdraw your earnings. Ensure all LBS-based tasks are finished to maintain withdrawal eligibility.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Modal with Loading Animation -->
+    <div class="order-modal" id="orderModal">
+        <div class="order-modal-content">
+            <div class="rotating-loader">
+                <div class="loader-text">Processing</div>
+            </div>
+            <div class="order-modal-title">Processing Your Order</div>
+            <div class="order-modal-text">Please wait while we process your order...</div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="home.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="#" class="nav-item active" onclick="setActive(this)">
+            <i class="las la-briefcase"></i>
+            <span>Work</span>
+        </a>
+        <a href="tasks.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-tasks"></i>
+            <span>Task</span>
+        </a>
+        <a href="mine.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-user-circle"></i>
+            <span>Mine</span>
+        </a>
+    </div>
+
+    <script>
+        // Product catalog
+        const allProducts = {
+            1: {
+                id: 1,
+                name: 'Decorative Wall Art Canvas',
+                description: 'Beautiful canvas art print, perfect for home decoration. High-quality printed material with vibrant colors.',
+                price: 20.00,
+                image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"%3E%3Crect fill="%23E8D4F1" width="300" height="200"/%3E%3Crect x="30" y="30" width="240" height="140" fill="%23D4B5E8" stroke="%23667eea" stroke-width="2"/%3E%3Ctext x="150" y="100" font-size="24" fill="%23667eea" text-anchor="middle" font-weight="bold"%3EWall Art%3C/text%3E%3Ctext x="150" y="130" font-size="14" fill="%23764ba2" text-anchor="middle"%3EDecorative Canvas%3C/text%3E%3C/svg%3E'
+            },
+            2: {
+                id: 2,
+                name: 'Premium Fishing Net Set',
+                description: 'Professional-grade fishing net with durable nylon mesh. Ideal for fishing enthusiasts and professionals.',
+                price: 20.00,
+                image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"%3E%3Crect fill="%23D4E8F1" width="300" height="200"/%3E%3Cg stroke="%23667eea" stroke-width="2"%3E%3Cpath d="M 50 50 L 250 50 L 200 150 L 100 150 Z" fill="%23B8D4E8"/%3E%3Cline x1="80" y1="70" x2="220" y2="140"/%3E%3Cline x1="120" y1="50" x2="120" y2="150"/%3E%3Cline x1="150" y1="50" x2="150" y2="150"/%3E%3Cline x1="180" y1="50" x2="180" y2="150"/%3E%3C/g%3E%3Ctext x="150" y="180" font-size="14" fill="%23667eea" text-anchor="middle" font-weight="bold"%3EFishing Net%3C/text%3E%3C/svg%3E'
+            },
+            3: {
+                id: 3,
+                name: 'Modern Home Decor Mirror',
+                description: 'Elegant mirror with modern frame design. Perfect for living room, bedroom, or bathroom decoration.',
+                price: 20.00,
+                image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"%3E%3Crect fill="%23F1E8D4" width="300" height="200"/%3E%3Crect x="40" y="30" width="220" height="140" fill="%23E8D4B8" stroke="%23764ba2" stroke-width="3"/%3E%3Ccircle cx="150" cy="100" r="80" fill="%23E0E8F8" opacity="0.8"/%3E%3Ctext x="150" y="105" font-size="14" fill="%23764ba2" text-anchor="middle" font-weight="bold"%3EMirror%3C/text%3E%3C/svg%3E'
+            },
+            4: {
+                id: 4,
+                name: 'Artistic Abstract Painting',
+                description: 'Hand-crafted abstract artwork with bold colors and unique patterns. Contemporary art piece for modern spaces.',
+                price: 20.00,
+                image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"%3E%3Crect fill="%23F5E8D4" width="300" height="200"/%3E%3Crect x="30" y="30" width="240" height="140" fill="%23E8D4C4" stroke="%23667eea" stroke-width="2"/%3E%3Ccircle cx="80" cy="70" r="25" fill="%23667eea" opacity="0.7"/%3E%3Crect x="130" y="80" width="50" height="50" fill="%23764ba2" opacity="0.7"/%3E%3Cpolygon points="220,120 240,70 260,120" fill="%23667eea" opacity="0.6"/%3E%3C/svg%3E'
+            }
+        };
+
+        let currentProduct = null;
+
+        function initializeProduct() {
+            const userData = localStorage.getItem('currentUser');
+            if (!userData) {
+                showNoProductState();
+                return;
+            }
+
+            const user = JSON.parse(userData);
+            const userProducts = DataManager.getUserProducts(user.userId);
+
+            if (userProducts.length === 0) {
+                showNoProductState();
+                return;
+            }
+
+            // Show the first assigned product
+            currentProduct = userProducts[0];
+            const fullProduct = allProducts[currentProduct.id];
+
+            if (fullProduct) {
+                document.getElementById('productImage').src = fullProduct.image;
+                document.getElementById('productName').textContent = fullProduct.name;
+                document.getElementById('productDesc').textContent = fullProduct.description;
+                document.getElementById('productPrice').textContent = `GHC ${fullProduct.price.toFixed(2)}`;
+            }
+        }
+
+        function showNoProductState() {
+            const productCard = document.querySelector('.order-card:first-of-type');
+            if (productCard) {
+                productCard.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px; color: #999;">
+                        <i class="las la-inbox" style="font-size: 48px; color: #ddd; margin-bottom: 16px; display: block;"></i>
+                        <div style="font-size: 16px; color: #333; margin-bottom: 8px;">No Products Available</div>
+                        <div style="font-size: 14px; color: #999;">Admin will push products for you to order soon</div>
+                    </div>
+                `;
+            }
+        }
+
+        const names = [
+            'Kwame Adjei', 'Ama Mensah', 'Kwesi Boateng', 'Abena Asante', 'Yaw Owusu',
+            'Akosua Anane', 'Kofi Larbi', 'Efua Darkwa', 'Nana Ampah', 'Adwoa Seidu',
+            'Osei Darkwa', 'Akua Ofori', 'Ebo Mensah', 'Nana Akyea', 'Akosua Benoa',
+            'Kwadwo Anin', 'Ama Osei', 'Yaw Acquah', 'Abena Yeboah', 'Kofi Mensah'
+        ];
+
+        function generateRandomAmount() {
+            // Generate random amounts between 5000 and 50000
+            return Math.floor(Math.random() * 45000) + 5000;
+        }
+
+        function generateLeaderboard() {
+            const list = document.getElementById('commissionList');
+            const leaderboard = [];
+
+            // Generate random leaderboard
+            for (let i = 0; i < 10; i++) {
+                leaderboard.push({
+                    name: names[Math.floor(Math.random() * names.length)],
+                    amount: generateRandomAmount()
+                });
+            }
+
+            // Sort by amount descending
+            leaderboard.sort((a, b) => b.amount - a.amount);
+
+            // Render leaderboard
+            list.innerHTML = leaderboard.map((item, index) => {
+                let medalEmoji = '';
+                let rankClass = '';
+
+                if (index === 0) {
+                    medalEmoji = '🥇';
+                } else if (index === 1) {
+                    medalEmoji = '🥈';
+                    rankClass = ' second';
+                } else if (index === 2) {
+                    medalEmoji = '🥉';
+                    rankClass = ' third';
+                }
+
+                return `
+                    <div class="commission-item">
+                        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                            <div class="commission-rank${rankClass}">${medalEmoji || index + 1}</div>
+                            <div class="commission-info">
+                                <div class="commission-name">${item.name}</div>
+                            </div>
+                        </div>
+                        <div class="commission-amount">GHC ${item.amount.toLocaleString()}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Initialize leaderboard
+        generateLeaderboard();
+
+        function goBack() {
+            window.location.href = 'home.html';
+        }
+
+        function setActive(element) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+        }
+
+        // Translation system
+        const translations = {
+            en: { home: 'Home', work: 'Work', task: 'Task', mine: 'Mine', logout: 'Logout' },
+            fr: { home: 'Accueil', work: 'Travail', task: 'Tâche', mine: 'Mon Compte', logout: 'Déconnexion' },
+            es: { home: 'Inicio', work: 'Trabajo', task: 'Tarea', mine: 'Mi Cuenta', logout: 'Cerrar Sesión' },
+            pt: { home: 'Início', work: 'Trabalho', task: 'Tarefa', mine: 'Minha Conta', logout: 'Sair' }
+        };
+
+        let currentLanguage = localStorage.getItem('preferredLanguage') || 'en';
+
+        function applyTranslations() {
+            currentLanguage = localStorage.getItem('preferredLanguage') || 'en';
+            const navItems = document.querySelectorAll('.nav-item span');
+            const navLabels = [translations[currentLanguage]?.home || 'Home', translations[currentLanguage]?.work || 'Work', translations[currentLanguage]?.task || 'Task', translations[currentLanguage]?.mine || 'Mine'];
+            navItems.forEach((item, index) => {
+                if (navLabels[index]) item.textContent = navLabels[index];
+            });
+        }
+
+        // Load user balance and language on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            applyTranslations();
+            generateLeaderboard();
+        });
+
+        // Listen for finance updates
+        window.addEventListener('userFinanceUpdated', function(event) {
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                updateBalanceDisplay(user.userId);
+            }
+                document.getElementById('todayBalance').textContent = `GHC ${finance.balance.toFixed(2)}`;
+            }
+        });
+    </script>
+</body>
+</html>

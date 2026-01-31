@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DailyTrade - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="dataManager.js"></script>
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f5f5;
+        }
+
+        .admin-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .sidebar-menu a:hover,
+        .sidebar-menu a.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .sidebar-menu i {
+            font-size: 20px;
+            width: 24px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 250px;
+            padding: 30px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Content Sections */
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        /* Dashboard Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-top: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        /* Table */
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px;
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            padding: 16px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #e0e0e0;
+            font-weight: 600;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            align-items: center;
+        }
+
+        .table-row:last-child {
+            border-bottom: none;
+        }
+
+        .table-row:hover {
+            background: #f9f9f9;
+        }
+
+        .table-cell {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .table-action {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            color: #ddd;
+            margin-bottom: 16px;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-logo">
+                <i class="las la-crown"></i> Admin
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="#" class="menu-link active" onclick="switchSection('dashboard')">
+                    <i class="las la-chart-line"></i>
+                    <span>Dashboard</span>
+                </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('users')">
+                    <i class="las la-users"></i>
+                    <span>Users</span>
+                </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('tasks')">
+                    <i class="las la-tasks"></i>
+                    <span>Tasks</span>
+                </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('products')">
+                    <i class="las la-shopping-bag"></i>
+                    <span>Products</span>
+                </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('deposits')">
+                    <i class="las la-money-bill"></i>
+                    <span>Deposits</span>
+                </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('payments')">
+                    <i class="las la-exchange-alt"></i>
+                    <span>Payments</span>
+                </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('payouts')">
+                    <i class="las la-credit-card"></i>
+                    <span>Payouts</span>
+                </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('reports')">
+                    <i class="las la-file-alt"></i>
+                    <span>Reports</span>
+                </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('settings')">
+                    <i class="las la-cog"></i>
+                    <span>Settings</span>
+                </a></li>
+                <li style="margin-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 20px;">
+                    <a href="#" onclick="adminLogout()">
+                        <i class="las la-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-title" id="pageTitle">Dashboard</div>
+                <button class="logout-btn" onclick="adminLogout()">Logout</button>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div class="content-section active" id="dashboard">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Dashboard Overview</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Users</div>
+                        <div class="stat-value" id="totalUsers">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Deposits</div>
+                        <div class="stat-value" id="totalDeposits">GHC 0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Payouts</div>
+                        <div class="stat-value" id="totalPayouts">GHC 0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Tasks</div>
+                        <div class="stat-value" id="activeTasks">0</div>
+                    </div>
+                </div>
+
+                <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+                    <h3 style="margin-bottom: 16px; color: #333;">Recent Users</h3>
+                    <div id="recentUsersContainer"></div>
+                </div>
+            </div>
+
+            <!-- Users Section -->
+            <div class="content-section" id="users">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">User Management</h2>
+                <button class="btn btn-primary" style="margin-bottom: 20px;" onclick="openAddUserModal()">
+                    <i class="las la-plus"></i> Add Manual Deposit
+                </button>
+                <div class="search-box">
+                    <input type="text" class="search-input" id="userSearch" placeholder="Search users..." onkeyup="filterUsers()">
+                </div>
+                <div class="table-container">
+                    <div class="table-header">
+                        <div>Name</div>
+                        <div>Email</div>
+                        <div>User ID</div>
+                        <div>Balance</div>
+                        <div>Actions</div>
+                    </div>
+                    <div id="usersTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Tasks Section -->
+            <div class="content-section" id="tasks">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Task Management</h2>
+                <button class="btn btn-primary" style="margin-bottom: 20px;" onclick="openAddTaskModal()">
+                    <i class="las la-plus"></i> Create New Task
+                </button>
+                <div class="table-container">
+                    <div class="table-header">
+                        <div>Title</div>
+                        <div>Amount</div>
+                        <div>Status</div>
+                        <div>Assigned</div>
+                        <div>Actions</div>
+                    </div>
+                    <div id="tasksTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Products Section -->
+            <div class="content-section" id="products">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Product Management</h2>
+                <button class="btn btn-primary" style="margin-bottom: 20px;" onclick="openAddProductModal()">
+                    <i class="las la-plus"></i> Create New Product
+                </button>
+                <div class="table-container">
+                    <div class="table-header">
+                        <div>Title</div>
+                        <div>Price</div>
+                        <div>Status</div>
+                        <div>Assigned</div>
+                        <div>Actions</div>
+                    </div>
+                    <div id="productsTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Deposits Section -->
+            <div class="content-section" id="deposits">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Manage Deposits</h2>
+                <button class="btn btn-success" style="margin-bottom: 20px;" onclick="openDepositModal()">
+                    <i class="las la-plus-circle"></i> Add Deposit
+                </button>
+                <div class="table-container">
+                    <div class="table-header">
+                        <div>User</div>
+                        <div>Amount</div>
+                        <div>Status</div>
+                        <div>Date</div>
+                        <div>Actions</div>
+                    </div>
+                    <div id="depositsTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Payments Section -->
+            <div class="content-section" id="payments">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Manage Payment Requests</h2>
+                <div class="search-box">
+                    <input type="text" class="search-input" id="paymentSearch" placeholder="Search by user or payment ID..." onkeyup="filterPayments()">
+                </div>
+                <div class="table-container">
+                    <div class="table-header">
+                        <div>User</div>
+                        <div>Amount</div>
+                        <div>Method</div>
+                        <div>Status</div>
+                        <div>Payment #</div>
+                        <div>Transaction ID</div>
+                        <div>Actions</div>
+                    </div>
+                    <div id="paymentsTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Payouts Section -->
+            <div class="content-section" id="payouts">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Manage Payouts</h2>
+                <div class="table-container">
+                    <div class="table-header">
+                        <div>User</div>
+                        <div>Amount</div>
+                        <div>Status</div>
+                        <div>Date</div>
+                        <div>Actions</div>
+                    </div>
+                    <div id="payoutsTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Reports Section -->
+            <div class="content-section" id="reports">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Reports</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Users</div>
+                        <div class="stat-value" id="reportTotalUsers">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Users</div>
+                        <div class="stat-value" id="reportActiveUsers">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Platform Balance</div>
+                        <div class="stat-value" id="reportTotalBalance">GHC 0.00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Commission</div>
+                        <div class="stat-value" id="reportTotalCommission">GHC 0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div class="content-section" id="settings">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">System Settings</h2>
+                <div style="background: white; padding: 20px; border-radius: 12px; max-width: 500px;">
+                    <div class="form-group">
+                        <label class="form-label">Commission Rate (%)</label>
+                        <input type="number" class="form-input" id="commissionRate" value="20" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Minimum Withdrawal Amount</label>
+                        <input type="number" class="form-input" id="minWithdrawal" value="50" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Platform Name</label>
+                        <input type="text" class="form-input" id="platformName" value="DailyTrade">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Deposit Modal -->
+    <div class="modal" id="depositModal">
+        <div class="modal-content">
+            <div class="modal-title">Add Deposit to User</div>
+            <div class="form-group">
+                <label class="form-label">Select User</label>
+                <select class="form-select" id="depositUserSelect"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount (GHC)</label>
+                <input type="number" class="form-input" id="depositAmount" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Bonus (GHC)</label>
+                <input type="number" class="form-input" id="depositBonus" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <input type="text" class="form-input" id="depositDescription" placeholder="Bonus, Referral, etc.">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeDepositModal()">Cancel</button>
+                <button class="btn btn-success" onclick="processDeposit()">Add Deposit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal" id="taskModal">
+        <div class="modal-content">
+            <div class="modal-title">Create New Task</div>
+            <div class="form-group">
+                <label class="form-label">Task Title</label>
+                <input type="text" class="form-input" id="taskTitle" placeholder="e.g., Download Instagram">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="taskDescription" placeholder="Task details..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reward Amount (GHC)</label>
+                <input type="number" class="form-input" id="taskAmount" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Task Quantity</label>
+                <input type="number" class="form-input" id="taskQuantity" placeholder="1" min="1">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeTaskModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Task Modal -->
+    <div class="modal" id="assignTaskModal">
+        <div class="modal-content">
+            <div class="modal-title">Assign Task</div>
+            <input type="hidden" id="assignTaskId">
+            <div class="form-group">
+                <label class="form-label">Task</label>
+                <div class="form-input" id="assignTaskName" style="background: #f9f9f9;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Assign To</label>
+                <div style="display: flex; gap: 20px; font-size: 13px; color: #333;">
+                    <label><input type="radio" name="assignScope" value="all" onchange="toggleAssignScope()" checked> All Users</label>
+                    <label><input type="radio" name="assignScope" value="selected" onchange="toggleAssignScope()"> Selected Users</label>
+                </div>
+            </div>
+            <div class="form-group" id="assignUsersGroup" style="display: none;">
+                <label class="form-label">Select Users</label>
+                <div id="assignUsersList" style="max-height: 180px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px;"></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeAssignTaskModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="assignTaskToUsers()">Assign</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div class="modal" id="productModal">
+        <div class="modal-content">
+            <div class="modal-title">Create New Product</div>
+            <div class="form-group">
+                <label class="form-label">Product Name</label>
+                <input type="text" class="form-input" id="productName" placeholder="e.g., Wall Art Canvas">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="productDescription" placeholder="Product details..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Price (GHC)</label>
+                <input type="number" class="form-input" id="productPrice" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Product Image</label>
+                <input type="file" class="form-input" id="productImage" accept="image/*" onchange="previewProductImage()">
+                <div id="imagePreview" style="margin-top: 12px; text-align: center;">
+                    <img id="previewImg" src="" alt="Preview" style="max-width: 100%; max-height: 150px; display: none; border-radius: 8px;">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeProductModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createProduct()">Create Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assign Product Modal -->
+    <div class="modal" id="assignProductModal">
+        <div class="modal-content">
+            <div class="modal-title">Assign Product</div>
+            <input type="hidden" id="assignProductId">
+            <div class="form-group">
+                <label class="form-label">Product</label>
+                <div class="form-input" id="assignProductName" style="background: #f9f9f9;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Assign To</label>
+                <div style="display: flex; gap: 20px; font-size: 13px; color: #333;">
+                    <label><input type="radio" name="assignProductScope" value="all" onchange="toggleAssignProductScope()" checked> All Users</label>
+                    <label><input type="radio" name="assignProductScope" value="selected" onchange="toggleAssignProductScope()"> Selected Users</label>
+                </div>
+            </div>
+            <div class="form-group" id="assignProductUsersGroup" style="display: none;">
+                <label class="form-label">Select Users</label>
+                <div id="assignProductUsersList" style="max-height: 180px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px;"></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeAssignProductModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="assignProductToUsers()">Assign</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize admin data storage
+        function initializeAdmin() {
+            if (!localStorage.getItem('adminData')) {
+                const adminData = {
+                    deposits: [],
+                    payouts: [],
+                    tasks: [
+                        {
+                            id: 1,
+                            title: 'Download Instagram App',
+                            description: 'Download and install Instagram app. Verify your account and follow our page',
+                            amount: 12.50,
+                            quantity: 1,
+                            assignedTo: [],
+                            status: 'active',
+                            createdAt: new Date().toISOString()
+                        },
+                        {
+                            id: 2,
+                            title: 'Twitter Engagement',
+                            description: 'Retweet 5 tweets and like 3 posts',
+                            amount: 8.90,
+                            quantity: 1,
+                            assignedTo: [],
+                            status: 'active',
+                            createdAt: new Date().toISOString()
+                        }
+                    ],
+                    products: [
+                        {
+                            id: 1,
+                            name: 'Decorative Wall Art Canvas',
+                            description: 'Beautiful canvas art print, perfect for home decoration. High-quality printed material with vibrant colors.',
+                            price: 20.00,
+                            assignedTo: [],
+                            status: 'active',
+                            createdAt: new Date().toISOString()
+                        }
+                    ],
+                    settings: {
+                        commissionRate: 20,
+                        minWithdrawal: 50,
+                        platformName: 'DailyTrade'
+                    }
+                };
+                localStorage.setItem('adminData', JSON.stringify(adminData));
+            }
+        }
+
+        // Switch between sections
+        function switchSection(sectionId) {
+            // Remove active class from all sections and links
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.querySelectorAll('.menu-link').forEach(link => {
+                link.classList.remove('active');
+            });
+
+            // Add active class to selected section
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+            }
+
+            // Find and activate the corresponding menu link
+            const menuLink = document.querySelector(`a[onclick="switchSection('${sectionId}')"]`);
+            if (menuLink) {
+                menuLink.classList.add('active');
+            }
+
+            const titles = {
+                'dashboard': 'Dashboard',
+                'users': 'User Management',
+                'tasks': 'Task Management',
+                'products': 'Product Management',
+                'deposits': 'Manage Deposits',
+                'payments': 'Manage Payments',
+                'payouts': 'Manage Payouts',
+                'reports': 'Reports',
+                'settings': 'Settings'
+            };
+            document.getElementById('pageTitle').textContent = titles[sectionId];
+
+            if (sectionId === 'dashboard') loadDashboard();
+            if (sectionId === 'users') loadUsers();
+            if (sectionId === 'tasks') loadTasks();
+            if (sectionId === 'products') loadProducts();
+            if (sectionId === 'deposits') loadDeposits();
+            if (sectionId === 'payments') loadPayments();
+            if (sectionId === 'payouts') loadPayouts();
+            if (sectionId === 'reports') loadReports();
+        }
+
+        // Load Dashboard
+        function loadDashboard() {
+            // Get system stats from DataManager
+            const stats = DataManager.getSystemStats();
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+            
+            document.getElementById('totalUsers').textContent = stats.totalUsers;
+            document.getElementById('totalDeposits').textContent = `GHC ${stats.totalBalance.toFixed(2)}`;
+            document.getElementById('totalPayouts').textContent = `GHC ${stats.totalWithdrawals.toFixed(2)}`;
+            document.getElementById('activeTasks').textContent = stats.activeTasks;
+
+            // Display recent users
+            const recentUsers = allUsers.slice(-5).reverse();
+            let html = '';
+            if (recentUsers.length === 0) {
+                html = '<div class="empty-state"><p>No users registered yet</p></div>';
+            } else {
+                html = '<div class="table-header" style="grid-template-columns: repeat(4, 1fr);"><div>Name</div><div>Email</div><div>Balance</div><div>Joined</div></div>';
+                recentUsers.forEach(user => {
+                    const finance = DataManager.getUserFinance(user.userId);
+                    const joinDate = new Date(user.registeredAt).toLocaleDateString();
+                    html += `<div class="table-row" style="grid-template-columns: repeat(4, 1fr);">
+                        <div class="table-cell">${user.fullName}</div>
+                        <div class="table-cell">${user.email}</div>
+                        <div class="table-cell">GHC ${finance.balance.toFixed(2)}</div>
+                        <div class="table-cell">${joinDate}</div>
+                    </div>`;
+                });
+            }
+            document.getElementById('recentUsersContainer').innerHTML = html;
+        }
+
+        // Load Users
+        function loadUsers() {
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+            let html = '';
+
+            if (allUsers.length === 0) {
+                html = '<div class="empty-state"><p>No users registered</p></div>';
+            } else {
+                allUsers.forEach(user => {
+                    const userId = user.id || user.userId;
+                    const finance = DataManager.getUserFinance(userId);
+                    const balance = finance ? finance.balance : 0;
+                    html += `<div class="table-row">
+                        <div class="table-cell">${user.fullName}</div>
+                        <div class="table-cell">${user.email}</div>
+                        <div class="table-cell">${userId}</div>
+                        <div class="table-cell">GHC ${balance.toFixed(2)}</div>
+                        <div class="table-action">
+                            <button class="btn btn-primary" onclick="editUserBalance('${user.email}')">Edit</button>
+                            <button class="btn btn-danger" onclick="deleteUser('${user.email}')">Delete</button>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            document.getElementById('usersTableBody').innerHTML = html;
+        }
+
+        // Load Tasks
+        function loadTasks() {
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            const tasks = adminData.tasks || [];
+            let html = '';
+
+            if (tasks.length === 0) {
+                html = '<div class="empty-state"><p>No tasks created</p></div>';
+            } else {
+                tasks.forEach(task => {
+                    const assignedCount = (task.assignedTo || []).length;
+                    html += `<div class="table-row">
+                        <div class="table-cell">${task.title}</div>
+                        <div class="table-cell">GHC ${task.amount.toFixed(2)}</div>
+                        <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${task.status}</span></div>
+                        <div class="table-cell">${assignedCount}</div>
+                        <div class="table-action">
+                            <button class="btn btn-primary" onclick="openAssignTaskModal(${task.id})">Assign</button>
+                            <button class="btn btn-danger" onclick="deleteTask(${task.id})">Delete</button>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            document.getElementById('tasksTableBody').innerHTML = html;
+        }
+
+        // Load Deposits
+        function loadDeposits() {
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            const deposits = adminData.deposits || [];
+            let html = '';
+
+            if (deposits.length === 0) {
+                html = '<div class="empty-state"><p>No deposits</p></div>';
+            } else {
+                deposits.forEach((deposit, index) => {
+                    const date = new Date(deposit.createdAt).toLocaleDateString();
+                    html += `<div class="table-row">
+                        <div class="table-cell">${deposit.userName}</div>
+                        <div class="table-cell">GHC ${deposit.amount.toFixed(2)}</div>
+                        <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Completed</span></div>
+                        <div class="table-cell">${date}</div>
+                        <div class="table-action">
+                            <button class="btn btn-danger" onclick="deleteDeposit(${index})">Delete</button>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            document.getElementById('depositsTableBody').innerHTML = html;
+        }
+
+        // Load Payments (Payment Requests)
+        function loadPayments() {
+            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+            const adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
+            let html = '';
+
+            if (pendingPayments.length === 0) {
+                html = '<div class="empty-state"><p>No payment requests</p></div>';
+            } else {
+                pendingPayments.forEach((payment) => {
+                    const date = new Date(payment.requestedAt).toLocaleDateString();
+                    const paymentNumber = adminPaymentNumbers[payment.id] || 'Not Assigned';
+                    const transactionId = payment.transactionId || 'Not Submitted';
+                    const statusColor = payment.status === 'pending' ? '#f39c12'
+                        : (payment.status === 'submitted' ? '#3498db'
+                        : (payment.status === 'completed' ? '#27ae60' : '#e74c3c'));
+                    const statusText = payment.status === 'pending' ? 'Pending'
+                        : (payment.status === 'submitted' ? 'Submitted'
+                        : (payment.status === 'completed' ? 'Completed' : 'Cancelled'));
+                    
+                    const methodNames = {
+                        'mtn': 'MTN',
+                        'vodafone': 'Vodafone',
+                        'bank': 'Bank'
+                    };
+                    
+                    html += `<div class="table-row">
+                        <div class="table-cell">${payment.userName}</div>
+                        <div class="table-cell">GHC ${payment.amount.toFixed(2)}</div>
+                        <div class="table-cell">${methodNames[payment.paymentMethod] || payment.paymentMethod}</div>
+                        <div class="table-cell"><span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${statusText}</span></div>
+                        <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${paymentNumber}</code></div>
+                        <div class="table-cell"><code style="background: #f9f9f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${transactionId}</code></div>
+                        <div class="table-action">
+                            ${payment.status === 'pending' || payment.status === 'submitted' ? `
+                                <button class="btn btn-primary" onclick="openAssignPaymentModal('${payment.id}')">Assign #</button>
+                                <button class="btn btn-success" onclick="completePayment('${payment.id}')">Complete</button>
+                                <button class="btn btn-danger" onclick="cancelPayment('${payment.id}')">Cancel</button>
+                            ` : `
+                                <button class="btn btn-secondary" onclick="viewPaymentDetails('${payment.id}')" style="opacity: 0.6;">View</button>
+                            `}
+                        </div>
+                    </div>`;
+                });
+            }
+
+            document.getElementById('paymentsTableBody').innerHTML = html;
+        }
+
+        // Filter Payments
+        function filterPayments() {
+            const searchTerm = document.getElementById('paymentSearch').value.toLowerCase();
+            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+            const adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
+            
+            const filtered = pendingPayments.filter(payment =>
+                payment.userName.toLowerCase().includes(searchTerm) ||
+                payment.userEmail.toLowerCase().includes(searchTerm) ||
+                payment.id.toLowerCase().includes(searchTerm) ||
+                (payment.transactionId || '').toLowerCase().includes(searchTerm)
+            );
+
+            let html = '';
+            if (filtered.length === 0) {
+                html = '<div class="empty-state"><p>No matching payment requests</p></div>';
+            } else {
+                filtered.forEach((payment) => {
+                    const paymentNumber = adminPaymentNumbers[payment.id] || 'Not Assigned';
+                    const transactionId = payment.transactionId || 'Not Submitted';
+                    const statusColor = payment.status === 'pending' ? '#f39c12'
+                        : (payment.status === 'submitted' ? '#3498db'
+                        : (payment.status === 'completed' ? '#27ae60' : '#e74c3c'));
+                    const statusText = payment.status === 'pending' ? 'Pending'
+                        : (payment.status === 'submitted' ? 'Submitted'
+                        : (payment.status === 'completed' ? 'Completed' : 'Cancelled'));
+                    
+                    const methodNames = {
+                        'mtn': 'MTN',
+                        'vodafone': 'Vodafone',
+                        'bank': 'Bank'
+                    };
+                    
+                    html += `<div class="table-row">
+                        <div class="table-cell">${payment.userName}</div>
+                        <div class="table-cell">GHC ${payment.amount.toFixed(2)}</div>
+                        <div class="table-cell">${methodNames[payment.paymentMethod] || payment.paymentMethod}</div>
+                        <div class="table-cell"><span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${statusText}</span></div>
+                        <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${paymentNumber}</code></div>
+                        <div class="table-cell"><code style="background: #f9f9f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${transactionId}</code></div>
+                        <div class="table-action">
+                            ${payment.status === 'pending' || payment.status === 'submitted' ? `
+                                <button class="btn btn-primary" onclick="openAssignPaymentModal('${payment.id}')">Assign #</button>
+                                <button class="btn btn-success" onclick="completePayment('${payment.id}')">Complete</button>
+                                <button class="btn btn-danger" onclick="cancelPayment('${payment.id}')">Cancel</button>
+                            ` : `
+                                <button class="btn btn-secondary" onclick="viewPaymentDetails('${payment.id}')" style="opacity: 0.6;">View</button>
+                            `}
+                        </div>
+                    </div>`;
+                });
+            }
+
+            document.getElementById('paymentsTableBody').innerHTML = html;
+        }
+
+        // Load Products
+        function loadProducts() {
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            const products = adminData.products || [];
+            let html = '';
+
+            if (products.length === 0) {
+                html = '<div class="empty-state"><p>No products created</p></div>';
+            } else {
+                products.forEach(product => {
+                    const assignedCount = (product.assignedTo || []).length;
+                    html += `<div class="table-row">
+                        <div class="table-cell">${product.name}</div>
+                        <div class="table-cell">GHC ${product.price.toFixed(2)}</div>
+                        <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${product.status}</span></div>
+                        <div class="table-cell">${assignedCount}</div>
+                        <div class="table-action">
+                            <button class="btn btn-primary" onclick="openAssignProductModal(${product.id})">Assign</button>
+                            <button class="btn btn-danger" onclick="deleteProduct(${product.id})">Delete</button>
+                        </div>
+                    </div>`;
+                });
+            }
+
+            document.getElementById('productsTableBody').innerHTML = html;
+        }
+
+        // Load Payouts
+        function loadPayouts() {
+            const withdrawals = DataManager.getAllWithdrawals();
+            let html = '';
+
+            if (!withdrawals || withdrawals.length === 0) {
+                html = '<div class="empty-state"><p>No withdrawal requests</p></div>';
+            } else {
+                withdrawals.forEach((withdrawal) => {
+                    const user = JSON.parse(localStorage.getItem('allUsers') || '[]').find(u => u.userId === withdrawal.userId);
+                    const userName = user ? user.fullName : 'Unknown User';
+                    const date = new Date(withdrawal.requestDate).toLocaleDateString();
+                    const statusColor = withdrawal.status === 'pending' ? '#fff3cd' : withdrawal.status === 'approved' ? '#d4edda' : '#f8d7da';
+                    const statusBg = withdrawal.status === 'pending' ? '#856404' : withdrawal.status === 'approved' ? '#155724' : '#721c24';
+                    html += `<div class="table-row">
+                        <div class="table-cell">${userName}</div>
+                        <div class="table-cell">GHC ${withdrawal.amount.toFixed(2)}</div>
+                        <div class="table-cell"><span style="background: ${statusColor}; color: ${statusBg}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${withdrawal.status}</span></div>
+                        <div class="table-cell">${date}</div>
+                        <div class="table-action">
+                            ${withdrawal.status === 'pending' ? `
+                                <button class="btn btn-success" onclick="approveWithdrawal('${withdrawal.id}')">Approve</button>
+                                <button class="btn btn-danger" onclick="rejectWithdrawal('${withdrawal.id}')">Reject</button>
+                            ` : `<span style="color: #999;">Processed</span>`}
+                        </div>
+                    </div>`;
+                });
+            }
+
+            document.getElementById('payoutsTableBody').innerHTML = html;
+        }
+
+        // Load Reports
+        function loadReports() {
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+
+            document.getElementById('reportTotalUsers').textContent = allUsers.length;
+            document.getElementById('reportActiveUsers').textContent = allUsers.length;
+
+            let totalBalance = 0;
+            allUsers.forEach(user => {
+                totalBalance += user.balance || 0;
+            });
+            document.getElementById('reportTotalBalance').textContent = `GHC ${totalBalance.toFixed(2)}`;
+
+            const commission = (adminData.deposits || []).reduce((sum, d) => sum + (d.amount * 0.05), 0);
+            document.getElementById('reportTotalCommission').textContent = `GHC ${commission.toFixed(2)}`;
+        }
+
+        // Modal Functions
+        function openDepositModal() {
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+            let options = '<option value="">Select a user</option>';
+            allUsers.forEach(user => {
+                options += `<option value="${user.email}">${user.fullName}</option>`;
+            });
+            document.getElementById('depositUserSelect').innerHTML = options;
+            document.getElementById('depositModal').classList.add('show');
+        }
+
+        function closeDepositModal() {
+            document.getElementById('depositModal').classList.remove('show');
+        }
+
+        function processDeposit() {
+            const userEmail = document.getElementById('depositUserSelect').value;
+            const amount = parseFloat(document.getElementById('depositAmount').value);
+            const bonus = parseFloat(document.getElementById('depositBonus').value) || 0;
+
+            if (!userEmail || !amount) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+            const user = allUsers.find(u => u.email === userEmail);
+
+            if (user) {
+                // Add to DataManager
+                const reason = document.getElementById('depositDescription').value || 'Admin deposit';
+                const result = DataManager.addDeposit(user.userId, amount, bonus, reason);
+                
+                if (result) {
+                    // Update user object for backward compatibility
+                    user.balance = result.balance;
+                    user.bonus = result.bonus;
+                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+
+                    alert(`GHC ${amount.toFixed(2)} added to ${user.fullName}'s account`);
+                    closeDepositModal();
+                    document.getElementById('depositAmount').value = '';
+                    document.getElementById('depositBonus').value = '';
+                    document.getElementById('depositDescription').value = '';
+                    loadDeposits();
+                    loadDashboard();
+                    DataManager.syncAllPages(user.userId);
+                } else {
+                    alert('Failed to process deposit');
+                }
+            }
+        }
+
+        function openAddTaskModal() {
+            document.getElementById('taskModal').classList.add('show');
+        }
+
+        function closeTaskModal() {
+            document.getElementById('taskModal').classList.remove('show');
+            document.getElementById('taskTitle').value = '';
+            document.getElementById('taskDescription').value = '';
+            document.getElementById('taskAmount').value = '';
+            document.getElementById('taskQuantity').value = '1';
+        }
+
+        function createTask() {
+            const title = document.getElementById('taskTitle').value;
+            const description = document.getElementById('taskDescription').value;
+            const amount = parseFloat(document.getElementById('taskAmount').value);
+            const quantity = parseInt(document.getElementById('taskQuantity').value);
+
+            if (!title || !amount) {
+                alert('Please fill in required fields');
+                return;
+            }
+
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            if (!adminData.tasks) adminData.tasks = [];
+
+            const newTask = {
+                id: Date.now(),
+                title: title,
+                description: description,
+                amount: amount,
+                quantity: quantity,
+                assignedTo: [],
+                status: 'active',
+                createdAt: new Date().toISOString()
+            };
+
+            adminData.tasks.push(newTask);
+            localStorage.setItem('adminData', JSON.stringify(adminData));
+
+            alert('Task created successfully!');
+            closeTaskModal();
+            loadTasks();
+        }
+
+        function deleteTask(taskId) {
+            if (confirm('Delete this task?')) {
+                const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+                adminData.tasks = (adminData.tasks || []).filter(t => t.id !== taskId);
+                localStorage.setItem('adminData', JSON.stringify(adminData));
+                loadTasks();
+            }
+        }
+
+        function openAssignTaskModal(taskId) {
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            const task = (adminData.tasks || []).find(t => t.id === taskId);
+            if (!task) {
+                alert('Task not found');
+                return;
+            }
+
+            document.getElementById('assignTaskId').value = taskId;
+            document.getElementById('assignTaskName').textContent = task.title;
+
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+            const listHtml = allUsers.map(user => {
+                const userId = user.id || user.userId;
+                return `
+                <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #333;">
+                    <input type="checkbox" value="${userId}" style="margin-right: 8px;">
+                    ${user.fullName} (${user.email})
+                </label>`;
+            }).join('') || '<div style="color: #999; font-size: 13px;">No users registered</div>';
+
+            document.getElementById('assignUsersList').innerHTML = listHtml;
+            document.querySelector('input[name="assignScope"][value="all"]').checked = true;
+            toggleAssignScope();
+            document.getElementById('assignTaskModal').classList.add('show');
+        }
+
+        function closeAssignTaskModal() {
+            document.getElementById('assignTaskModal').classList.remove('show');
+            document.getElementById('assignTaskId').value = '';
+            document.getElementById('assignTaskName').textContent = '';
+        }
+
+        function toggleAssignScope() {
+            const scope = document.querySelector('input[name="assignScope"]:checked').value;
+            document.getElementById('assignUsersGroup').style.display = scope === 'selected' ? 'block' : 'none';
+        }
+
+        function assignTaskToUsers() {
+            const taskId = parseInt(document.getElementById('assignTaskId').value, 10);
+            const scope = document.querySelector('input[name="assignScope"]:checked').value;
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+
+            let userIds = [];
+            if (scope === 'all') {
+                userIds = allUsers.map(user => user.userId);
+            } else {
+                userIds = Array.from(document.querySelectorAll('#assignUsersList input[type="checkbox"]:checked'))
+                    .map(input => input.value);
+            }
+
+            if (userIds.length === 0) {
+                alert('Select at least one user');
+                return;
+            }
+
+            const result = DataManager.assignTaskToUsers(userIds, taskId);
+
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            const task = (adminData.tasks || []).find(t => t.id === taskId);
+            if (task) {
+                if (!task.assignedTo) task.assignedTo = [];
+                userIds.forEach(userId => {
+                    if (!task.assignedTo.includes(userId)) task.assignedTo.push(userId);
+                });
+                localStorage.setItem('adminData', JSON.stringify(adminData));
+            }
+
+            alert(`Assigned to ${result.assigned} user(s). ${result.skipped} skipped.`);
+            closeAssignTaskModal();
+            loadTasks();
+        }
+
+        function openAddProductModal() {
+            document.getElementById('productModal').classList.add('show');
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').classList.remove('show');
+            document.getElementById('productName').value = '';
+            document.getElementById('productDescription').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('productImage').value = '';
+            document.getElementById('previewImg').src = '';
+            document.getElementById('previewImg').style.display = 'none';
+        }
+
+        function previewProductImage() {
+            const fileInput = document.getElementById('productImage');
+            const previewImg = document.getElementById('previewImg');
+            
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    previewImg.style.display = 'block';
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            }
+        }
+
+        function createProduct() {
+            const name = document.getElementById('productName').value;
+            const description = document.getElementById('productDescription').value;
+            const price = parseFloat(document.getElementById('productPrice').value);
+            const fileInput = document.getElementById('productImage');
+
+            if (!name || !price) {
+                alert('Please fill in required fields');
+                return;
+            }
+
+            if (!fileInput.files || !fileInput.files[0]) {
+                alert('Please select a product image');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageData = e.target.result;
+
+                const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+                if (!adminData.products) adminData.products = [];
+
+                const newProduct = {
+                    id: Date.now(),
+                    name: name,
+                    description: description,
+                    price: price,
+                    image: imageData,
+                    assignedTo: [],
+                    status: 'active',
+                    createdAt: new Date().toISOString()
+                };
+
+                adminData.products.push(newProduct);
+                localStorage.setItem('adminData', JSON.stringify(adminData));
+
+                alert('Product created successfully!');
+                closeProductModal();
+                loadProducts();
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+        }
+
+        function deleteProduct(productId) {
+            if (confirm('Delete this product?')) {
+                const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+                adminData.products = (adminData.products || []).filter(p => p.id !== productId);
+                localStorage.setItem('adminData', JSON.stringify(adminData));
+                loadProducts();
+            }
+        }
+
+        function openAssignProductModal(productId) {
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            const product = (adminData.products || []).find(p => p.id === productId);
+            if (!product) {
+                alert('Product not found');
+                return;
+            }
+
+            document.getElementById('assignProductId').value = productId;
+            document.getElementById('assignProductName').textContent = product.name;
+
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+            const listHtml = allUsers.map(user => {
+                const userId = user.id || user.userId;
+                return `
+                <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #333;">
+                    <input type="checkbox" value="${userId}" style="margin-right: 8px;">
+                    ${user.fullName} (${user.email})
+                </label>`;
+            }).join('') || '<div style="color: #999; font-size: 13px;">No users registered</div>';
+
+            document.getElementById('assignProductUsersList').innerHTML = listHtml;
+            document.querySelector('input[name="assignProductScope"][value="all"]').checked = true;
+            toggleAssignProductScope();
+            document.getElementById('assignProductModal').classList.add('show');
+        }
+
+        function closeAssignProductModal() {
+            document.getElementById('assignProductModal').classList.remove('show');
+            document.getElementById('assignProductId').value = '';
+            document.getElementById('assignProductName').textContent = '';
+        }
+
+        function toggleAssignProductScope() {
+            const scope = document.querySelector('input[name="assignProductScope"]:checked').value;
+            document.getElementById('assignProductUsersGroup').style.display = scope === 'selected' ? 'block' : 'none';
+        }
+
+        function assignProductToUsers() {
+            const productId = parseInt(document.getElementById('assignProductId').value, 10);
+            const scope = document.querySelector('input[name="assignProductScope"]:checked').value;
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+
+            let userIds = [];
+            if (scope === 'all') {
+                userIds = allUsers.map(user => user.userId);
+            } else {
+                userIds = Array.from(document.querySelectorAll('#assignProductUsersList input[type="checkbox"]:checked'))
+                    .map(input => input.value);
+            }
+
+            if (userIds.length === 0) {
+                alert('Select at least one user');
+                return;
+            }
+
+            const result = DataManager.assignProductAsTaskToUsers(userIds, productId);
+
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            const product = (adminData.products || []).find(p => p.id === productId);
+            if (product) {
+                if (!product.assignedTo) product.assignedTo = [];
+                userIds.forEach(userId => {
+                    if (!product.assignedTo.includes(userId)) product.assignedTo.push(userId);
+                });
+                localStorage.setItem('adminData', JSON.stringify(adminData));
+            }
+
+            alert(`Product assigned to ${result.assigned} user(s) as task! ${result.skipped} skipped.`);
+            closeAssignProductModal();
+            loadProducts();
+        }
+
+        function deleteDeposit(index) {
+            if (confirm('Delete this deposit record?')) {
+                const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+                adminData.deposits.splice(index, 1);
+                localStorage.setItem('adminData', JSON.stringify(adminData));
+                loadDeposits();
+            }
+        }
+
+        // Payment Management Functions
+        function openAssignPaymentModal(paymentId) {
+            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+            const payment = pendingPayments.find(p => p.id === paymentId);
+            
+            if (!payment) {
+                alert('Payment not found');
+                return;
+            }
+            
+            // Generate a payment number (simulating admin assignment)
+            // Format: MTN123456789 or VOD123456789 or BANK123456789
+            const prefix = payment.paymentMethod === 'mtn' ? 'MTN' : (payment.paymentMethod === 'vodafone' ? 'VOD' : 'BANK');
+            const randomPart = Math.floor(100000000 + Math.random() * 900000000);
+            const paymentNumber = prefix + randomPart;
+            
+            // Store the payment number
+            let adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
+            adminPaymentNumbers[paymentId] = paymentNumber;
+            localStorage.setItem('adminPaymentNumbers', JSON.stringify(adminPaymentNumbers));
+            
+            // Show confirmation
+            alert(`Payment number assigned: ${paymentNumber}\n\nUser will see this number to make manual transfer.`);
+            
+            // Reload the table
+            loadPayments();
+        }
+
+        function completePayment(paymentId) {
+            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+            const payment = pendingPayments.find(p => p.id === paymentId);
+            
+            if (!payment) {
+                alert('Payment not found');
+                return;
+            }
+
+            if (!payment.transactionId) {
+                alert('Transaction ID has not been submitted by the user yet.');
+                return;
+            }
+            
+            if (confirm(`Complete payment of GHC ${payment.amount.toFixed(2)} from ${payment.userName}?`)) {
+                // Update payment status
+                payment.status = 'completed';
+                payment.completedAt = new Date().toISOString();
+                
+                // Update in pendingPayments
+                const index = pendingPayments.findIndex(p => p.id === paymentId);
+                if (index !== -1) {
+                    pendingPayments[index] = payment;
+                    localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
+                }
+                
+                // Add to user's balance via DataManager
+                const result = DataManager.addDeposit(payment.userId, payment.amount, 0, 'Payment confirmed');
+                if (result) {
+                    const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+                    const userIndex = allUsers.findIndex(u => u.userId === payment.userId);
+                    if (userIndex !== -1) {
+                        allUsers[userIndex].balance = result.balance;
+                        allUsers[userIndex].bonus = result.bonus;
+                        localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                    }
+                    DataManager.syncAllPages(payment.userId);
+                }
+                
+                alert(`Payment completed! GHC ${payment.amount.toFixed(2)} added to user's balance.`);
+                loadPayments();
+            }
+        }
+
+        function cancelPayment(paymentId) {
+            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+            const payment = pendingPayments.find(p => p.id === paymentId);
+            
+            if (!payment) {
+                alert('Payment not found');
+                return;
+            }
+            
+            if (confirm(`Cancel payment request from ${payment.userName}?`)) {
+                payment.status = 'cancelled';
+                payment.cancelledAt = new Date().toISOString();
+                
+                const index = pendingPayments.findIndex(p => p.id === paymentId);
+                if (index !== -1) {
+                    pendingPayments[index] = payment;
+                    localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
+                }
+                
+                alert('Payment request cancelled.');
+                loadPayments();
+            }
+        }
+
+        function viewPaymentDetails(paymentId) {
+            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+            const payment = pendingPayments.find(p => p.id === paymentId);
+            const adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
+            
+            if (!payment) {
+                alert('Payment not found');
+                return;
+            }
+            
+            const paymentNumber = adminPaymentNumbers[payment.id] || 'Not Assigned';
+            const methodNames = {
+                'mtn': 'MTN Mobile Money',
+                'vodafone': 'Vodafone Cash',
+                'bank': 'Bank Transfer'
+            };
+            
+            let details = `Payment Details\n\n`;
+            details += `ID: ${payment.id}\n`;
+            details += `User: ${payment.userName}\n`;
+            details += `Email: ${payment.userEmail}\n`;
+            details += `Amount: GHC ${payment.amount.toFixed(2)}\n`;
+            details += `Method: ${methodNames[payment.paymentMethod] || payment.paymentMethod}\n`;
+            details += `Phone: ${payment.phone}\n`;
+            details += `Payment #: ${paymentNumber}\n`;
+            details += `Transaction ID: ${payment.transactionId || 'Not Submitted'}\n`;
+            if (payment.transactionSubmittedAt) {
+                details += `Transaction Submitted: ${new Date(payment.transactionSubmittedAt).toLocaleString()}\n`;
+            }
+            details += `Status: ${payment.status}\n`;
+            details += `Requested: ${new Date(payment.requestedAt).toLocaleString()}\n`;
+            
+            alert(details);
+        }
+
+        function approveWithdrawal(withdrawalId) {
+            const result = DataManager.approveWithdrawal(withdrawalId);
+            if (result) {
+                alert('Withdrawal approved! User balance updated.');
+                loadPayouts();
+                loadDashboard();
+            } else {
+                alert('Failed to approve withdrawal');
+            }
+        }
+
+        function rejectWithdrawal(withdrawalId) {
+            const reason = prompt('Enter rejection reason:');
+            if (reason === null) return;
+            
+            const result = DataManager.rejectWithdrawal(withdrawalId, reason);
+            if (result) {
+                alert('Withdrawal rejected!');
+                loadPayouts();
+                loadDashboard();
+            } else {
+                alert('Failed to reject withdrawal');
+            }
+        }
+
+        function approvePayout(index) {
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            adminData.payouts[index].status = 'approved';
+            localStorage.setItem('adminData', JSON.stringify(adminData));
+            alert('Payout approved!');
+            loadPayouts();
+        }
+
+        function rejectPayout(index) {
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            adminData.payouts[index].status = 'rejected';
+            localStorage.setItem('adminData', JSON.stringify(adminData));
+            alert('Payout rejected!');
+            loadPayouts();
+        }
+
+        function saveSettings() {
+            const commissionRate = parseFloat(document.getElementById('commissionRate').value);
+            const minWithdrawal = parseFloat(document.getElementById('minWithdrawal').value);
+            const platformName = document.getElementById('platformName').value;
+
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            adminData.settings = {
+                commissionRate: commissionRate,
+                minWithdrawal: minWithdrawal,
+                platformName: platformName
+            };
+            localStorage.setItem('adminData', JSON.stringify(adminData));
+            alert('Settings saved!');
+        }
+
+        function filterUsers() {
+            const searchTerm = document.getElementById('userSearch').value.toLowerCase();
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+            const filtered = allUsers.filter(user => 
+                user.fullName.toLowerCase().includes(searchTerm) || 
+                user.email.toLowerCase().includes(searchTerm)
+            );
+
+            let html = '';
+            filtered.forEach(user => {
+                const userId = user.id || user.userId;
+                const finance = DataManager.getUserFinance(userId);
+                const balance = finance ? finance.balance : 0;
+                html += `<div class="table-row">
+                    <div class="table-cell">${user.fullName}</div>
+                    <div class="table-cell">${user.email}</div>
+                    <div class="table-cell">${userId}</div>
+                    <div class="table-cell">GHC ${balance.toFixed(2)}</div>
+                    <div class="table-action">
+                        <button class="btn btn-primary" onclick="editUserBalance('${user.email}')">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteUser('${user.email}')">Delete</button>
+                    </div>
+                </div>`;
+            });
+
+            document.getElementById('usersTableBody').innerHTML = html;
+        }
+
+        function deleteUser(email) {
+            if (confirm('Delete this user? This cannot be undone.')) {
+                const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+                const filtered = allUsers.filter(u => u.email !== email);
+                localStorage.setItem('allUsers', JSON.stringify(filtered));
+                loadUsers();
+            }
+        }
+
+        function editUserBalance(email) {
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+            const user = allUsers.find(u => u.email === email);
+            if (user) {
+                const newBalance = prompt(`Edit balance for ${user.fullName}\nCurrent: GHC ${user.balance.toFixed(2)}`, user.balance);
+                if (newBalance !== null && !isNaN(newBalance)) {
+                    user.balance = parseFloat(newBalance);
+                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                    loadUsers();
+                }
+            }
+        }
+
+        function adminLogout() {
+            // Clear both session and local storage
+            sessionStorage.removeItem('adminLoggedIn');
+            localStorage.removeItem('adminLoggedIn');
+            
+            // Redirect to login
+            setTimeout(() => {
+                window.location.href = 'admin-login.html';
+            }, 200);
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', function() {
+            // Check if admin is logged in (check both session and local storage)
+            const isLoggedIn = sessionStorage.getItem('adminLoggedIn') === 'true' || 
+                               localStorage.getItem('adminLoggedIn') === 'true';
+            
+            if (!isLoggedIn) {
+                // Wait a moment before redirecting to allow page to stabilize
+                setTimeout(() => {
+                    window.location.href = 'admin-login.html';
+                }, 500);
+                return;
+            }
+
+            // User is logged in, initialize the admin panel
+            try {
+                // Initialize all users in DataManager
+                const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+                allUsers.forEach(user => {
+                    const userId = user.id || user.userId;
+                    if (userId) {
+                        DataManager.initializeUser(userId);
+                    }
+                });
+                
+                initializeAdmin();
+                loadDashboard();
+            } catch (error) {
+                console.error('Error loading admin panel:', error);
+                alert('Error loading admin panel. Please refresh the page.');
+            }
+        });
+    </script>
+</body>
+</html>

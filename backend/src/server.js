@@ -1,0 +1,134 @@
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { query } from './db.js';
+import { requireAuth, requireAdmin } from './middleware/auth.js';
+
+const app = express();
+
+app.use(helmet());
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json());
+app.use(morgan('dev'));
+
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Sync user profile (called after Supabase auth)
+app.post('/users/sync', requireAuth, async (req, res) => {
+  const { fullName, phone } = req.body;
+  const { id, email } = req.user;
+  await query(
+    `insert into app_users (id, email, full_name, phone)
+     values ($1, $2, $3, $4)
+     on conflict (id) do update set full_name = excluded.full_name, phone = excluded.phone`,
+    [id, email, fullName || null, phone || null]
+  );
+  await query(
+    `insert into wallets (user_id) values ($1)
+     on conflict (user_id) do nothing`,
+    [id]
+  );
+  res.json({ ok: true });
+});
+
+// Wallet
+app.get('/wallet', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  const { rows } = await query('select balance, bonus from wallets where user_id = $1', [id]);
+  res.json(rows[0] || { balance: 0, bonus: 0 });
+});
+
+// Transactions
+app.get('/transactions', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  const { rows } = await query(
+    'select * from transactions where user_id = $1 order by created_at desc',
+    [id]
+  );
+  res.json(rows);
+});
+
+// Create payment request (manual transfer)
+app.post('/payments', requireAuth, async (req, res) => {
+  const { amount, method, phone } = req.body;
+  const { id } = req.user;
+  const { rows } = await query(
+    `insert into payments (user_id, amount, method, phone)
+     values ($1, $2, $3, $4)
+     returning *`,
+    [id, amount, method, phone]
+  );
+  res.json(rows[0]);
+});
+
+// Submit transaction ID
+app.post('/payments/:id/transaction', requireAuth, async (req, res) => {
+  const { id: paymentId } = req.params;
+  const { transactionId } = req.body;
+  const { id: userId } = req.user;
+
+  const { rows } = await query(
+    `update payments set transaction_id = $1, status = 'submitted'
+     where id = $2 and user_id = $3
+     returning *`,
+    [transactionId, paymentId, userId]
+  );
+
+  if (rows.length === 0) return res.status(404).json({ error: 'Payment not found' });
+  res.json(rows[0]);
+});
+
+// Admin: list payments
+app.get('/admin/payments', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await query(
+    `select p.*, u.email, u.full_name
+     from payments p join app_users u on u.id = p.user_id
+     order by p.requested_at desc`
+  );
+  res.json(rows);
+});
+
+// Admin: complete payment and credit balance
+app.post('/admin/payments/:id/complete', requireAuth, requireAdmin, async (req, res) => {
+  const { id: paymentId } = req.params;
+
+  const { rows } = await query(
+    `update payments set status = 'completed', completed_at = now()
+     where id = $1 and transaction_id is not null
+     returning *`,
+    [paymentId]
+  );
+
+  if (rows.length === 0) return res.status(400).json({ error: 'Missing transaction ID or invalid payment' });
+  const payment = rows[0];
+
+  await query('update wallets set balance = balance + $1, updated_at = now() where user_id = $2', [payment.amount, payment.user_id]);
+  await query('insert into deposits (user_id, amount, bonus, reason) values ($1, $2, 0, $3)', [payment.user_id, payment.amount, 'Payment confirmed']);
+  await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [payment.user_id, 'deposit', payment.amount, 'Payment confirmed']);
+
+  res.json({ ok: true });
+});
+
+// Admin: add deposit/bonus
+app.post('/admin/deposits', requireAuth, requireAdmin, async (req, res) => {
+  const { userId, amount = 0, bonus = 0, reason } = req.body;
+  if (amount <= 0 && bonus <= 0) return res.status(400).json({ error: 'Amount or bonus required' });
+
+  await query('update wallets set balance = balance + $1, bonus = bonus + $2, updated_at = now() where user_id = $3', [amount, bonus, userId]);
+  await query('insert into deposits (user_id, amount, bonus, reason) values ($1, $2, $3, $4)', [userId, amount, bonus, reason || 'Admin deposit']);
+  if (amount > 0) {
+    await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [userId, 'deposit', amount, reason || 'Admin deposit']);
+  }
+  if (bonus > 0) {
+    await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [userId, 'bonus', bonus, reason || 'Admin bonus']);
+  }
+
+  res.json({ ok: true });
+});
+
+const port = process.env.PORT || 8080;
+app.listen(port, () => {
+  console.log(`API running on :${port}`);
+});

@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DailyTrade - Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="dataManager.js"></script>
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f5f5;
+            padding-bottom: 80px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #667eea;
+            font-size: 20px;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .header-icons {
+            display: flex;
+            gap: 16px;
+            font-size: 20px;
+            cursor: pointer;
+            align-items: center;
+        }
+
+        .header-icons i:hover {
+            opacity: 0.8;
+        }
+
+        .notification-badge {
+            position: relative;
+        }
+
+        .notification-badge::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 10px;
+            height: 10px;
+            background: #e74c3c;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* Notifications Modal */
+        .notifications-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .notifications-modal.show {
+            display: block;
+        }
+
+        .notifications-modal-content {
+            background: white;
+            margin: 20px auto;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .notifications-modal-header {
+            position: sticky;
+            top: 0;
+            padding: 16px;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .notifications-modal-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .notifications-modal-header-left i {
+            font-size: 24px;
+        }
+
+        .notifications-modal-header-left div {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .notifications-modal-title {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .notifications-modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .notifications-modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Notice Bar */
+        .notice-bar {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #856404;
+        }
+
+        .notice-bar i {
+            font-size: 18px;
+            color: #ffc107;
+        }
+
+        /* Commission Section */
+        .commission-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 12px;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .commission-title {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .commission-amount {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 12px;
+        }
+
+        .action-btn {
+            background: white;
+            border: 1px solid #e0e0e0;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+
+        .action-btn i {
+            font-size: 28px;
+            color: #667eea;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .action-btn-text {
+            font-size: 12px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        /* Section Title */
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            padding: 16px 12px 8px 12px;
+            margin-top: 16px;
+        }
+
+        /* Gallery Section */
+        .gallery-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 0 12px 16px 12px;
+        }
+
+        .gallery-item {
+            position: relative;
+            height: 160px;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.05);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Hall of Fame Section */
+        .hall-of-fame {
+            background: white;
+            margin: 16px 12px;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .hall-of-fame-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hall-of-fame-title i {
+            color: #ffc107;
+            font-size: 20px;
+        }
+
+        .fame-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .fame-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .fame-rank {
+            width: 32px;
+            height: 32px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .fame-rank.silver {
+            background: #c0c0c0;
+        }
+
+        .fame-rank.bronze {
+            background: #cd7f32;
+        }
+
+        .fame-info {
+            flex: 1;
+        }
+
+        .fame-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .fame-earnings {
+            font-size: 12px;
+            color: #999;
+            margin-top: 2px;
+        }
+
+        .fame-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            flex-shrink: 0;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 16px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            color: #ddd;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            color: #999;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding-top: 8px;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 0 12px 0;
+            cursor: pointer;
+            color: #999;
+            text-decoration: none;
+            transition: color 0.3s;
+            min-width: 60px;
+            font-size: 12px;
+        }
+
+        .nav-item i {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-item:hover {
+            color: #667eea;
+        }
+
+        /* Divider */
+        .divider {
+            height: 8px;
+            background: #f0f0f0;
+            margin: 16px 0;
+        }
+
+        /* Notifications */
+        .notifications-section {
+            background: white;
+            margin: 16px 12px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .notifications-header {
+            padding: 16px;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .notifications-header:hover {
+            background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+        }
+
+        .notifications-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .notifications-header-left i {
+            font-size: 24px;
+        }
+
+        .notifications-header-left div {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .notifications-title {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .notifications-subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .notifications-toggle i {
+            font-size: 18px;
+            transition: transform 0.3s;
+        }
+
+        .notifications-toggle.collapsed i {
+            transform: rotate(180deg);
+        }
+
+        .notifications-content {
+            max-height: 1200px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease;
+        }
+
+        .notifications-content.collapsed {
+            max-height: 0;
+        }
+
+        .notifications-list {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .notification-item {
+            display: flex;
+            gap: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .notification-number {
+            min-width: 24px;
+            height: 24px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .notification-text {
+            font-size: 13px;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .notification-highlight {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+
+        .notification-support {
+            background: #fef5f5;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #e74c3c;
+            font-size: 13px;
+            color: #555;
+            margin-top: 8px;
+        }
+
+        .notification-support strong {
+            color: #e74c3c;
+        }
+
+        .notification-section-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+            margin-top: 16px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e74c3c;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .notification-section-title i {
+            color: #e74c3c;
+            font-size: 16px;
+        }
+
+        .notification-paragraph {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .notification-warning {
+            background: #fff5f5;
+            border-left: 4px solid #e74c3c;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 12px;
+        }
+
+        .notification-success {
+            background: #f0f8f5;
+            border-left: 4px solid #27ae60;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #27ae60;
+            margin-bottom: 12px;
+        }
+
+        .notification-bonus {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 13px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        @media (max-width: 480px) {
+            .action-buttons {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Action Modals */
+        .action-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .action-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-container {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .modal-header i {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-cancel,
+        .btn-submit {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-cancel {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-cancel:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .available-balance {
+            background: #e8f5e9;
+            border-left: 4px solid #27ae60;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #27ae60;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="header-logo">D</div>
+            <div class="header-title">DailyTrade</div>
+        </div>
+        <div class="header-icons">
+            <i class="las la-bell notification-badge" onclick="openNotificationsModal()" title="Important Notifications" style="cursor: pointer;"></i>
+            <i class="las la-sign-out-alt" onclick="logout()" title="Logout"></i>
+        </div>
+    </div>
+
+    <!-- Notice Bar -->
+    <div class="notice-bar">
+        <i class="las la-info-circle"></i>
+        <span>Complete your profile to unlock all features</span>
+    </div>
+
+    <!-- Notifications Modal -->
+    <div class="notifications-modal" id="notificationsModal" onclick="if(event.target.id === 'notificationsModal') closeNotificationsModal()">
+        <div class="notifications-modal-content">
+            <div class="notifications-modal-header">
+                <div class="notifications-modal-header-left">
+                    <i class="las la-exclamation-triangle"></i>
+                    <div>
+                        <div class="notifications-modal-title">Important Notifications</div>
+                    </div>
+                </div>
+                <button class="notifications-modal-close" onclick="closeNotificationsModal()"><i class="las la-times"></i></button>
+            </div>
+            <div style="padding: 16px;">
+                <div class="notifications-list">
+                    <!-- Platform Payment Instructions Section -->
+                    <div class="notification-section-title">
+                        <i class="las la-map-marker"></i>
+                        Platform Payment Instructions
+                    </div>
+
+                    <div class="notification-item">
+                        <div class="notification-number">1</div>
+                        <div class="notification-text">
+                            The minimum top-up amount for each order is <span class="notification-highlight">50 Cedis</span>!
+                        </div>
+                    </div>
+
+                    <div class="notification-item">
+                        <div class="notification-number">2</div>
+                        <div class="notification-text">
+                            To ensure the safety of each part-time employee's funds, you must top up using the <span class="notification-highlight">latest merchant e-wallet account</span> displayed on the platform's top-up page.
+                        </div>
+                    </div>
+
+                    <div class="notification-item">
+                        <div class="notification-number">3</div>
+                        <div class="notification-text">
+                            Do <span class="notification-highlight">not use merchant e-wallet accounts that have been removed</span> from the platform for top-ups.
+                        </div>
+                    </div>
+
+                    <div class="notification-item">
+                        <div class="notification-number">4</div>
+                        <div class="notification-text">
+                            <span class="notification-highlight">Do not pay to any e-wallet number</span> provided by anyone; otherwise, you will be solely responsible for any resulting financial losses.
+                        </div>
+                    </div>
+
+                    <div class="notification-item">
+                        <div class="notification-number">5</div>
+                        <div class="notification-text">
+                            Please ensure <span class="notification-highlight">full payment</span> for your order. If your payment is not received within 30 minutes, you can send a screenshot of your payment receipt or payment confirmation SMS to the Finance Department customer service for verification and processing.
+                            <div class="notification-support">
+                                <strong>Finance Department Customer Service</strong><br>
+                                <i class="las la-paper-plane"></i> Telegram: <strong>@DailyTrader</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Financial Tips Section -->
+                    <div class="notification-section-title">
+                        <i class="las la-lightbulb"></i>
+                        Financial Tips
+                    </div>
+
+                    <div class="notification-paragraph">
+                        Hello, thank you for participating in our online work platform. You will earn a <span class="notification-highlight">fixed daily commission</span> by completing tasks assigned by the platform. To ensure the safety of each part-time employee's funds, please be sure to create a recharge order on the platform's recharge page and use the <span class="notification-highlight">e-wallet account displayed on the platform's recharge page</span> to recharge.
+                    </div>
+
+                    <div class="notification-warning">
+                        <i class="las la-exclamation-circle" style="margin-right: 6px;"></i>
+                        <strong>Important:</strong> After completing the task, please <strong>withdraw your funds before 7 PM</strong>. Do not transfer funds to any unknown account not displayed on the platform; also, do not trust private messages from strangers, disclose your platform password, or send money to any wallet number sent in private messages.
+                    </div>
+
+                    <div class="notification-support">
+                        <strong>Need Help?</strong><br>
+                        If your recharge or withdrawal funds have not arrived within 30 minutes, please contact the platform's finance manager via Telegram: <strong>@DailyTradee</strong>
+                    </div>
+
+                    <!-- Official Announcement Section -->
+                    <div class="notification-section-title">
+                        <i class="las la-shield-alt"></i>
+                        Official Announcement
+                    </div>
+
+                    <div class="notification-warning">
+                        <i class="las la-star" style="margin-right: 6px;"></i>
+                        <strong>DailyTrade Official Statement:</strong> We are a legitimate e-commerce platform. You can earn commissions by completing daily tasks for our partner merchants.
+                    </div>
+
+                    <div class="notification-paragraph">
+                        <strong style="color: #e74c3c;">⚠️ BEWARE OF SCAMMERS:</strong> Anyone who privately provides you with bank or e-wallet information and requests payments is a scammer. Your funds can only be transferred to the account displayed on the store page!
+                    </div>
+
+                    <div class="notification-paragraph">
+                        <strong>Withdrawal Hours:</strong> Your earnings can be withdrawn <span class="notification-highlight">before 7 PM every day</span>.
+                    </div>
+
+                    <div class="notification-paragraph">
+                        <strong>Payment Information:</strong> This platform partners with numerous merchants. Each deposit must use the <span class="notification-highlight">latest payment information displayed by the merchant</span> on the recharge page in real time. <strong>Never transfer funds directly to unknown accounts</strong>, even those provided by customer service; otherwise, you will bear all losses if the funds cannot be verified.
+                    </div>
+
+                    <div class="notification-support">
+                        <i class="las la-exclamation-triangle" style="margin-right: 6px;"></i>
+                        <strong>Complaint Process:</strong> If your recharge or withdrawal transaction through this platform is not processed and credited within 30 minutes, please contact the platform's CFO (<strong>@DailyTrader</strong>) via Telegram to file a complaint.
+                    </div>
+
+                    <!-- Quick Safety Tips -->
+                    <div class="notification-section-title">
+                        <i class="las la-check-circle"></i>
+                        Safety Checklist
+                    </div>
+
+                    <div class="notification-warning">
+                        ✓ <strong>Remember:</strong> Anyone sending you their wallet account number privately is a scammer. Funds can only be transferred to the account shown in the store! If your funds haven't arrived, please contact <strong>@DailyTrader</strong>.
+                    </div>
+
+                    <!-- Bonus Section -->
+                    <div class="notification-bonus">
+                        <i class="las la-gift" style="margin-right: 6px;"></i>
+                        🎉 BONUS FOR OLD USERS 🎉<br>
+                        <div style="font-size: 12px; margin-top: 8px; opacity: 0.95;">
+                            Claim your deposit bonus only for today's deposit transaction! Let us know if you will claim the bonus from your deposit. Withdraw all cash and get merchant settlement! 🤑
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div style="padding: 0;">
+
+        <!-- Commission Card -->
+        <div class="commission-card">
+            <div class="commission-title">My Commission</div>
+            <div class="commission-amount" id="commissionDisplay">GHC 0.00</div>
+            <div style="font-size: 12px; opacity: 0.8;">Total earnings this month</div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <div class="action-btn" onclick="navigateTo('account')">
+                <i class="las la-user"></i>
+                <div class="action-btn-text">Account</div>
+            </div>
+            <div class="action-btn" onclick="navigateTo('recharge')">
+                <i class="las la-plus-circle"></i>
+                <div class="action-btn-text">Recharge</div>
+            </div>
+            <div class="action-btn" onclick="navigateTo('withdraw')">
+                <i class="las la-money-bill"></i>
+                <div class="action-btn-text">Withdraw</div>
+            </div>
+            <div class="action-btn" onclick="window.location.href='tasks.html'">
+                <i class="las la-briefcase"></i>
+                <div class="action-btn-text">Start Working</div>
+            </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="divider"></div>
+
+        <!-- Gallery Section -->
+        <div class="section-title">Featured Opportunities</div>
+        <div class="gallery-container">
+            <div class="gallery-item">
+                <img src="https://via.placeholder.com/200x160?text=Opportunity+1" alt="Opportunity 1">
+            </div>
+            <div class="gallery-item">
+                <img src="https://via.placeholder.com/200x160?text=Opportunity+2" alt="Opportunity 2">
+            </div>
+            <div class="gallery-item">
+                <img src="https://via.placeholder.com/200x160?text=Opportunity+3" alt="Opportunity 3">
+            </div>
+            <div class="gallery-item">
+                <img src="https://via.placeholder.com/200x160?text=Opportunity+4" alt="Opportunity 4">
+            </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="divider"></div>
+
+        <!-- Hall of Fame -->
+        <div class="hall-of-fame">
+            <div class="hall-of-fame-title">
+                <i class="las la-crown"></i>
+                Hall of Fame
+            </div>
+            <div class="fame-list">
+                <div class="fame-item">
+                    <div class="fame-rank">🥇</div>
+                    <div class="fame-info">
+                        <div class="fame-name">John Kwame</div>
+                        <div class="fame-earnings">GHC 2,450.00</div>
+                    </div>
+                    <div class="fame-avatar" style="background: linear-gradient(135deg, #667eea, #764ba2);"></div>
+                </div>
+                <div class="fame-item">
+                    <div class="fame-rank silver">🥈</div>
+                    <div class="fame-info">
+                        <div class="fame-name">Mary Adjoa</div>
+                        <div class="fame-earnings">GHC 1,890.00</div>
+                    </div>
+                    <div class="fame-avatar" style="background: linear-gradient(135deg, #f093fb, #f5576c);"></div>
+                </div>
+                <div class="fame-item">
+                    <div class="fame-rank bronze">🥉</div>
+                    <div class="fame-info">
+                        <div class="fame-name">Kwesi Mensah</div>
+                        <div class="fame-earnings">GHC 1,650.00</div>
+                    </div>
+                    <div class="fame-avatar" style="background: linear-gradient(135deg, #4facfe, #00f2fe);"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spacer -->
+        <div style="height: 20px;"></div>
+
+    </div>
+
+    <!-- Recharge Modal -->
+    <div class="action-modal" id="rechargeModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-plus-circle"></i>
+                Recharge Account
+            </div>
+            <div class="info-box">
+                Add funds to your account using your preferred payment method.
+            </div>
+            <div class="form-group">
+                <label class="form-label">Payment Method</label>
+                <select class="form-select" id="rechargePaymentMethod">
+                    <option value="mtn">Mobile Money (MTN)</option>
+                    <option value="vodafone">Vodafone Cash</option>
+                    <option value="bank">Bank Transfer</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount (GHC)</label>
+                <input type="number" class="form-input" id="rechargeAmount" placeholder="100.00" min="10" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input type="tel" class="form-input" id="rechargePhone" placeholder="233XXXXXXXXX">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('rechargeModal')">Cancel</button>
+                <button class="btn-submit" onclick="submitRecharge()">Proceed to Payment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Number Display Modal -->
+    <div class="action-modal" id="paymentNumberModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-check-circle"></i>
+                Payment Details
+            </div>
+            <div class="info-box" style="background: #d4edda; border-color: #c3e6cb; color: #155724;">
+                Your payment request has been received. Use the payment number below to complete your transfer.
+            </div>
+            <div class="form-group" style="text-align: center;">
+                <label class="form-label">Payment Number</label>
+                <div style="padding: 15px; background: #f0f4ff; border: 2px dashed #667eea; border-radius: 8px; margin: 10px 0;">
+                    <div style="font-size: 24px; font-weight: bold; color: #667eea; font-family: monospace;" id="displayPaymentNumber">PENDING...</div>
+                </div>
+                <button class="btn-submit" onclick="copyPaymentNumber()" style="width: 100%; margin-top: 10px;">
+                    <i class="las la-copy"></i> Copy Payment Number
+                </button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Transfer Details</label>
+                <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; font-size: 13px; line-height: 1.8;">
+                    <strong>Amount:</strong> GHC <span id="displayAmount">0.00</span><br>
+                    <strong>Payment Method:</strong> <span id="displayMethod">-</span><br>
+                    <strong>Status:</strong> <span style="color: #f39c12; font-weight: bold;">Awaiting Payment</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Transaction ID</label>
+                <input type="text" class="form-input" id="transactionIdInput" placeholder="Enter transaction ID after payment">
+                <button class="btn-submit" onclick="submitTransactionId()" style="width: 100%; margin-top: 10px;">
+                    <i class="las la-paper-plane"></i> Submit Transaction ID
+                </button>
+            </div>
+            <div class="info-box" style="background: #fff3cd; border-color: #ffeaa7; color: #856404; font-size: 12px;">
+                <strong>⚠️ Important:</strong> Make a manual transfer to the payment number above, then submit the transaction ID. Admin will confirm and update your balance.
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-submit" onclick="closeActionModal('paymentNumberModal')">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div class="action-modal" id="withdrawModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-money-bill"></i>
+                Withdraw Funds
+            </div>
+            <div class="available-balance">
+                Available Balance: <span id="availableBalance">GHC 0.00</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Withdrawal Method</label>
+                <select class="form-select" id="withdrawMethod">
+                    <option>Mobile Money (MTN/Vodafone)</option>
+                    <option>Bank Transfer</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Account/Phone Number</label>
+                <input type="text" class="form-input" id="withdrawAccount" placeholder="Enter your account or phone">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount (GHC)</label>
+                <input type="number" class="form-input" id="withdrawAmount" placeholder="50.00" min="50" step="0.01">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('withdrawModal')">Cancel</button>
+                <button class="btn-submit" onclick="submitWithdraw()">Request Withdrawal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Modal -->
+    <div class="action-modal" id="accountModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-user"></i>
+                Account Information
+            </div>
+            <div class="info-box">
+                Update your account details and personal information.
+            </div>
+            <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" class="form-input" id="accountName" placeholder="Your name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" class="form-input" id="accountEmail" placeholder="your@email.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input type="tel" class="form-input" id="accountPhone" placeholder="+233 XXX XXX XXX">
+            </div>
+            <div class="form-group">
+                <label class="form-label">User ID</label>
+                <input type="text" class="form-input" id="accountId" readonly style="background: #f5f5f5;">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('accountModal')">Cancel</button>
+                <button class="btn-submit" onclick="updateAccount()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="#" class="nav-item active" onclick="setActive(this)">
+            <i class="las la-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="work.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-briefcase"></i>
+            <span>Work</span>
+        </a>
+        <a href="tasks.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-tasks"></i>
+            <span>Task</span>
+        </a>
+        <a href="mine.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-user-circle"></i>
+            <span>Mine</span>
+        </a>
+    </div>
+
+    <script>
+        function navigateTo(section) {
+            switch(section) {
+                case 'account':
+                    openActionModal('accountModal');
+                    loadAccountData();
+                    break;
+                case 'recharge':
+                    openActionModal('rechargeModal');
+                    break;
+                case 'withdraw':
+                    openActionModal('withdrawModal');
+                    loadWithdrawData();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        function openActionModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function closeActionModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+            // Clear form fields
+            const modal = document.getElementById(modalId);
+            const inputs = modal.querySelectorAll('.form-input, .form-select');
+            inputs.forEach(input => {
+                if (!input.hasAttribute('readonly')) {
+                    input.value = '';
+                }
+            });
+        }
+
+        function loadAccountData() {
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                document.getElementById('accountName').value = user.fullName || '';
+                document.getElementById('accountEmail').value = user.email || '';
+                document.getElementById('accountPhone').value = user.phone || '';
+                document.getElementById('accountId').value = user.userId || '';
+            }
+        }
+
+        function loadWithdrawData() {
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                document.getElementById('availableBalance').textContent = `GHC ${user.balance.toFixed(2)}`;
+            }
+        }
+
+        function submitRecharge() {
+            const paymentMethod = document.getElementById('rechargePaymentMethod').value;
+            const amount = document.getElementById('rechargeAmount').value;
+            const phone = document.getElementById('rechargePhone').value;
+            
+            // Validation
+            if (!amount || parseFloat(amount) < 10) {
+                alert('Amount must be at least GHC 10');
+                return;
+            }
+            
+            if (!phone || phone.length < 10) {
+                alert('Please enter a valid phone number');
+                return;
+            }
+            
+            // Get current user
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('User not found');
+                return;
+            }
+            
+            const currentUser = JSON.parse(currentUserStr);
+            const userId = currentUser.id || currentUser.userId;
+            
+            // Create payment request
+            const paymentRequest = {
+                id: 'PAY_' + Date.now(),
+                userId: userId,
+                userName: currentUser.fullName,
+                userEmail: currentUser.email,
+                amount: parseFloat(amount),
+                paymentMethod: paymentMethod,
+                phone: phone,
+                status: 'pending',
+                paymentNumber: null, // Will be assigned by admin
+                transactionId: null,
+                transactionSubmittedAt: null,
+                requestedAt: new Date().toISOString(),
+                createdAt: new Date().toISOString()
+            };
+            
+            // Store in localStorage
+            let pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+            pendingPayments.push(paymentRequest);
+            localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
+            
+            // Store in user's payment history
+            let userPayments = JSON.parse(localStorage.getItem('userPayments_' + userId) || '[]');
+            userPayments.push(paymentRequest);
+            localStorage.setItem('userPayments_' + userId, JSON.stringify(userPayments));
+            
+            // Display payment number modal
+            displayPaymentNumberModal(paymentRequest);
+            
+            // Clear form
+            document.getElementById('rechargeAmount').value = '';
+            document.getElementById('rechargePhone').value = '';
+        }
+
+        function submitWithdraw() {
+            const userData = localStorage.getItem('currentUser');
+            if (!userData) return;
+            const user = JSON.parse(userData);
+
+            const method = document.getElementById('withdrawMethod').value;
+            const account = document.getElementById('withdrawAccount').value;
+            const amount = document.getElementById('withdrawAmount').value;
+
+            if (!account || !amount) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            if (parseFloat(amount) < 50) {
+                alert('Minimum withdrawal amount is GHC 50.00');
+                return;
+            }
+
+            if (parseFloat(amount) > user.balance) {
+                alert('Insufficient balance for this withdrawal');
+                return;
+            }
+
+            alert(`Withdrawal request of GHC ${parseFloat(amount).toFixed(2)} to ${method} submitted. Admin will process it shortly.`);
+            closeActionModal('withdrawModal');
+        }
+        
+        // Display payment number modal
+        function displayPaymentNumberModal(paymentRequest) {
+            // Check if admin has assigned a payment number
+            const adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
+            let paymentNumber = adminPaymentNumbers[paymentRequest.id];
+            
+            if (!paymentNumber) {
+                // If no payment number assigned, show pending message
+                paymentNumber = 'PENDING_' + paymentRequest.id.substring(4);
+            }
+            
+            // Update display
+            document.getElementById('displayPaymentNumber').textContent = paymentNumber;
+            document.getElementById('displayAmount').textContent = paymentRequest.amount.toFixed(2);
+            
+            const methodNames = {
+                'mtn': 'MTN Mobile Money',
+                'vodafone': 'Vodafone Cash',
+                'bank': 'Bank Transfer'
+            };
+            document.getElementById('displayMethod').textContent = methodNames[paymentRequest.paymentMethod] || paymentRequest.paymentMethod;
+            
+            // Store current payment request for copy function
+            window.currentPaymentRequest = paymentRequest;
+            
+            openActionModal('paymentNumberModal');
+        }
+        
+        // Copy payment number to clipboard
+        function copyPaymentNumber() {
+            const paymentNumber = document.getElementById('displayPaymentNumber').textContent;
+            
+            // Create temporary textarea to copy
+            const textarea = document.createElement('textarea');
+            textarea.value = paymentNumber;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            // Show feedback
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="las la-check"></i> Copied!';
+            button.style.background = '#27ae60';
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.style.background = '';
+            }, 2000);
+        }
+
+        function submitTransactionId() {
+            const transactionId = document.getElementById('transactionIdInput').value.trim();
+            if (!transactionId) {
+                alert('Please enter the transaction ID');
+                return;
+            }
+
+            if (!window.currentPaymentRequest) {
+                alert('Payment request not found');
+                return;
+            }
+
+            const paymentId = window.currentPaymentRequest.id;
+
+            // Update pending payments
+            let pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+            const pendingIndex = pendingPayments.findIndex(p => p.id === paymentId);
+            if (pendingIndex !== -1) {
+                pendingPayments[pendingIndex].transactionId = transactionId;
+                pendingPayments[pendingIndex].transactionSubmittedAt = new Date().toISOString();
+                if (pendingPayments[pendingIndex].status === 'pending') {
+                    pendingPayments[pendingIndex].status = 'submitted';
+                }
+                localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
+            }
+
+            // Update user payment history
+            const userId = window.currentPaymentRequest.userId;
+            let userPayments = JSON.parse(localStorage.getItem('userPayments_' + userId) || '[]');
+            const userIndex = userPayments.findIndex(p => p.id === paymentId);
+            if (userIndex !== -1) {
+                userPayments[userIndex].transactionId = transactionId;
+                userPayments[userIndex].transactionSubmittedAt = new Date().toISOString();
+                if (userPayments[userIndex].status === 'pending') {
+                    userPayments[userIndex].status = 'submitted';
+                }
+                localStorage.setItem('userPayments_' + userId, JSON.stringify(userPayments));
+            }
+
+            alert('Transaction ID submitted. Awaiting admin confirmation.');
+            document.getElementById('transactionIdInput').value = '';
+        }
+
+        function updateAccount() {
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                const newName = document.getElementById('accountName').value;
+                const newEmail = document.getElementById('accountEmail').value;
+                const newPhone = document.getElementById('accountPhone').value;
+
+                if (!newName || !newEmail || !newPhone) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+
+                user.fullName = newName;
+                user.email = newEmail;
+                user.phone = newPhone;
+
+                localStorage.setItem('currentUser', JSON.stringify(user));
+
+                // Update allUsers list as well
+                let allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+                const userIndex = allUsers.findIndex(u => u.userId === user.userId);
+                if (userIndex !== -1) {
+                    allUsers[userIndex] = user;
+                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                }
+
+                alert('Account information updated successfully!');
+                closeActionModal('accountModal');
+            }
+        }
+
+        function setActive(element) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+        }
+
+        function openNotificationsModal() {
+            document.getElementById('notificationsModal').classList.add('show');
+        }
+
+        function closeNotificationsModal() {
+            document.getElementById('notificationsModal').classList.remove('show');
+        }
+
+        // Translation Object
+        const translations = {
+            en: {
+                header_title: 'DailyTrade',
+                notifications: 'Important Notifications',
+                logout: 'Logout',
+                my_commission: 'My Commission',
+                total_earnings: 'Total earnings this month',
+                account: 'Account',
+                recharge: 'Recharge',
+                withdraw: 'Withdraw',
+                start_working: 'Start Working',
+                featured_opportunities: 'Featured Opportunities',
+                hall_of_fame: 'Hall of Fame',
+                home: 'Home',
+                work: 'Work',
+                task: 'Task',
+                mine: 'Mine'
+            },
+            fr: {
+                header_title: 'DailyTrade',
+                notifications: 'Notifications Importantes',
+                logout: 'Déconnexion',
+                my_commission: 'Ma Commission',
+                total_earnings: 'Bénéfices totaux ce mois',
+                account: 'Compte',
+                recharge: 'Recharge',
+                withdraw: 'Retrait',
+                start_working: 'Commencer à Travailler',
+                featured_opportunities: 'Opportunités en Vedette',
+                hall_of_fame: 'Palmarès',
+                home: 'Accueil',
+                work: 'Travail',
+                task: 'Tâche',
+                mine: 'Mon Compte'
+            },
+            es: {
+                header_title: 'DailyTrade',
+                notifications: 'Notificaciones Importantes',
+                logout: 'Cerrar Sesión',
+                my_commission: 'Mi Comisión',
+                total_earnings: 'Ganancias totales este mes',
+                account: 'Cuenta',
+                recharge: 'Recarga',
+                withdraw: 'Retiro',
+                start_working: 'Comenzar a Trabajar',
+                featured_opportunities: 'Oportunidades Destacadas',
+                hall_of_fame: 'Galería de la Fama',
+                home: 'Inicio',
+                work: 'Trabajo',
+                task: 'Tarea',
+                mine: 'Mi Cuenta'
+            },
+            pt: {
+                header_title: 'DailyTrade',
+                notifications: 'Notificações Importantes',
+                logout: 'Sair',
+                my_commission: 'Minha Comissão',
+                total_earnings: 'Ganhos totais neste mês',
+                account: 'Conta',
+                recharge: 'Recarregar',
+                withdraw: 'Sacar',
+                start_working: 'Começar a Trabalhar',
+                featured_opportunities: 'Oportunidades em Destaque',
+                hall_of_fame: 'Galeria da Fama',
+                home: 'Início',
+                work: 'Trabalho',
+                task: 'Tarefa',
+                mine: 'Minha Conta'
+            }
+        };
+
+        let currentLanguage = localStorage.getItem('preferredLanguage') || 'en';
+
+        function t(key) {
+            return translations[currentLanguage]?.[key] || translations['en'][key] || key;
+        }
+
+        function applyTranslations() {
+            currentLanguage = localStorage.getItem('preferredLanguage') || 'en';
+            
+            // Update commission title
+            const commissionTitle = document.querySelector('.commission-title');
+            if (commissionTitle) commissionTitle.textContent = t('my_commission');
+            
+            // Update earnings text
+            const earningsText = document.querySelector('.commission-card > div:nth-child(3)');
+            if (earningsText) earningsText.textContent = t('total_earnings');
+            
+            // Update all data-i18n elements
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                element.textContent = t(key);
+            });
+
+            // Update header
+            const headerTitle = document.querySelector('.header-title');
+            if (headerTitle) headerTitle.textContent = t('header_title');
+            
+            // Update nav items
+            const navItems = document.querySelectorAll('.nav-item span');
+            const navLabels = [t('home'), t('work'), t('task'), t('mine')];
+            navItems.forEach((item, index) => {
+                if (navLabels[index]) item.textContent = navLabels[index];
+            });
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('preferredLanguage', lang);
+            applyTranslations();
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeNotificationsModal();
+            }
+        });
+
+        // Load user data and apply language on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            applyTranslations();
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                // Initialize financial data if not exists
+                DataManager.initializeUser(user.userId);
+                const finance = DataManager.getUserFinance(user.userId);
+                document.getElementById('commissionDisplay').textContent = `GHC ${finance.balance.toFixed(2)}`;
+            }
+        });
+
+        // Listen for finance updates from other pages/tabs
+        window.addEventListener('userFinanceUpdated', function(event) {
+            const finance = event.detail.finance;
+            if (finance && document.getElementById('commissionDisplay')) {
+                document.getElementById('commissionDisplay').textContent = `GHC ${finance.balance.toFixed(2)}`;
+            }
+        });
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('isLoggedIn');
+                window.location.href = 'index.html';
+            }
+        }
+</body>
+</html>

@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DailyTrade - My Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="dataManager.js"></script>
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f5f5;
+            padding-bottom: 100px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .header-icons {
+            display: flex;
+            gap: 16px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        /* Profile Section */
+        .profile-section {
+            background: white;
+            padding: 24px 16px;
+            text-align: center;
+            border-bottom: 8px solid #f0f0f0;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0 auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .profile-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .profile-id {
+            font-size: 13px;
+            color: #999;
+        }
+
+        /* Balance Cards Section */
+        .balance-cards-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 12px;
+        }
+
+        .balance-card {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-top: 3px solid #667eea;
+        }
+
+        .balance-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+
+        .balance-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        /* Action Buttons Section */
+        .action-buttons-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 12px;
+        }
+
+        .action-button {
+            background: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e0e0e0;
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+
+        .action-button i {
+            font-size: 24px;
+            color: #667eea;
+        }
+
+        .action-button span {
+            font-size: 12px;
+            color: #333;
+            font-weight: 500;
+        }
+        .menu-section {
+            background: white;
+            margin: 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding-top: 8px;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 0 12px 0;
+            cursor: pointer;
+            color: #999;
+            text-decoration: none;
+            transition: color 0.3s;
+            min-width: 60px;
+            font-size: 12px;
+        }
+
+        .nav-item i {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-item:hover {
+            color: #667eea;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .modal-text {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-btn.cancel {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .modal-btn.confirm {
+            background: #667eea;
+            color: white;
+        }
+
+        .modal-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Action Modals */
+        .action-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-modal.show {
+            display: flex;
+        }
+
+        .modal-container {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .modal-header i {
+            font-size: 24px;
+            color: #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .action-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .action-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-buttons button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-buttons .btn-cancel {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .modal-buttons .btn-submit {
+            background: #667eea;
+            color: white;
+        }
+
+        .modal-buttons .btn-submit:hover {
+            background: #5568d3;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 16px;
+            border-left: 4px solid #667eea;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-title">Mine</div>
+        <div class="header-icons">
+            <i class="las la-cog" title="Settings" onclick="alert('Settings coming soon')"></i>
+        </div>
+    </div>
+
+    <!-- Profile Section -->
+    <div class="profile-section">
+        <div class="profile-avatar">👤</div>
+        <div class="profile-name" id="profileName">User</div>
+        <div class="profile-id" id="profileId">ID-000000</div>
+    </div>
+
+    <!-- Balance Section -->
+    <div class="balance-cards-section">
+        <div class="balance-card">
+            <div class="balance-label">My Balance</div>
+            <div class="balance-value" id="balanceDisplay">GHC 0.00</div>
+        </div>
+        <div class="balance-card">
+            <div class="balance-label">My Bonus</div>
+            <div class="balance-value" id="bonusDisplay">GHC 0.00</div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons-section">
+        <button class="action-button" onclick="navigateTo('recharge')">
+            <i class="las la-plus-circle"></i>
+            <span>Recharge</span>
+        </button>
+        <button class="action-button" onclick="navigateTo('withdraw')">
+            <i class="las la-money-bill"></i>
+            <span>Withdraw</span>
+        </button>
+        <button class="action-button" onclick="navigateTo('account')">
+            <i class="las la-user"></i>
+            <span>Account</span>
+        </button>
+        <button class="action-button" onclick="navigateTo('security')">
+            <i class="las la-shield-alt"></i>
+            <span>Security Center</span>
+        </button>
+    </div>
+
+    <!-- Menu Section -->
+    <div class="menu-section">
+        <div class="menu-item" onclick="navigateTo('funding')">
+            <div class="menu-item-left">
+                <i class="las la-receipt"></i>
+                <span>Funding Records</span>
+            </div>
+            <i class="las la-chevron-right"></i>
+        </div>
+        <div class="menu-item" onclick="navigateTo('invite')">
+            <div class="menu-item-left">
+                <i class="las la-share-alt"></i>
+                <span>Invite Friends</span>
+            </div>
+            <i class="las la-chevron-right"></i>
+        </div>
+        <div class="menu-item" onclick="navigateTo('language')">
+            <div class="menu-item-left">
+                <i class="las la-globe"></i>
+                <span>Language</span>
+            </div>
+            <i class="las la-chevron-right"></i>
+        </div>
+        <div class="menu-item" onclick="navigateTo('support')">
+            <div class="menu-item-left">
+                <i class="las la-headset"></i>
+                <span>Customer Service</span>
+            </div>
+            <i class="las la-chevron-right"></i>
+        </div>
+        <div class="menu-item" onclick="navigateTo('about')">
+            <div class="menu-item-left">
+                <i class="las la-info-circle"></i>
+                <span>About Us</span>
+            </div>
+            <i class="las la-chevron-right"></i>
+        </div>
+    </div>
+
+    <!-- Sign Out Button -->
+    <button class="action-button signout-button" onclick="confirmLogout()">Sign Out</button>
+
+    <!-- Funding Records Modal -->
+    <div class="action-modal" id="fundingModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-receipt"></i>
+                Funding Records
+            </div>
+            <div class="info-box">
+                View all your deposits and recharge history.
+            </div>
+            <div id="fundingList" style="max-height: 400px; overflow-y: auto;">
+                <div style="text-align: center; padding: 20px; color: #999;">
+                    <i class="las la-inbox" style="font-size: 32px; margin-bottom: 10px; display: block;"></i>
+                    Loading records...
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('fundingModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invite Friends Modal -->
+    <div class="action-modal" id="inviteModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-share-alt"></i>
+                Invite Friends
+            </div>
+            <div class="info-box">
+                Share your referral code and earn commission from your friends' activities.
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label class="form-label">Your Referral Code</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" class="form-input" id="referralCode" readonly style="background: #f9f9f9; flex: 1;">
+                    <button style="padding: 10px 16px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="copyReferralCode()">Copy</button>
+                </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label class="form-label">Referral Statistics</label>
+                <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; font-size: 13px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Friends Invited:</span>
+                        <strong id="friendsInvited">0</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Commission Earned:</span>
+                        <strong id="referralCommission">GHC 0.00</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Total Referral Bonus:</span>
+                        <strong id="referralBonus">GHC 0.00</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('inviteModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Language Modal -->
+    <div class="action-modal" id="languageModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-globe"></i>
+                Language Settings
+            </div>
+            <div class="info-box">
+                Select your preferred language for the platform.
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="padding: 12px; border: 2px solid #667eea; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'en')">
+                    <input type="radio" name="language" value="en" checked style="cursor: pointer;">
+                    <span style="flex: 1;">English</span>
+                    <i class="las la-check" style="color: #667eea;"></i>
+                </div>
+                <div style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'fr')">
+                    <input type="radio" name="language" value="fr" style="cursor: pointer;">
+                    <span style="flex: 1;">Français</span>
+                </div>
+                <div style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'es')">
+                    <input type="radio" name="language" value="es" style="cursor: pointer;">
+                    <span style="flex: 1;">Español</span>
+                </div>
+                <div style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'pt')">
+                    <input type="radio" name="language" value="pt" style="cursor: pointer;">
+                    <span style="flex: 1;">Português</span>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('languageModal')">Close</button>
+                <button class="btn-submit" onclick="saveLanguage()">Save Language</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Service Modal -->
+    <div class="action-modal" id="supportModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-headset"></i>
+                Customer Service
+            </div>
+            <div class="info-box">
+                Get in touch with our support team for assistance.
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #667eea;">
+                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #333;"><i class="las la-phone" style="margin-right: 6px;"></i>Phone Support</div>
+                    <div style="font-size: 13px; color: #666;">+233 XXX XXX XXX</div>
+                    <div style="font-size: 12px; color: #999; margin-top: 4px;">Mon-Fri: 9AM-6PM GMT</div>
+                </div>
+                <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #667eea;">
+                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #333;"><i class="las la-envelope" style="margin-right: 6px;"></i>Email Support</div>
+                    <div style="font-size: 13px; color: #666;">support@dailytrade.com</div>
+                    <div style="font-size: 12px; color: #999; margin-top: 4px;">Response time: 24 hours</div>
+                </div>
+                <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #667eea;">
+                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #333;"><i class="las la-comments" style="margin-right: 6px;"></i>Live Chat</div>
+                    <div style="font-size: 13px; color: #666;">Available on our website</div>
+                    <div style="font-size: 12px; color: #999; margin-top: 4px;">Mon-Fri: 10AM-8PM GMT</div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('supportModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Us Modal -->
+    <div class="action-modal" id="aboutModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-info-circle"></i>
+                About DailyTrade
+            </div>
+            <div style="overflow-y: auto; max-height: 400px; padding-right: 8px;">
+                <div style="margin-bottom: 16px;">
+                    <div style="font-weight: 600; color: #333; margin-bottom: 8px; font-size: 14px;">About Us</div>
+                    <div style="font-size: 13px; color: #666; line-height: 1.6;">
+                        DailyTrade is a trusted platform connecting users with daily earning opportunities. We provide a secure, transparent, and user-friendly environment for members to complete tasks and earn commissions.
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-weight: 600; color: #333; margin-bottom: 8px; font-size: 14px;">Our Mission</div>
+                    <div style="font-size: 13px; color: #666; line-height: 1.6;">
+                        To empower individuals by providing legitimate opportunities to earn income through flexible work options.
+                    </div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-weight: 600; color: #333; margin-bottom: 8px; font-size: 14px;">Version</div>
+                    <div style="font-size: 13px; color: #666;">v2.1.0</div>
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-weight: 600; color: #333; margin-bottom: 8px; font-size: 14px;">Legal</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <a href="#" style="font-size: 13px; color: #667eea; text-decoration: none; cursor: pointer;">Terms & Conditions</a>
+                        <a href="#" style="font-size: 13px; color: #667eea; text-decoration: none; cursor: pointer;">Privacy Policy</a>
+                        <a href="#" style="font-size: 13px; color: #667eea; text-decoration: none; cursor: pointer;">Contact Us</a>
+                    </div>
+                </div>
+                <div style="padding: 12px; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #667eea; font-size: 12px; color: #555;">
+                    <strong>© 2024 DailyTrade.</strong> All rights reserved. Built with care for our community.
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('aboutModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Modal -->
+    <div class="modal" id="logoutModal">
+        <div class="modal-content">
+            <div class="modal-title">Confirm Sign Out</div>
+            <div class="modal-text">
+                Are you sure you want to sign out? You'll need to log in again to access your account.
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="hideLogoutModal()">Cancel</button>
+                <button class="modal-btn confirm" onclick="performLogout()">Sign Out</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recharge Modal -->
+    <div class="action-modal" id="rechargeModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-plus-circle"></i>
+                Recharge Account
+            </div>
+            <div class="info-box">
+                Add funds to your account using your preferred payment method.
+            </div>
+            <div class="form-group">
+                <label class="form-label">Payment Method</label>
+                <select class="form-select" id="rechargePaymentMethod">
+                    <option value="mtn">Mobile Money (MTN)</option>
+                    <option value="vodafone">Vodafone Cash</option>
+                    <option value="bank">Bank Transfer</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount (GHC)</label>
+                <input type="number" class="form-input" id="rechargeAmount" placeholder="100.00" min="10" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input type="tel" class="form-input" id="rechargePhone" placeholder="233XXXXXXXXX">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('rechargeModal')">Cancel</button>
+                <button class="btn-submit" onclick="submitRecharge()">Proceed to Payment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Number Display Modal -->
+    <div class="action-modal" id="paymentNumberModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-check-circle"></i>
+                Payment Details
+            </div>
+            <div class="info-box" style="background: #d4edda; border-color: #c3e6cb; color: #155724;">
+                Your payment request has been received. Use the payment number below to complete your transfer.
+            </div>
+            <div class="form-group" style="text-align: center;">
+                <label class="form-label">Payment Number</label>
+                <div style="padding: 15px; background: #f0f4ff; border: 2px dashed #667eea; border-radius: 8px; margin: 10px 0;">
+                    <div style="font-size: 24px; font-weight: bold; color: #667eea; font-family: monospace;" id="displayPaymentNumber">PENDING...</div>
+                </div>
+                <button class="btn-submit" onclick="copyPaymentNumber()" style="width: 100%; margin-top: 10px;">
+                    <i class="las la-copy"></i> Copy Payment Number
+                </button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Transfer Details</label>
+                <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; font-size: 13px; line-height: 1.8;">
+                    <strong>Amount:</strong> GHC <span id="displayAmount">0.00</span><br>
+                    <strong>Payment Method:</strong> <span id="displayMethod">-</span><br>
+                    <strong>Status:</strong> <span style="color: #f39c12; font-weight: bold;">Awaiting Payment</span>
+                </div>
+            </div>
+            <div class="info-box" style="background: #fff3cd; border-color: #ffeaa7; color: #856404; font-size: 12px;">
+                <strong>⚠️ Important:</strong> Make a manual transfer to the payment number above. Once payment is confirmed, your balance will be updated.
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-submit" onclick="closeActionModal('paymentNumberModal')">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div class="action-modal" id="withdrawModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-money-bill"></i>
+                Withdraw Funds
+            </div>
+            <div class="info-box">
+                Withdraw your earnings to your mobile money or bank account.
+            </div>
+            <div class="form-group">
+                <label class="form-label">Available Balance</label>
+                <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; color: #667eea; font-weight: bold;" id="availableBalance">GHC 0.00</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Withdrawal Method</label>
+                <select class="form-select">
+                    <option>Mobile Money (MTN/Vodafone)</option>
+                    <option>Bank Transfer</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone Number / Account</label>
+                <input type="text" class="form-input" placeholder="Enter your phone or account number">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount to Withdraw (GHC)</label>
+                <input type="number" class="form-input" placeholder="50.00" min="50" step="0.01">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('withdrawModal')">Cancel</button>
+                <button class="btn-submit" onclick="submitWithdraw()">Request Withdrawal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Modal -->
+    <div class="action-modal" id="accountModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-user"></i>
+                Account Settings
+            </div>
+            <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" class="form-input" id="accountName" placeholder="Your name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" class="form-input" id="accountEmail" placeholder="your@email.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone Number</label>
+                <input type="tel" class="form-input" id="accountPhone" placeholder="233XXXXXXXXX">
+            </div>
+            <div class="form-group">
+                <label class="form-label">User ID</label>
+                <input type="text" class="form-input" id="accountId" placeholder="ID-000000" readonly style="background: #f9f9f9; cursor: not-allowed;">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('accountModal')">Close</button>
+                <button class="btn-submit" onclick="updateAccount()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Center Modal -->
+    <div class="action-modal" id="securityModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-shield-alt"></i>
+                Security Center
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin-bottom: 12px; color: #333; font-size: 14px; font-weight: 600;">Change Password</h4>
+                <div class="form-group">
+                    <label class="form-label">Current Password</label>
+                    <input type="password" class="form-input" placeholder="Enter current password">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Password</label>
+                    <input type="password" class="form-input" placeholder="Enter new password (min 8 characters)">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Confirm Password</label>
+                    <input type="password" class="form-input" placeholder="Confirm new password">
+                </div>
+            </div>
+            <div style="padding: 12px; background: #fff3cd; border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: #856404;">
+                <i class="las la-exclamation-circle"></i> Keep your password safe and never share it with anyone.
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('securityModal')">Close</button>
+                <button class="btn-submit" onclick="changePassword()">Update Password</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="home.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="work.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-briefcase"></i>
+            <span>Work</span>
+        </a>
+        <a href="tasks.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-tasks"></i>
+            <span>Task</span>
+        </a>
+        <a href="#" class="nav-item active" onclick="setActive(this)">
+            <i class="las la-user-circle"></i>
+            <span>Mine</span>
+        </a>
+    </div>
+
+    <script>
+        // Translation Object
+        const translations = {
+            en: {
+                header_title: 'DailyTrade',
+                notifications: 'Notifications',
+                logout: 'Logout',
+                profile: 'Profile',
+                my_balance: 'My Balance',
+                my_bonus: 'My Bonus',
+                account: 'Account',
+                recharge: 'Recharge',
+                withdraw: 'Withdraw',
+                security: 'Security Center',
+                funding: 'Funding Records',
+                invite: 'Invite Friends',
+                language: 'Language',
+                support: 'Customer Service',
+                about: 'About Us',
+                sign_out: 'Sign Out',
+                confirm_logout: 'Confirm Sign Out',
+                logout_message: 'Are you sure you want to sign out? You\'ll need to log in again to access your account.',
+                cancel: 'Cancel',
+                confirm: 'Sign Out',
+                home: 'Home',
+                work: 'Work',
+                task: 'Task',
+                mine: 'Mine'
+            },
+            fr: {
+                header_title: 'DailyTrade',
+                notifications: 'Notifications',
+                logout: 'Déconnexion',
+                profile: 'Profil',
+                my_balance: 'Mon Solde',
+                my_bonus: 'Mon Bonus',
+                account: 'Compte',
+                recharge: 'Recharge',
+                withdraw: 'Retrait',
+                security: 'Centre de Sécurité',
+                funding: 'Historique de Financement',
+                invite: 'Inviter des Amis',
+                language: 'Langue',
+                support: 'Service Client',
+                about: 'À Propos',
+                sign_out: 'Se Déconnecter',
+                confirm_logout: 'Confirmer la Déconnexion',
+                logout_message: 'Êtes-vous sûr de vouloir vous déconnecter? Vous devrez vous reconnecter pour accéder à votre compte.',
+                cancel: 'Annuler',
+                confirm: 'Se Déconnecter',
+                home: 'Accueil',
+                work: 'Travail',
+                task: 'Tâche',
+                mine: 'Mon Compte'
+            },
+            es: {
+                header_title: 'DailyTrade',
+                notifications: 'Notificaciones',
+                logout: 'Cerrar Sesión',
+                profile: 'Perfil',
+                my_balance: 'Mi Saldo',
+                my_bonus: 'Mi Bonificación',
+                account: 'Cuenta',
+                recharge: 'Recarga',
+                withdraw: 'Retiro',
+                security: 'Centro de Seguridad',
+                funding: 'Historial de Financiamiento',
+                invite: 'Invitar Amigos',
+                language: 'Idioma',
+                support: 'Servicio al Cliente',
+                about: 'Acerca De',
+                sign_out: 'Cerrar Sesión',
+                confirm_logout: 'Confirmar Cierre de Sesión',
+                logout_message: '¿Estás seguro de que deseas cerrar sesión? Necesitarás iniciar sesión nuevamente para acceder a tu cuenta.',
+                cancel: 'Cancelar',
+                confirm: 'Cerrar Sesión',
+                home: 'Inicio',
+                work: 'Trabajo',
+                task: 'Tarea',
+                mine: 'Mi Cuenta'
+            },
+            pt: {
+                header_title: 'DailyTrade',
+                notifications: 'Notificações',
+                logout: 'Sair',
+                profile: 'Perfil',
+                my_balance: 'Meu Saldo',
+                my_bonus: 'Meu Bônus',
+                account: 'Conta',
+                recharge: 'Recarregar',
+                withdraw: 'Sacar',
+                security: 'Centro de Segurança',
+                funding: 'Histórico de Financiamento',
+                invite: 'Convidar Amigos',
+                language: 'Idioma',
+                support: 'Atendimento ao Cliente',
+                about: 'Sobre',
+                sign_out: 'Sair',
+                confirm_logout: 'Confirmar Saída',
+                logout_message: 'Tem certeza de que deseja sair? Você precisará fazer login novamente para acessar sua conta.',
+                cancel: 'Cancelar',
+                confirm: 'Sair',
+                home: 'Início',
+                work: 'Trabalho',
+                task: 'Tarefa',
+                mine: 'Minha Conta'
+            }
+        };
+
+        let currentLanguage = localStorage.getItem('preferredLanguage') || 'en';
+
+        function t(key) {
+            return translations[currentLanguage]?.[key] || translations['en'][key] || key;
+        }
+
+        function applyTranslations() {
+            currentLanguage = localStorage.getItem('preferredLanguage') || 'en';
+            
+            // Update all data-i18n elements
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                element.textContent = t(key);
+            });
+
+            // Update specific elements by ID if needed
+            const headerTitle = document.querySelector('.header-title');
+            if (headerTitle) headerTitle.textContent = t('header_title');
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('preferredLanguage', lang);
+            applyTranslations();
+        }
+        function setActive(element) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+        }
+
+        function navigateTo(section) {
+            switch(section) {
+                case 'recharge':
+                    openActionModal('rechargeModal');
+                    break;
+                case 'withdraw':
+                    openActionModal('withdrawModal');
+                    loadWithdrawData();
+                    break;
+                case 'account':
+                    openActionModal('accountModal');
+                    loadAccountData();
+                    break;
+                case 'security':
+                    openActionModal('securityModal');
+                    break;
+                case 'funding':
+                    openActionModal('fundingModal');
+                    loadFundingRecords();
+                    break;
+                case 'invite':
+                    openActionModal('inviteModal');
+                    loadInviteCode();
+                    break;
+                case 'language':
+                    openActionModal('languageModal');
+                    break;
+                case 'support':
+                    openActionModal('supportModal');
+                    break;
+                case 'about':
+                    openActionModal('aboutModal');
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // Modal functions
+        function openActionModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function closeActionModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+
+        // Load account data into modal
+        function loadAccountData() {
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                document.getElementById('accountName').value = user.fullName || '';
+                document.getElementById('accountEmail').value = user.email || '';
+                document.getElementById('accountPhone').value = user.phone || '';
+                document.getElementById('accountId').value = user.userId || '';
+            }
+        }
+
+        // Load withdraw data
+        function loadWithdrawData() {
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                document.getElementById('availableBalance').textContent = `GHC ${user.balance.toFixed(2)}`;
+            }
+        }
+
+        // Submit recharge
+        function submitRecharge() {
+            const paymentMethod = document.getElementById('rechargePaymentMethod').value;
+            const amount = document.getElementById('rechargeAmount').value;
+            const phone = document.getElementById('rechargePhone').value;
+            
+            // Validation
+            if (!amount || parseFloat(amount) < 10) {
+                alert('Amount must be at least GHC 10');
+                return;
+            }
+            
+            if (!phone || phone.length < 10) {
+                alert('Please enter a valid phone number');
+                return;
+            }
+            
+            // Get current user
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('User not found');
+                return;
+            }
+            
+            const currentUser = JSON.parse(currentUserStr);
+            const userId = currentUser.id || currentUser.userId;
+            
+            // Create payment request
+            const paymentRequest = {
+                id: 'PAY_' + Date.now(),
+                userId: userId,
+                userName: currentUser.fullName,
+                userEmail: currentUser.email,
+                amount: parseFloat(amount),
+                paymentMethod: paymentMethod,
+                phone: phone,
+                status: 'pending',
+                paymentNumber: null, // Will be assigned by admin
+                requestedAt: new Date().toISOString(),
+                createdAt: new Date().toISOString()
+            };
+            
+            // Store in localStorage
+            let pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+            pendingPayments.push(paymentRequest);
+            localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
+            
+            // Store in user's payment history
+            let userPayments = JSON.parse(localStorage.getItem('userPayments_' + userId) || '[]');
+            userPayments.push(paymentRequest);
+            localStorage.setItem('userPayments_' + userId, JSON.stringify(userPayments));
+            
+            // Display payment number modal
+            displayPaymentNumberModal(paymentRequest);
+            
+            // Clear form
+            document.getElementById('rechargeAmount').value = '';
+            document.getElementById('rechargePhone').value = '';
+            
+            closeActionModal('rechargeModal');
+        }
+        
+        // Display payment number modal
+        function displayPaymentNumberModal(paymentRequest) {
+            // Check if admin has assigned a payment number
+            const adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
+            let paymentNumber = adminPaymentNumbers[paymentRequest.id];
+            
+            if (!paymentNumber) {
+                // If no payment number assigned, show pending message
+                paymentNumber = 'PENDING_' + paymentRequest.id.substring(4);
+            }
+            
+            // Update display
+            document.getElementById('displayPaymentNumber').textContent = paymentNumber;
+            document.getElementById('displayAmount').textContent = paymentRequest.amount.toFixed(2);
+            
+            const methodNames = {
+                'mtn': 'MTN Mobile Money',
+                'vodafone': 'Vodafone Cash',
+                'bank': 'Bank Transfer'
+            };
+            document.getElementById('displayMethod').textContent = methodNames[paymentRequest.paymentMethod] || paymentRequest.paymentMethod;
+            
+            // Store current payment request for copy function
+            window.currentPaymentRequest = paymentRequest;
+            
+            openActionModal('paymentNumberModal');
+        }
+        
+        // Copy payment number to clipboard
+        function copyPaymentNumber() {
+            const paymentNumber = document.getElementById('displayPaymentNumber').textContent;
+            
+            // Create temporary textarea to copy
+            const textarea = document.createElement('textarea');
+            textarea.value = paymentNumber;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            // Show feedback
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="las la-check"></i> Copied!';
+            button.style.background = '#27ae60';
+            
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.style.background = '';
+            }, 2000);
+        }
+
+        // Submit withdrawal
+        function submitWithdraw() {
+            const amount = parseFloat(document.getElementById('withdrawAmount').value);
+            const method = document.getElementById('withdrawMethod').value;
+            const userData = localStorage.getItem('currentUser');
+            
+            if (!userData) {
+                alert('User not found');
+                return;
+            }
+            
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            if (amount < 50) {
+                alert('Minimum withdrawal amount is GHC 50.00');
+                return;
+            }
+            
+            const user = JSON.parse(userData);
+            const finance = DataManager.getUserFinance(user.userId);
+            
+            if (amount > finance.balance) {
+                alert('Insufficient balance for withdrawal');
+                return;
+            }
+            
+            const result = DataManager.requestWithdrawal(user.userId, amount, method);
+            if (result) {
+                alert(`Withdrawal request of GHC ${amount.toFixed(2)} submitted successfully!`);
+                closeActionModal('withdrawModal');
+                document.getElementById('withdrawAmount').value = '';
+                document.getElementById('withdrawMethod').value = 'mtn';
+                DataManager.syncAllPages(user.userId);
+            } else {
+                alert('Failed to submit withdrawal request');
+            }
+        }
+
+        // Update account
+        function updateAccount() {
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                user.fullName = document.getElementById('accountName').value;
+                user.email = document.getElementById('accountEmail').value;
+                user.phone = document.getElementById('accountPhone').value;
+                
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                
+                // Update allUsers list as well
+                let allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+                const userIndex = allUsers.findIndex(u => u.userId === user.userId);
+                if (userIndex !== -1) {
+                    allUsers[userIndex] = user;
+                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                }
+                
+                alert('Account information updated successfully!');
+                closeActionModal('accountModal');
+            }
+        }
+
+        // Change password
+        function changePassword() {
+            const currentPassword = document.querySelector('#securityModal input[type="password"]').value;
+            const newPassword = document.querySelectorAll('#securityModal input[type="password"]')[1].value;
+            const confirmPassword = document.querySelectorAll('#securityModal input[type="password"]')[2].value;
+            
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                alert('Please fill in all password fields');
+                return;
+            }
+            
+            if (newPassword.length < 8) {
+                alert('New password must be at least 8 characters long');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+            
+            alert('Password changed successfully!');
+            closeActionModal('securityModal');
+            
+            // Clear the form
+            document.querySelectorAll('#securityModal input[type="password"]').forEach(input => {
+                input.value = '';
+            });
+        }
+
+        function confirmLogout() {
+            document.getElementById('logoutModal').classList.add('show');
+        }
+
+        function hideLogoutModal() {
+            document.getElementById('logoutModal').classList.remove('show');
+        }
+
+        function performLogout() {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+
+        // Load user data on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            applyTranslations();
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                DataManager.initializeUser(user.userId);
+                const finance = DataManager.getUserFinance(user.userId);
+                document.getElementById('profileName').textContent = user.fullName;
+                document.getElementById('profileId').textContent = user.userId;
+                document.getElementById('balanceDisplay').textContent = `GHC ${finance.balance.toFixed(2)}`;
+                document.getElementById('bonusDisplay').textContent = `GHC ${finance.bonus.toFixed(2)}`;
+            }
+        });
+
+        // Listen for finance updates
+        window.addEventListener('userFinanceUpdated', function(event) {
+            const finance = event.detail.finance;
+            if (finance) {
+                if (document.getElementById('balanceDisplay')) {
+                    document.getElementById('balanceDisplay').textContent = `GHC ${finance.balance.toFixed(2)}`;
+                }
+                if (document.getElementById('bonusDisplay')) {
+                    document.getElementById('bonusDisplay').textContent = `GHC ${finance.bonus.toFixed(2)}`;
+                }
+            }
+        });
+
+        // Funding Records Functions
+        function loadFundingRecords() {
+            const userData = localStorage.getItem('currentUser');
+            if (!userData) return;
+            
+            const user = JSON.parse(userData);
+            const transactions = DataManager.getUserTransactions(user.userId);
+            const fundingList = document.getElementById('fundingList');
+            
+            if (!transactions || transactions.length === 0) {
+                fundingList.innerHTML = `
+                    <div style="text-align: center; padding: 30px; color: #999;">
+                        <i class="las la-inbox" style="font-size: 48px; margin-bottom: 10px; display: block; color: #ddd;"></i>
+                        <div>No funding records yet</div>
+                        <div style="font-size: 12px; margin-top: 8px;">Your transaction history will appear here</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            fundingList.innerHTML = transactions.map((tx, index) => {
+                const date = new Date(tx.date).toLocaleDateString();
+                const amountClass = tx.type.includes('debit') || tx.type === 'withdrawal_request' ? 'color: #e74c3c;' : 'color: #27ae60;';
+                const symbol = tx.type.includes('debit') || tx.type === 'withdrawal_request' ? '-' : '+';
+                return `
+                    <div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 13px; color: #333;">${tx.reason}</div>
+                            <div style="font-size: 12px; color: #999;">${date}</div>
+                        </div>
+                        <div style="font-weight: 600; font-size: 13px; ${amountClass}">${symbol}GHC ${tx.amount.toFixed(2)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Invite Friends Functions
+        function loadInviteCode() {
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                const referralCode = 'DT' + user.userId.substring(0, 6).toUpperCase();
+                document.getElementById('referralCode').value = referralCode;
+                
+                // Load referral stats
+                const refStats = localStorage.getItem('referralStats_' + user.userId) || '{\"invited\":0,\"commission\":0,\"bonus\":0}';
+                const stats = JSON.parse(refStats);
+                document.getElementById('friendsInvited').textContent = stats.invited || 0;
+                document.getElementById('referralCommission').textContent = 'GHC ' + (stats.commission || 0).toFixed(2);
+                document.getElementById('referralBonus').textContent = 'GHC ' + (stats.bonus || 0).toFixed(2);
+            }
+        }
+
+        function copyReferralCode() {
+            const code = document.getElementById('referralCode').value;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('Referral code copied to clipboard!');
+            });
+        }
+
+        // Language Functions
+        function selectLanguage(event, lang) {
+            // Update radio button
+            document.querySelectorAll('input[name=\"language\"]').forEach(radio => {
+                radio.checked = false;
+            });
+            document.querySelector(`input[name=\"language\"][value=\"${lang}\"]`).checked = true;
+            
+            // Update styling
+            document.querySelectorAll('#languageModal > .modal-container > div:nth-child(3) > div').forEach(option => {
+                option.style.borderColor = '#ddd';
+                const icon = option.querySelector('i');
+                if (icon) icon.style.visibility = 'hidden';
+            });
+            
+            const selectedOption = event.currentTarget;
+            selectedOption.style.borderColor = '#667eea';
+            const icon = selectedOption.querySelector('i');
+            if (icon) icon.style.visibility = 'visible';
+        }
+
+        function saveLanguage() {
+            const selectedLanguage = document.querySelector('input[name=\"language\"]:checked').value;
+            setLanguage(selectedLanguage);
+            alert('Language preference saved!');
+            closeActionModal('languageModal');
+        }
+
+        // Load language and user data on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            applyTranslations();
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                document.getElementById('profileName').textContent = user.fullName;
+                document.getElementById('profileId').textContent = user.userId;
+                document.getElementById('balanceDisplay').textContent = `GHC ${user.balance.toFixed(2)}`;
+                document.getElementById('bonusDisplay').textContent = `GHC ${user.bonus.toFixed(2)}`;
+            }
+        });
+    </script>
+</body>
+</html>

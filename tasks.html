@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DailyTrade - Tasks</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="dataManager.js"></script>
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f5f5;
+            padding-bottom: 100px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-back {
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 0 12px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #999;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        /* Task Container */
+        .task-container {
+            padding: 16px 12px;
+        }
+
+        /* Balance Section */
+        .balance-section {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .balance-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .balance-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .balance-item {
+            text-align: center;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 12px;
+        }
+
+        .balance-item-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 6px;
+        }
+
+        .balance-item-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .balance-highlight {
+            grid-column: 1 / -1;
+        }
+
+        .balance-highlight .balance-item-value {
+            font-size: 24px;
+        }
+
+        /* Award Section */
+        .award-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .award-title {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 12px;
+        }
+
+        .award-amount {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .award-bar-container {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .award-bar-fill {
+            height: 100%;
+            background: white;
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .award-percentage {
+            font-size: 12px;
+            text-align: right;
+            opacity: 0.9;
+        }
+
+        /* Filter Buttons */
+        .filter-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .filter-btn {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #666;
+        }
+
+        .filter-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* Task List */
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .task-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .task-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .task-item-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .task-item-status {
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .task-item-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .task-item-status.frozen {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .task-item-status.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .task-item-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        .task-item-info-row {
+            display: flex;
+            justify-content: space-between;
+            color: #666;
+        }
+
+        .task-item-info-row strong {
+            color: #333;
+        }
+
+        .task-item-reward {
+            background: #f0f4ff;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .task-action-btn {
+            margin-top: 12px;
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .task-action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.25);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            color: #ddd;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            color: #999;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            color: #ddd;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-title {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .empty-state-text {
+            font-size: 14px;
+            color: #999;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding-top: 8px;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 0 12px 0;
+            cursor: pointer;
+            color: #999;
+            text-decoration: none;
+            transition: color 0.3s;
+            min-width: 60px;
+            font-size: 12px;
+        }
+
+        .nav-item i {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-item:hover {
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="header-title">Task</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs" style="display: none;">
+        <div class="tab active" onclick="switchTab(0, this)">Pending</div>
+        <div class="tab" onclick="switchTab(1, this)">Completed</div>
+        <div class="tab" onclick="switchTab(2, this)">History</div>
+    </div>
+
+    <!-- New Task Container -->
+    <div class="work-container">
+        <!-- Balance Section -->
+        <div class="balance-section"></div>
+
+        <!-- Award Section -->
+        <div class="award-section"></div>
+
+        <!-- Filter Buttons -->
+        <div class="filter-buttons">
+            <button class="filter-btn active" onclick="switchFilter('pending')">To Be Completed</button>
+            <button class="filter-btn" onclick="switchFilter('frozen')">Frozen</button>
+            <button class="filter-btn" onclick="switchFilter('completed')">Completed</button>
+        </div>
+
+        <!-- Task List -->
+        <div class="task-list"></div>
+    </div>
+
+    <script>
+        // Task data
+        let tasksData = { pending: [], frozen: [], completed: [] };
+
+        // Initialize page
+        function initializePage() {
+            loadUserTasks();
+            updateBalance();
+            updateAward();
+            displayTasks('pending');
+        }
+
+        function loadUserTasks() {
+            const userData = localStorage.getItem('currentUser');
+            if (!userData) {
+                tasksData = { pending: [], frozen: [], completed: [] };
+                return;
+            }
+
+            const user = JSON.parse(userData);
+            tasksData = DataManager.getUserTasks(user.userId) || { pending: [], frozen: [], completed: [] };
+        }
+
+        function updateBalance() {
+            // Get user data from DataManager
+            const userData = localStorage.getItem('currentUser');
+            if (!userData) return;
+            
+            const user = JSON.parse(userData);
+            DataManager.initializeUser(user.userId);
+            const finance = DataManager.getUserFinance(user.userId);
+
+            // Update balance display
+            document.querySelector('.balance-section').innerHTML = `
+                <div class="balance-title">My Tasks</div>
+                <div class="balance-grid">
+                    <div class="balance-item">
+                        <div class="balance-item-label">Bonus (GHC)</div>
+                        <div class="balance-item-value">${finance.bonus.toFixed(2)}</div>
+                    </div>
+                    <div class="balance-item">
+                        <div class="balance-item-label">Return Principal (GHC)</div>
+                        <div class="balance-item-value">0</div>
+                    </div>
+                    <div class="balance-item">
+                        <div class="balance-item-label">Quantity of Tasks</div>
+                        <div class="balance-item-value">${finance.tasksCompleted}/10</div>
+                    </div>
+                    <div class="balance-item">
+                        <div class="balance-item-label">Return Commission (GHC)</div>
+                        <div class="balance-item-value">${finance.totalEarnings.toFixed(2)}</div>
+                    </div>
+                    <div class="balance-item balance-highlight">
+                        <div class="balance-item-label">My Balance</div>
+                        <div class="balance-item-value">GHC ${finance.balance.toFixed(2)}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateAward() {
+            let totalCompleted = tasksData.completed.length;
+            let totalTasks = Object.values(tasksData).flat().length;
+            let percentage = totalTasks === 0 ? 0 : Math.round((totalCompleted / totalTasks) * 100);
+
+            const awardSection = document.querySelector('.award-section');
+            if (awardSection) {
+                awardSection.innerHTML = `
+                    <div class="award-title">Award Progress</div>
+                    <div class="award-amount">GHC ${(tasksData.completed.reduce((sum, t) => sum + t.amount, 0)).toFixed(2)}</div>
+                    <div class="award-bar-container">
+                        <div class="award-bar-fill" style="width: ${percentage}%;"></div>
+                    </div>
+                    <div class="award-percentage">${percentage}% Complete</div>
+                `;
+            }
+        }
+
+        function displayTasks(filter) {
+            const tasks = tasksData[filter] || [];
+            const taskList = document.querySelector('.task-list');
+
+            if (tasks.length === 0) {
+                taskList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="las la-inbox"></i>
+                        <div class="empty-state-text">No ${filter} tasks</div>
+                    </div>
+                `;
+                return;
+            }
+
+            taskList.innerHTML = tasks.map(task => `
+                <div class="task-item">
+                    <div class="task-item-header">
+                        <div class="task-item-title">${task.title}</div>
+                        <div class="task-item-status ${task.status}">${task.status.charAt(0).toUpperCase() + task.status.slice(1)}</div>
+                    </div>
+                    ${task.isProduct && task.productImage ? `
+                        <div style="margin-bottom: 12px; text-align: center;">
+                            <img src="${task.productImage}" alt="${task.title}" style="max-width: 100%; max-height: 120px; border-radius: 8px; object-fit: cover;">
+                        </div>
+                    ` : ''}
+                    <div class="task-item-description" style="font-size: 13px; color: #666; margin-bottom: 12px;">
+                        ${task.description}
+                    </div>
+                    <div class="task-item-info">
+                        <div class="task-item-info-row">
+                            <span>Amount:</span>
+                            <strong>GHC ${task.amount.toFixed(2)}</strong>
+                        </div>
+                        ${task.quantity ? `<div class="task-item-info-row">
+                            <span>Quantity:</span>
+                            <strong>${task.quantity}</strong>
+                        </div>` : ''}
+                    </div>
+                    <div class="task-item-reward">
+                        ${task.isProduct ? `Order & Earn: GHC ${(task.amount * 0.215).toFixed(2)} bonus` : `Reward: GHC ${task.amount.toFixed(2)}`}
+                    </div>
+                    ${task.status === 'pending' ? `
+                        <button class="task-action-btn" onclick="completeTask(${task.id})">${task.isProduct ? 'Place Order' : 'Mark Completed'}</button>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function switchFilter(filter) {
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update task display
+            displayTasks(filter);
+        }
+
+        // Initialize on page load
+        initializePage();
+
+        function setActive(element) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+        }
+
+        function switchTab(tabIndex, element) {
+            // This is for the old tab system - keeping for compatibility
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            document.getElementById(`tab-${tabIndex}`).classList.add('active');
+            element.classList.add('active');
+        }
+
+        function completeTask(taskId) {
+            const userData = localStorage.getItem('currentUser');
+            if (!userData) {
+                alert('User not found');
+                return;
+            }
+            
+            const user = JSON.parse(userData);
+            
+            // Find task in tasksData and get its details
+            const task = (tasksData.pending || []).find(t => t.id === taskId);
+            
+            if (!task) {
+                alert('Task not found');
+                return;
+            }
+            
+            // If it's a product order task, process as order
+            if (task.isProduct) {
+                completeProductOrder(user.userId, taskId, task);
+            } else {
+                // Regular task completion
+                const result = DataManager.completeTask(user.userId, task.id, task.title, task.amount, 0);
+                
+                if (result) {
+                    DataManager.completeUserTask(user.userId, task.id);
+                    loadUserTasks();
+                    alert(`Task "${task.title}" completed! You earned GHC ${task.amount.toFixed(2)}`);
+                    updateBalance();
+                    updateAward();
+                    displayTasks('completed');
+                    DataManager.syncAllPages(user.userId);
+                } else {
+                    alert('Failed to complete task');
+                }
+            }
+        }
+
+        function completeProductOrder(userId, taskId, task) {
+            const finance = DataManager.getUserFinance(userId);
+
+            if (finance.balance < task.amount) {
+                alert(`Insufficient balance. You need GHC ${task.amount} to complete this order.`);
+                return;
+            }
+
+            // Process order (deducts balance, waits 6 seconds, adds bonus)
+            const result = DataManager.processOrder(userId, task.amount, 21.5);
+
+            if (result.success) {
+                // Update UI immediately with balance deduction
+                updateBalance();
+
+                // After 6 seconds, the bonus is added (in DataManager) and we complete the task
+                setTimeout(() => {
+                    // Move task to completed
+                    DataManager.completeUserTask(userId, taskId);
+                    loadUserTasks();
+                    updateBalance();
+                    updateAward();
+                    displayTasks('completed');
+                    DataManager.syncAllPages(userId);
+                    
+                    alert(`Order completed! GHC ${task.amount} returned + GHC ${(task.amount * 0.215).toFixed(2)} bonus earned!`);
+                }, 6000);
+            } else {
+                alert('Failed to process order: ' + result.reason);
+            }
+        }
+
+        // Translation system
+        const translations = {
+            en: { home: 'Home', work: 'Work', task: 'Task', mine: 'Mine' },
+            fr: { home: 'Accueil', work: 'Travail', task: 'Tâche', mine: 'Mon Compte' },
+            es: { home: 'Inicio', work: 'Trabajo', task: 'Tarea', mine: 'Mi Cuenta' },
+            pt: { home: 'Início', work: 'Trabalho', task: 'Tarefa', mine: 'Minha Conta' }
+        };
+
+        let currentLanguage = localStorage.getItem('preferredLanguage') || 'en';
+
+        function applyLanguage() {
+            currentLanguage = localStorage.getItem('preferredLanguage') || 'en';
+            const navItems = document.querySelectorAll('.nav-item span');
+            const navLabels = [translations[currentLanguage]?.home || 'Home', translations[currentLanguage]?.work || 'Work', translations[currentLanguage]?.task || 'Task', translations[currentLanguage]?.mine || 'Mine'];
+            navItems.forEach((item, index) => {
+                if (navLabels[index]) item.textContent = navLabels[index];
+            });
+        }
+
+        // Apply language on load
+        window.addEventListener('DOMContentLoaded', applyLanguage);
+        
+        // Listen for finance updates
+        window.addEventListener('userFinanceUpdated', function(event) {
+            updateBalance();
+            updateAward();
+        });
+    </script>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="home.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="work.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-briefcase"></i>
+            <span>Work</span>
+        </a>
+        <a href="#" class="nav-item active" onclick="setActive(this)">
+            <i class="las la-tasks"></i>
+            <span>Task</span>
+        </a>
+        <a href="mine.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-user-circle"></i>
+            <span>Mine</span>
+        </a>
+    </div>
+</body>
+</html>

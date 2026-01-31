@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DailyTrade - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .login-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 12px;
+        }
+
+        .header-text {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+            transition: all 0.3s ease;
+        }
+
+        .input-container:focus-within {
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-icon {
+            padding: 0 12px;
+            color: #999;
+            font-size: 18px;
+        }
+
+        .input-box {
+            flex: 1;
+            border: none;
+            outline: none;
+            padding: 12px 0;
+            background: transparent;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .input-box::placeholder {
+            color: #999;
+        }
+
+        .toggle-password {
+            padding: 0 12px;
+            cursor: pointer;
+            color: #999;
+            font-size: 18px;
+            transition: color 0.2s;
+        }
+
+        .toggle-password:hover {
+            color: #667eea;
+        }
+
+        .forgot-password {
+            text-align: right;
+            margin-top: 8px;
+        }
+
+        .forgot-password a {
+            font-size: 12px;
+            color: #667eea;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .forgot-password a:hover {
+            color: #764ba2;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 24px;
+        }
+
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-button:active {
+            transform: translateY(0);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+        }
+
+        .divider-line {
+            flex: 1;
+            height: 1px;
+            background: #e0e0e0;
+        }
+
+        .divider-text {
+            padding: 0 16px;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .social-login {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .social-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        .social-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .footer-text {
+            text-align: center;
+            font-size: 13px;
+            color: #666;
+            margin-top: 20px;
+        }
+
+        .footer-text a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .footer-text a:hover {
+            color: #764ba2;
+        }
+
+        .language-switcher {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #666;
+            cursor: pointer;
+            border: 1px solid #e0e0e0;
+        }
+
+        .language-switcher:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .phone-input-prefix {
+            padding: 0 12px;
+            color: #999;
+            font-size: 14px;
+            font-weight: 500;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 24px 16px;
+                margin: 0 16px;
+            }
+
+            .logo {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="language-switcher">
+        <i class="las la-globe"></i>
+        <span>EN</span>
+    </div>
+
+    <div class="login-container mx-4">
+        <div class="login-card">
+            <div class="header">
+                <div class="logo">DailyTrade</div>
+                <div class="header-text">Welcome back</div>
+            </div>
+
+            <form id="loginForm">
+                <!-- Email Input -->
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <div class="input-container">
+                        <i class="las la-envelope input-icon"></i>
+                        <input 
+                            type="email" 
+                            id="emailInput"
+                            class="input-box" 
+                            placeholder="Enter your email"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <!-- Password Input -->
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <div class="input-container">
+                        <i class="las la-lock input-icon"></i>
+                        <input 
+                            type="password" 
+                            id="passwordInput"
+                            class="input-box" 
+                            placeholder="Enter your password"
+                            required
+                        >
+                        <span class="toggle-password" onclick="togglePassword()">
+                            <i class="las la-eye" id="eyeIcon"></i>
+                        </span>
+                    </div>
+                    <div class="forgot-password">
+                        <a href="#forgot">Forgot password?</a>
+                    </div>
+                </div>
+
+                <!-- Login Button -->
+                <button type="submit" class="login-button">Log in</button>
+            </form>
+
+            <!-- Divider -->
+            <div class="divider">
+                <div class="divider-line"></div>
+                <div class="divider-text">or</div>
+                <div class="divider-line"></div>
+            </div>
+
+            <!-- Social Login -->
+            <div class="social-login">
+                <button class="social-btn" title="Google">
+                    <i class="lab la-google"></i>
+                </button>
+                <button class="social-btn" title="Apple">
+                    <i class="lab la-apple"></i>
+                </button>
+                <button class="social-btn" title="Facebook">
+                    <i class="lab la-facebook-f"></i>
+                </button>
+            </div>
+
+            <!-- Footer Text -->
+            <div class="footer-text">
+                Don't have an account? <a href="register.html">Register</a>
+            </div>
+
+            <!-- Admin Access -->
+            <div style="margin-top: 20px; text-align: center; border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                <a href="admin-login.html" style="font-size: 12px; color: #999; text-decoration: none;">Admin Access</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('passwordInput');
+            const icon = document.getElementById('eyeIcon');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'las la-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'las la-eye';
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('emailInput').value.trim();
+            const password = document.getElementById('passwordInput').value;
+            
+            // Get all users from localStorage
+            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+            
+            // Find user with matching email and password
+            const user = allUsers.find(u => u.email === email && u.password === password);
+            
+            if (user) {
+                // Set as logged in and store current user
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                
+                // Redirect to home
+                window.location.href = 'home.html';
+            } else {
+                alert('Invalid email or password');
+            }
+        });
+    </script>
+</body>
+</html>
