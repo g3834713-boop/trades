@@ -367,7 +367,7 @@
             
             try {
                 if (typeof window.AuthService === 'undefined') {
-                    throw new Error('Authentication service not loaded');
+                    throw new Error('Authentication service not loaded. Please refresh the page.');
                 }
 
                 const result = await window.AuthService.login(email, password);
@@ -376,7 +376,18 @@
                 window.location.href = 'home.html';
             } catch (error) {
                 console.error('Login error:', error);
-                alert(error.message || 'Invalid email or password');
+                
+                // Handle different error types
+                let errorMessage = 'Invalid email or password';
+                if (error.message && error.message.toLowerCase().includes('rate limit')) {
+                    errorMessage = 'Too many login attempts. Please wait a few minutes and try again.';
+                } else if (error.message && error.message.toLowerCase().includes('invalid')) {
+                    errorMessage = 'Invalid email or password. Please check your credentials.';
+                } else if (error.message) {
+                    errorMessage = error.message;
+                }
+                
+                alert(errorMessage);
             }
         });
     </script>

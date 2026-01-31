@@ -654,7 +654,7 @@
                         
                         // Wait for AuthService to be available
                         if (typeof window.AuthService === 'undefined') {
-                            throw new Error('Authentication service not loaded');
+                            throw new Error('Authentication service not loaded. Please refresh the page.');
                         }
 
                         const result = await window.AuthService.register(email, password, fullName, formattedPhone);
@@ -669,7 +669,18 @@
                         }, 1500);
                     } catch (error) {
                         console.error('Registration error:', error);
-                        showError('email', error.message || 'Registration failed. Please try again.');
+                        
+                        // Handle rate limit error
+                        let errorMessage = 'Registration failed. Please try again.';
+                        if (error.message && error.message.toLowerCase().includes('rate limit')) {
+                            errorMessage = 'Too many registration attempts. Please wait a few minutes and try again.';
+                        } else if (error.message && error.message.toLowerCase().includes('already registered')) {
+                            errorMessage = 'This email is already registered. Please login instead.';
+                        } else if (error.message) {
+                            errorMessage = error.message;
+                        }
+                        
+                        showError('email', errorMessage);
                         submitBtn.disabled = false;
                         submitBtn.textContent = 'Create Account';
                     }
