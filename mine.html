@@ -1383,6 +1383,7 @@
             } catch (error) {
                 console.error('Error loading transactions:', error);
             }
+        }
 
         // Invite Friends Functions
         function loadInviteCode() {
@@ -1440,31 +1441,6 @@
         function confirmLogout() {
             if (confirm('Are you sure you want to logout?')) {
                 logout();
-            }
-        }
-
-        // Navigate to section
-        function navigateTo(section) {
-            switch(section) {
-                case 'recharge':
-                    openActionModal('rechargeModal');
-                    break;
-                case 'withdraw':
-                    openActionModal('withdrawModal');
-                    loadWithdrawData();
-                    break;
-                case 'account':
-                    openActionModal('accountModal');
-                    loadAccountData();
-                    break;
-                case 'work':
-                    window.location.href = 'work.html';
-                    break;
-                case 'tasks':
-                    window.location.href = 'tasks.html';
-                    break;
-                default:
-                    break;
             }
         }
 
