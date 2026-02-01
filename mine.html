@@ -1380,7 +1380,9 @@
                     </div>
                 `;
             }).join('');
-        }
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+            }
 
         // Invite Friends Functions
         function loadInviteCode() {
@@ -1434,17 +1436,41 @@
             closeActionModal('languageModal');
         }
 
+        // Confirm logout
+        function confirmLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                logout();
+            }
+        }
+
+        // Navigate to section
+        function navigateTo(section) {
+            switch(section) {
+                case 'recharge':
+                    openActionModal('rechargeModal');
+                    break;
+                case 'withdraw':
+                    openActionModal('withdrawModal');
+                    loadWithdrawData();
+                    break;
+                case 'account':
+                    openActionModal('accountModal');
+                    loadAccountData();
+                    break;
+                case 'work':
+                    window.location.href = 'work.html';
+                    break;
+                case 'tasks':
+                    window.location.href = 'tasks.html';
+                    break;
+                default:
+                    break;
+            }
+        }
+
         // Load language and user data on page load
         window.addEventListener('DOMContentLoaded', function() {
             applyTranslations();
-            const userData = localStorage.getItem('currentUser');
-            if (userData) {
-                const user = JSON.parse(userData);
-                document.getElementById('profileName').textContent = user.fullName;
-                document.getElementById('profileId').textContent = user.userId;
-                document.getElementById('balanceDisplay').textContent = `GHC ${user.balance.toFixed(2)}`;
-                document.getElementById('bonusDisplay').textContent = `GHC ${user.bonus.toFixed(2)}`;
-            }
         });
     </script>
 </body>
