@@ -1,18 +1,28 @@
-import jwt from 'jsonwebtoken';
+import { createClient } from '@supabase/supabase-js';
 
-export function requireAuth(req, res, next) {
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+export async function requireAuth(req, res, next) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Missing token' });
 
   try {
-    const decoded = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
-    req.user = { id: decoded.sub, email: decoded.email };
+    // Use Supabase's built-in JWT verification
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.error('Supabase auth error:', error?.message);
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    
+    req.user = { id: user.id, email: user.email };
     return next();
   } catch (err) {
-    console.error('JWT verification failed:', err.message);
-    console.error('Token (first 20 chars):', token.substring(0, 20));
-    console.error('Secret exists:', !!process.env.SUPABASE_JWT_SECRET);
+    console.error('Auth verification failed:', err.message);
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
