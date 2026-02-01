@@ -1,16 +1,14 @@
 import pg from 'pg';
+import dns from 'dns';
+
+// Force IPv4 DNS resolution
+dns.setDefaultResultOrder('ipv4first');
 
 const { Pool } = pg;
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  // Force IPv4 to avoid Railway IPv6 connectivity issues
-  host: 'db.rogddhzsdfgvajyepnqp.supabase.co',
-  port: 5432,
-  database: 'postgres',
-  user: 'postgres',
-  password: 'wS2IkekALTBaThpr'
+  ssl: { rejectUnauthorized: false }
 });
 
 export async function query(text, params) {
