@@ -734,8 +734,15 @@
                     <strong>Status:</strong> <span style="color: #f39c12; font-weight: bold;">Awaiting Payment</span>
                 </div>
             </div>
+            <div class="form-group">
+                <label class="form-label">Transaction ID</label>
+                <input type="text" class="form-input" id="transactionIdInput" placeholder="Enter transaction ID after payment">
+                <button class="btn-submit" onclick="submitTransactionId()" style="width: 100%; margin-top: 10px;">
+                    <i class="las la-paper-plane"></i> Submit Transaction ID
+                </button>
+            </div>
             <div class="info-box" style="background: #fff3cd; border-color: #ffeaa7; color: #856404; font-size: 12px;">
-                <strong>⚠️ Important:</strong> Make a manual transfer to the payment number above. Once payment is confirmed, your balance will be updated.
+                <strong>⚠️ Important:</strong> Make a manual transfer to the payment number above, then submit the transaction ID. Admin will confirm and update your balance.
             </div>
             <div class="modal-buttons">
                 <button class="btn-submit" onclick="closeActionModal('paymentNumberModal')">Done</button>
@@ -1062,16 +1069,18 @@
         }
 
         // Load withdraw data
-        function loadWithdrawData() {
-            const userData = localStorage.getItem('currentUser');
-            if (userData) {
-                const user = JSON.parse(userData);
-                document.getElementById('availableBalance').textContent = `GHC ${user.balance.toFixed(2)}`;
+        async function loadWithdrawData() {
+            try {
+                const wallet = await window.API.getWallet();
+                document.getElementById('availableBalance').textContent = `GHC ${wallet.balance.toFixed(2)}`;
+            } catch (error) {
+                console.error('Error loading withdraw data:', error);
+                document.getElementById('availableBalance').textContent = 'GHC 0.00';
             }
         }
 
         // Submit recharge
-        function submitRecharge() {
+        async function submitRecharge() {
             const paymentMethod = document.getElementById('rechargePaymentMethod').value;
             const amount = document.getElementById('rechargeAmount').value;
             const phone = document.getElementById('rechargePhone').value;
@@ -1087,61 +1096,27 @@
                 return;
             }
             
-            // Get current user
-            const currentUserStr = localStorage.getItem('currentUser');
-            if (!currentUserStr) {
-                alert('User not found');
-                return;
+            try {
+                // Create payment request via API
+                const payment = await window.API.createPayment(parseFloat(amount), paymentMethod, phone);
+                
+                // Display payment number modal
+                displayPaymentNumberModal(payment);
+                
+                // Clear form
+                document.getElementById('rechargeAmount').value = '';
+                document.getElementById('rechargePhone').value = '';
+                closeActionModal('rechargeModal');
+            } catch (error) {
+                console.error('Payment creation error:', error);
+                alert(error.message || 'Failed to create payment request');
             }
-            
-            const currentUser = JSON.parse(currentUserStr);
-            const userId = currentUser.id || currentUser.userId;
-            
-            // Create payment request
-            const paymentRequest = {
-                id: 'PAY_' + Date.now(),
-                userId: userId,
-                userName: currentUser.fullName,
-                userEmail: currentUser.email,
-                amount: parseFloat(amount),
-                paymentMethod: paymentMethod,
-                phone: phone,
-                status: 'pending',
-                paymentNumber: null, // Will be assigned by admin
-                requestedAt: new Date().toISOString(),
-                createdAt: new Date().toISOString()
-            };
-            
-            // Store in localStorage
-            let pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
-            pendingPayments.push(paymentRequest);
-            localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
-            
-            // Store in user's payment history
-            let userPayments = JSON.parse(localStorage.getItem('userPayments_' + userId) || '[]');
-            userPayments.push(paymentRequest);
-            localStorage.setItem('userPayments_' + userId, JSON.stringify(userPayments));
-            
-            // Display payment number modal
-            displayPaymentNumberModal(paymentRequest);
-            
-            // Clear form
-            document.getElementById('rechargeAmount').value = '';
-            document.getElementById('rechargePhone').value = '';
-            
-            closeActionModal('rechargeModal');
         }
         
         // Display payment number modal
         function displayPaymentNumberModal(paymentRequest) {
-            // Check if admin has assigned a payment number
-            const adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
-            let paymentNumber = adminPaymentNumbers[paymentRequest.id];
-            
-            if (!paymentNumber) {
-                // If no payment number assigned, show pending message
-                paymentNumber = 'PENDING_' + paymentRequest.id.substring(4);
-            }
+            // Display payment number from backend response
+            const paymentNumber = paymentRequest.payment_number || `PENDING_${paymentRequest.id.substring(0, 8)}`;
             
             // Update display
             document.getElementById('displayPaymentNumber').textContent = paymentNumber;
@@ -1152,7 +1127,7 @@
                 'vodafone': 'Vodafone Cash',
                 'bank': 'Bank Transfer'
             };
-            document.getElementById('displayMethod').textContent = methodNames[paymentRequest.paymentMethod] || paymentRequest.paymentMethod;
+            document.getElementById('displayMethod').textContent = methodNames[paymentRequest.method] || paymentRequest.method;
             
             // Store current payment request for copy function
             window.currentPaymentRequest = paymentRequest;
@@ -1184,44 +1159,75 @@
             }, 2000);
         }
 
+        async function submitTransactionId() {
+            const transactionId = document.getElementById('transactionIdInput').value.trim();
+            if (!transactionId) {
+                alert('Please enter the transaction ID');
+                return;
+            }
+
+            if (!window.currentPaymentRequest) {
+                alert('Payment request not found');
+                return;
+            }
+
+            const paymentId = window.currentPaymentRequest.id;
+
+            try {
+                // Submit transaction ID via API
+                await window.API.submitTransaction(paymentId, transactionId);
+                
+                alert('Transaction ID submitted successfully! Admin will verify and credit your account.');
+                document.getElementById('transactionIdInput').value = '';
+                closeActionModal('paymentNumberModal');
+                closeActionModal('rechargeModal');
+            } catch (error) {
+                console.error('Transaction ID submission error:', error);
+                alert(error.message || 'Failed to submit transaction ID');
+            }
+        }
+
         // Submit withdrawal
-        function submitWithdraw() {
-            const amount = parseFloat(document.getElementById('withdrawAmount').value);
-            const method = document.getElementById('withdrawMethod').value;
-            const userData = localStorage.getItem('currentUser');
-            
-            if (!userData) {
-                alert('User not found');
-                return;
-            }
-            
-            if (!amount || amount <= 0) {
-                alert('Please enter a valid amount');
-                return;
-            }
-            
-            if (amount < 50) {
-                alert('Minimum withdrawal amount is GHC 50.00');
-                return;
-            }
-            
-            const user = JSON.parse(userData);
-            const finance = DataManager.getUserFinance(user.userId);
-            
-            if (amount > finance.balance) {
-                alert('Insufficient balance for withdrawal');
-                return;
-            }
-            
-            const result = DataManager.requestWithdrawal(user.userId, amount, method);
-            if (result) {
-                alert(`Withdrawal request of GHC ${amount.toFixed(2)} submitted successfully!`);
-                closeActionModal('withdrawModal');
-                document.getElementById('withdrawAmount').value = '';
-                document.getElementById('withdrawMethod').value = 'mtn';
-                DataManager.syncAllPages(user.userId);
-            } else {
-                alert('Failed to submit withdrawal request');
+        async function submitWithdraw() {
+            try {
+                const method = document.getElementById('withdrawMethod').value;
+                const account = document.getElementById('withdrawAccount').value;
+                const amount = document.getElementById('withdrawAmount').value;
+
+                if (!method || !account || !amount) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+
+                if (parseFloat(amount) < 50) {
+                    alert('Minimum withdrawal amount is GHC 50.00');
+                    return;
+                }
+
+                // Get current balance from API
+                const wallet = await window.API.getWallet();
+                
+                if (parseFloat(amount) > wallet.balance) {
+                    alert(`Insufficient balance. Your available balance is GHC ${wallet.balance.toFixed(2)}`);
+                    return;
+                }
+
+                // Show confirmation
+                if (confirm(`Submit withdrawal request of GHC ${parseFloat(amount).toFixed(2)} to ${method}?`)) {
+                    alert(`Withdrawal request of GHC ${parseFloat(amount).toFixed(2)} to ${method} submitted. Admin will process it within 24 hours.`);
+                    
+                    // Clear form and close modal
+                    document.getElementById('withdrawMethod').value = '';
+                    document.getElementById('withdrawAccount').value = '';
+                    document.getElementById('withdrawAmount').value = '';
+                    closeActionModal('withdrawModal');
+                    
+                    // Refresh balance
+                    setTimeout(() => loadWithdrawData(), 1000);
+                }
+            } catch (error) {
+                console.error('Withdrawal error:', error);
+                alert(error.message || 'Failed to process withdrawal request');
             }
         }
 
