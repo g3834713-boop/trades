@@ -1309,12 +1309,14 @@
             try {
                 // Check if user is authenticated
                 if (typeof window.AuthService === 'undefined') {
+                    console.error('AuthService not available');
                     window.location.href = 'index.html';
                     return;
                 }
 
                 const session = await window.AuthService.getSession();
-                if (!session) {
+                if (!session || !session.user) {
+                    console.error('No active session found');
                     window.location.href = 'index.html';
                     return;
                 }
@@ -1332,6 +1334,12 @@
                 window.currentUserProfile = userProfile;
             } catch (error) {
                 console.error('Error loading profile:', error);
+                // Show user-friendly error message
+                if (error.message.includes('No authentication token') || error.message.includes('Invalid token')) {
+                    alert('Your session has expired. Please login again.');
+                } else {
+                    alert('Failed to load profile. Please try again.');
+                }
                 window.location.href = 'index.html';
             }
         });

@@ -88,9 +88,13 @@ window.API = {
     const session = await supabase.auth.getSession();
     const token = session.data.session?.access_token;
 
+    if (!token) {
+      throw new Error('No authentication token. Please login first.');
+    }
+
     const headers = {
       'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
+      'Authorization': `Bearer ${token}`,
       ...options.headers
     };
 
@@ -101,7 +105,7 @@ window.API = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: response.statusText }));
-      throw new Error(error.error || 'API request failed');
+      throw new Error(error.error || `API request failed: ${response.status}`);
     }
 
     return response.json();
