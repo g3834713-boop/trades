@@ -1590,7 +1590,7 @@
                 }
 
                 const session = await window.AuthService.getSession();
-                if (!session || !session.user) {
+                if (!session) {
                     console.error('No active session found');
                     window.location.href = 'index.html';
                     return;
