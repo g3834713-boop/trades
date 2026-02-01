@@ -766,18 +766,18 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Withdrawal Method</label>
-                <select class="form-select">
+                <select class="form-select" id="withdrawMethod">
                     <option>Mobile Money (MTN/Vodafone)</option>
                     <option>Bank Transfer</option>
                 </select>
             </div>
             <div class="form-group">
                 <label class="form-label">Phone Number / Account</label>
-                <input type="text" class="form-input" placeholder="Enter your phone or account number">
+                <input type="text" class="form-input" id="withdrawAccount" placeholder="Enter your phone or account number">
             </div>
             <div class="form-group">
                 <label class="form-label">Amount to Withdraw (GHC)</label>
-                <input type="number" class="form-input" placeholder="50.00" min="50" step="0.01">
+                <input type="number" class="form-input" id="withdrawAmount" placeholder="50.00" min="50" step="0.01">
             </div>
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closeActionModal('withdrawModal')">Cancel</button>
@@ -1057,14 +1057,17 @@
         }
 
         // Load account data into modal
-        function loadAccountData() {
-            const userData = localStorage.getItem('currentUser');
-            if (userData) {
-                const user = JSON.parse(userData);
-                document.getElementById('accountName').value = user.fullName || '';
-                document.getElementById('accountEmail').value = user.email || '';
-                document.getElementById('accountPhone').value = user.phone || '';
-                document.getElementById('accountId').value = user.userId || '';
+        async function loadAccountData() {
+            try {
+                const profile = window.currentUserProfile || await window.API.getUserProfile();
+                if (profile) {
+                    document.getElementById('accountName').value = profile.full_name || profile.email || '';
+                    document.getElementById('accountEmail').value = profile.email || '';
+                    document.getElementById('accountPhone').value = profile.phone || '';
+                    document.getElementById('accountId').value = 'ID-' + profile.id.substring(0, 8).toUpperCase();
+                }
+            } catch (error) {
+                console.error('Error loading account data:', error);
             }
         }
 
