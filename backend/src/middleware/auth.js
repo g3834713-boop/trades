@@ -10,6 +10,9 @@ export function requireAuth(req, res, next) {
     req.user = { id: decoded.sub, email: decoded.email };
     return next();
   } catch (err) {
+    console.error('JWT verification failed:', err.message);
+    console.error('Token (first 20 chars):', token.substring(0, 20));
+    console.error('Secret exists:', !!process.env.SUPABASE_JWT_SECRET);
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
