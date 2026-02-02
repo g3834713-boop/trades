@@ -1597,7 +1597,7 @@
                 }
 
                 // Sync user to backend
-                await window.API.call('POST', '/users/sync', {});
+                await window.API.call('/users/sync', { method: 'POST' });
 
                 // Fetch complete user profile from backend
                 const userProfile = await window.API.getUserProfile();

@@ -700,7 +700,7 @@
 
                 // Sync user to backend (non-blocking)
                 try {
-                    await window.API.call('POST', '/users/sync', {});
+                    await window.API.call('/users/sync', { method: 'POST' });
                 } catch (syncError) {
                     console.warn('User sync failed:', syncError);
                 }

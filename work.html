@@ -776,7 +776,7 @@
                 }
 
                 // Sync user to backend
-                await window.API.call('POST', '/users/sync', {});
+                await window.API.call('/users/sync', { method: 'POST' });
 
                 // Load user wallet
                 const wallet = await window.API.getWallet();
