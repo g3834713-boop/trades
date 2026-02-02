@@ -229,6 +229,18 @@ window.API = {
     });
   },
 
+  async deleteTask(taskId) {
+    return this.call(`/admin/tasks/${taskId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  async deleteProduct(productId) {
+    return this.call(`/admin/products/${productId}`, {
+      method: 'DELETE'
+    });
+  },
+
   async getAllUsers() {
     return this.call('/admin/users');
   }

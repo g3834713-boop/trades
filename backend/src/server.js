@@ -401,6 +401,28 @@ app.get('/admin/tasks', requireAuth, requireAdmin, async (req, res) => {
   res.json(rows);
 });
 
+// Admin: Delete task
+app.delete('/admin/tasks/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id: taskId } = req.params;
+    
+    // Delete task assignments first (due to foreign key constraint)
+    await query('delete from task_assignments where task_id = $1', [taskId]);
+    
+    // Delete the task
+    const { rowCount } = await query('delete from tasks where id = $1', [taskId]);
+    
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    
+    res.json({ ok: true, message: 'Task deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    res.status(500).json({ error: 'Failed to delete task: ' + error.message });
+  }
+});
+
 // Admin: Assign task to users
 app.post('/admin/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) => {
   const { id: taskId } = req.params;
@@ -460,6 +482,28 @@ app.post('/admin/products', requireAuth, requireAdmin, async (req, res) => {
 app.get('/admin/products', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await query('select * from products order by created_at desc');
   res.json(rows);
+});
+
+// Admin: Delete product
+app.delete('/admin/products/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id: productId } = req.params;
+    
+    // Delete product assignments first (due to foreign key constraint)
+    await query('delete from product_assignments where product_id = $1', [productId]);
+    
+    // Delete the product
+    const { rowCount } = await query('delete from products where id = $1', [productId]);
+    
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json({ ok: true, message: 'Product deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).json({ error: 'Failed to delete product: ' + error.message });
+  }
 });
 
 // Admin: Assign product to users

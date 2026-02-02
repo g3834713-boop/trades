@@ -1254,12 +1254,12 @@
         async function deleteTask(taskId) {
             if (confirm('Delete this task?')) {
                 try {
-                    // For now, just show a message since we don't have a delete endpoint
-                    alert('Task deletion not yet implemented on backend');
-                    // TODO: Create DELETE /admin/tasks/:id endpoint
+                    await window.API.deleteTask(taskId);
+                    alert('Task deleted successfully!');
+                    loadTasks();
                 } catch (error) {
                     console.error('Failed to delete task:', error);
-                    alert('Failed to delete task');
+                    alert('Failed to delete task: ' + (error.message || 'Unknown error'));
                 }
             }
         }
@@ -1471,12 +1471,12 @@
         async function deleteProduct(productId) {
             if (confirm('Delete this product?')) {
                 try {
-                    // For now, just show a message since we don't have a delete endpoint
-                    alert('Product deletion not yet implemented on backend');
-                    // TODO: Create DELETE /admin/products/:id endpoint
+                    await window.API.deleteProduct(productId);
+                    alert('Product deleted successfully!');
+                    loadProducts();
                 } catch (error) {
                     console.error('Failed to delete product:', error);
-                    alert('Failed to delete product');
+                    alert('Failed to delete product: ' + (error.message || 'Unknown error'));
                 }
             }
         }
