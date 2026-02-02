@@ -1198,7 +1198,8 @@
                 'vodafone': 'Vodafone Cash',
                 'bank': 'Bank Transfer'
             };
-            document.getElementById('displayMethod').textContent = methodNames[paymentRequest.method] || paymentRequest.method;
+            const assignedMethod = paymentRequest.payment_number_method || paymentRequest.method;
+            document.getElementById('displayMethod').textContent = methodNames[assignedMethod] || assignedMethod || '-';
             
             // Store current payment request for copy function
             window.currentPaymentRequest = paymentRequest;

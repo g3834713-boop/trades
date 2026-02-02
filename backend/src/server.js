@@ -221,12 +221,21 @@ app.post('/payments', requireAuth, async (req, res) => {
 
   const paymentNumber = paymentNumberRows[0].payment_number;
 
-  const { rows } = await query(
+  const { rows: paymentRows } = await query(
     `insert into payments (user_id, amount, method, phone, payment_number)
      values ($1, $2, $3, $4, $5)
-     returning *`,
+     returning id`,
     [id, amount, method, phone, paymentNumber]
   );
+
+  const { rows } = await query(
+    `select p.*, upn.method as payment_number_method
+     from payments p
+     left join user_payment_numbers upn on upn.user_id = p.user_id
+     where p.id = $1`,
+    [paymentRows[0].id]
+  );
+
   res.json(rows[0]);
 });
 
