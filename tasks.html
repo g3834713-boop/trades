@@ -686,9 +686,13 @@
             claimBtn.disabled = false;
             claimBtn.textContent = 'Claim Rewards';
             
-            // Update reward amounts display with dynamic amount
-            document.getElementById('orderCost').textContent = '0.00';
-            document.getElementById('orderInterest').textContent = rewardAmount.toFixed(2);
+            // Hide cost/interest, show profit for beginner task
+            document.getElementById('costSection').style.display = 'none';
+            document.getElementById('interestSection').style.display = 'none';
+            document.getElementById('profitSection').style.display = 'flex';
+            
+            // Update profit amount display
+            document.getElementById('orderProfit').textContent = rewardAmount.toFixed(2);
             document.getElementById('orderTotal').textContent = rewardAmount.toFixed(2);
             
             // Add data attribute to track this is a beginner task claim
@@ -972,10 +976,18 @@
                 rewardSection.style.display = 'none';
                 claimBtn.disabled = false;
                 
+                // Show cost/interest, hide profit for regular task
+                document.getElementById('costSection').style.display = 'flex';
+                document.getElementById('interestSection').style.display = 'flex';
+                document.getElementById('profitSection').style.display = 'none';
+                
                 // Update reward amounts display
                 document.getElementById('orderCost').textContent = task.amount.toFixed(2);
                 document.getElementById('orderInterest').textContent = interestAmount.toFixed(2);
                 document.getElementById('orderTotal').textContent = totalReturn.toFixed(2);
+                
+                // Remove data attribute - this is a regular task, not beginner
+                claimBtn.removeAttribute('data-beginner-task');
                 
                 // Display modal
                 setTimeout(() => {
@@ -1217,13 +1229,17 @@
             
             <div id="rewardSection" style="display: none;">
                 <div style="background: #f5f6fa; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <div id="costSection" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                         <span style="color: #636e72;">Cost:</span>
                         <span style="font-weight: bold;">GHC <span id="orderCost">0.00</span></span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <div id="interestSection" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                         <span style="color: #636e72;">Interest:</span>
                         <span style="font-weight: bold; color: #00b894;">GHC <span id="orderInterest">0.00</span></span>
+                    </div>
+                    <div id="profitSection" style="display: none; flex-justify: space-between; margin-bottom: 10px;">
+                        <span style="color: #636e72;">Profit:</span>
+                        <span style="font-weight: bold; color: #00b894;">GHC <span id="orderProfit">0.00</span></span>
                     </div>
                     <div style="display: flex; justify-content: space-between; border-top: 1px solid #dfe6e9; padding-top: 10px; margin-top: 10px;">
                         <span style="color: #2d3436; font-weight: bold;">Total Reward:</span>
