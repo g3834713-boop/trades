@@ -155,6 +155,49 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
+        .menu-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+        }
+
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .menu-item:hover {
+            background: #f9f9f9;
+            transform: translateX(4px);
+        }
+
+        .menu-item-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .menu-item-left i {
+            font-size: 20px;
+            color: #667eea;
+        }
+
+        .menu-item-left span {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .menu-item i.la-chevron-right {
+            font-size: 18px;
+            color: #ccc;
+        }
+
         /* Bottom Navigation */
         .bottom-nav {
             position: fixed;
