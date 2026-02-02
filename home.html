@@ -1214,7 +1214,7 @@
         async function loadWithdrawData() {
             try {
                 const wallet = await window.API.getWallet();
-                document.getElementById('availableBalance').textContent = `GHC ${wallet.balance.toFixed(2)}`;
+                document.getElementById('availableBalance').textContent = `GHC ${parseFloat(wallet.balance || 0).toFixed(2)}`;
             } catch (error) {
                 console.error('Error loading withdraw data:', error);
                 document.getElementById('availableBalance').textContent = 'GHC 0.00';
@@ -1272,8 +1272,8 @@
                 // Get current balance from API
                 const wallet = await window.API.getWallet();
                 
-                if (parseFloat(amount) > wallet.balance) {
-                    alert(`Insufficient balance. Your available balance is GHC ${wallet.balance.toFixed(2)}`);
+                if (parseFloat(amount) > parseFloat(wallet.balance || 0)) {
+                    alert(`Insufficient balance. Your available balance is GHC ${parseFloat(wallet.balance || 0).toFixed(2)}`);
                     return;
                 }
 
