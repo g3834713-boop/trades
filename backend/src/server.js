@@ -376,16 +376,25 @@ app.get('/products/my', requireAuth, async (req, res) => {
 
 // Admin: Create task
 app.post('/admin/tasks', requireAuth, requireAdmin, async (req, res) => {
-  const { title, description, amount, commission } = req.body;
-  const { rows } = await query(
-    `insert into tasks (title, description, amount, commission)
-     values ($1, $2, $3, $4)
-     returning *`,
-    [title, description, amount, commission || 0]
-  );
-  res.json(rows[0]);
+  try {
+    const { title, description, amount, commission } = req.body;
+    
+    if (!title || !amount) {
+      return res.status(400).json({ error: 'Title and amount are required' });
+    }
+    
+    const { rows } = await query(
+      `insert into tasks (title, description, amount, commission)
+       values ($1, $2, $3, $4)
+       returning *`,
+      [title, description, amount, commission || 0]
+    );
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error creating task:', error);
+    res.status(500).json({ error: 'Failed to create task: ' + error.message });
+  }
 });
-
 // Admin: Get all tasks
 app.get('/admin/tasks', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await query('select * from tasks order by created_at desc');
@@ -427,14 +436,24 @@ app.post('/admin/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) 
 
 // Admin: Create product
 app.post('/admin/products', requireAuth, requireAdmin, async (req, res) => {
-  const { name, description, price, image, commission } = req.body;
-  const { rows } = await query(
-    `insert into products (name, description, price, image, commission)
-     values ($1, $2, $3, $4, $5)
-     returning *`,
-    [name, description, price, image, commission || 0]
-  );
-  res.json(rows[0]);
+  try {
+    const { name, description, price, image, commission } = req.body;
+    
+    if (!name || !price) {
+      return res.status(400).json({ error: 'Name and price are required' });
+    }
+    
+    const { rows } = await query(
+      `insert into products (name, description, price, image, commission)
+       values ($1, $2, $3, $4, $5)
+       returning *`,
+      [name, description, price, image, commission || 0]
+    );
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error creating product:', error);
+    res.status(500).json({ error: 'Failed to create product: ' + error.message });
+  }
 });
 
 // Admin: Get all products
@@ -505,6 +524,9 @@ async function ensureSchema() {
   `);
   await query('create unique index if not exists task_assignments_unique on task_assignments(task_id, user_id)');
   
+  // Add commission column to tasks if it doesn't exist
+  await query('alter table tasks add column if not exists commission numeric(5,2) not null default 0');
+  
   await query(`
     create table if not exists products (
       id uuid primary key default gen_random_uuid(),
@@ -516,6 +538,9 @@ async function ensureSchema() {
       created_at timestamptz default now()
     )
   `);
+  
+  // Add commission column to products if it doesn't exist
+  await query('alter table products add column if not exists commission numeric(5,2) not null default 0');
   
   await query(`
     create table if not exists product_assignments (
