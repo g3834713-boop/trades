@@ -253,6 +253,57 @@ window.API = {
     });
   },
 
+  // Beginner Tasks
+  async createBeginnerTask(taskData) {
+    return this.call('/admin/beginner-tasks', {
+      method: 'POST',
+      body: JSON.stringify(taskData)
+    });
+  },
+
+  async getBeginnerTasks() {
+    return this.call('/admin/beginner-tasks');
+  },
+
+  async deleteBeginnerTask(taskId) {
+    return this.call(`/admin/beginner-tasks/${taskId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  async startBeginnerTask(taskId) {
+    return this.call(`/admin/beginner-tasks/${taskId}/start`, {
+      method: 'PATCH'
+    });
+  },
+
+  async stopBeginnerTask(taskId) {
+    return this.call(`/admin/beginner-tasks/${taskId}/stop`, {
+      method: 'PATCH'
+    });
+  },
+
+  async getBeginnerTaskSubmissions(taskId) {
+    return this.call(`/admin/beginner-tasks/${taskId}/submissions`);
+  },
+
+  async deleteBeginnerTaskSubmission(submissionId) {
+    return this.call(`/admin/beginner-tasks/submissions/${submissionId}`, {
+      method: 'DELETE'
+    });
+  },
+
+  async getUserBeginnerTasks() {
+    return this.call('/beginner-tasks');
+  },
+
+  async submitBeginnerTask(taskId, url) {
+    return this.call(`/beginner-tasks/${taskId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify({ url })
+    });
+  },
+
   async getAllUsers() {
     return this.call('/admin/users');
   }

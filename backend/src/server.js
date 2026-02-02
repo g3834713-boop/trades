@@ -587,6 +587,266 @@ app.post('/products/:id/complete', requireAuth, async (req, res) => {
   }
 });
 
+// Admin: Create beginner task
+app.post('/admin/beginner-tasks', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { title, description, amount, commission } = req.body;
+    const { rows } = await query(
+      `insert into beginner_tasks (title, description, amount, commission, status)
+       values ($1, $2, $3, $4, 'inactive')
+       returning *`,
+      [title, description, amount, commission || 0]
+    );
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error creating beginner task:', error);
+    res.status(500).json({ error: 'Failed to create beginner task: ' + error.message });
+  }
+});
+
+// Admin: Get all beginner tasks
+app.get('/admin/beginner-tasks', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await query('select * from beginner_tasks order by created_at desc');
+  res.json(rows);
+});
+
+// Admin: Delete beginner task
+app.delete('/admin/beginner-tasks/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await query('delete from beginner_tasks where id = $1', [id]);
+    
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Beginner task not found' });
+    }
+    
+    res.json({ ok: true, message: 'Beginner task deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting beginner task:', error);
+    res.status(500).json({ error: 'Failed to delete beginner task: ' + error.message });
+  }
+});
+
+// Admin: Start beginner task
+app.patch('/admin/beginner-tasks/:id/start', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await query(
+      `update beginner_tasks set status = 'active' where id = $1`,
+      [id]
+    );
+    
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Beginner task not found' });
+    }
+    
+    res.json({ ok: true, message: 'Beginner task started' });
+  } catch (error) {
+    console.error('Error starting beginner task:', error);
+    res.status(500).json({ error: 'Failed to start beginner task: ' + error.message });
+  }
+});
+
+// Admin: Stop beginner task
+app.patch('/admin/beginner-tasks/:id/stop', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await query(
+      `update beginner_tasks set status = 'inactive' where id = $1`,
+      [id]
+    );
+    
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Beginner task not found' });
+    }
+    
+    res.json({ ok: true, message: 'Beginner task stopped' });
+  } catch (error) {
+    console.error('Error stopping beginner task:', error);
+    res.status(500).json({ error: 'Failed to stop beginner task: ' + error.message });
+  }
+});
+
+// Admin: Get submissions for a beginner task
+app.get('/admin/beginner-tasks/:id/submissions', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query(
+      `select s.*, u.email as user_email
+       from beginner_task_submissions s
+       join app_users u on u.id = s.user_id
+       where s.task_id = $1
+       order by s.submitted_at desc`,
+      [id]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching submissions:', error);
+    res.status(500).json({ error: 'Failed to fetch submissions: ' + error.message });
+  }
+});
+
+// Admin: Delete a submission
+app.delete('/admin/beginner-tasks/submissions/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rowCount } = await query('delete from beginner_task_submissions where id = $1', [id]);
+    
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+    
+    res.json({ ok: true, message: 'Submission deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting submission:', error);
+    res.status(500).json({ error: 'Failed to delete submission: ' + error.message });
+  }
+});
+
+// User: Get active beginner tasks with cooldown info
+app.get('/beginner-tasks', requireAuth, async (req, res) => {
+  try {
+    const { id: userId } = req.user;
+    
+    // Get all active tasks
+    const { rows: tasks } = await query(
+      `select * from beginner_tasks where status = 'active' order by created_at desc`
+    );
+    
+    // For each task, get user's last submission time
+    for (const task of tasks) {
+      const { rows: lastSubmission } = await query(
+        `select submitted_at from beginner_task_submissions
+         where task_id = $1 and user_id = $2
+         order by submitted_at desc limit 1`,
+        [task.id, userId]
+      );
+      
+      if (lastSubmission.length > 0) {
+        task.last_submitted_at = lastSubmission[0].submitted_at;
+        
+        // Calculate next available time (30 mins from last submission)
+        const lastTime = new Date(lastSubmission[0].submitted_at);
+        const nextTime = new Date(lastTime.getTime() + 30 * 60 * 1000);
+        task.next_available_at = nextTime;
+        task.can_submit = new Date() >= nextTime;
+      } else {
+        task.can_submit = true;
+        task.last_submitted_at = null;
+        task.next_available_at = null;
+      }
+    }
+    
+    res.json(tasks);
+  } catch (error) {
+    console.error('Error fetching beginner tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch beginner tasks: ' + error.message });
+  }
+});
+
+// User: Submit URL for beginner task
+app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
+  try {
+    const { id: taskId } = req.params;
+    const { id: userId } = req.user;
+    const { url } = req.body;
+    
+    if (!url || !url.trim()) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+    
+    // Check if task exists and is active
+    const { rows: taskRows } = await query(
+      `select * from beginner_tasks where id = $1`,
+      [taskId]
+    );
+    
+    if (taskRows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    
+    const task = taskRows[0];
+    
+    if (task.status !== 'active') {
+      return res.status(400).json({ error: 'This task is not currently active' });
+    }
+    
+    // Check last submission time (30-minute cooldown)
+    const { rows: lastSubmission } = await query(
+      `select submitted_at from beginner_task_submissions
+       where task_id = $1 and user_id = $2
+       order by submitted_at desc limit 1`,
+      [taskId, userId]
+    );
+    
+    if (lastSubmission.length > 0) {
+      const lastTime = new Date(lastSubmission[0].submitted_at);
+      const nextTime = new Date(lastTime.getTime() + 30 * 60 * 1000);
+      const now = new Date();
+      
+      if (now < nextTime) {
+        const minutesLeft = Math.ceil((nextTime - now) / 1000 / 60);
+        return res.status(400).json({ 
+          error: `Please wait ${minutesLeft} more minutes before submitting again`,
+          next_available_at: nextTime
+        });
+      }
+    }
+    
+    // Check user balance
+    const wallet = await query('select * from wallets where user_id = $1', [userId]);
+    const balance = parseFloat(wallet.rows[0]?.balance || 0);
+    
+    if (balance < parseFloat(task.amount)) {
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
+    
+    // Deduct balance
+    await query(
+      `update wallets set balance = balance - $1 where user_id = $2`,
+      [task.amount, userId]
+    );
+    
+    await query(
+      `insert into transactions (user_id, type, amount, description)
+       values ($1, 'debit', $2, $3)`,
+      [userId, task.amount, `Beginner task: ${task.title}`]
+    );
+    
+    // Calculate and add bonus
+    const commission = parseFloat(task.commission || 0);
+    const totalReturn = parseFloat(task.amount) + (parseFloat(task.amount) * commission / 100);
+    
+    await query(
+      `update wallets set bonus = bonus + $1 where user_id = $2`,
+      [totalReturn, userId]
+    );
+    
+    await query(
+      `insert into transactions (user_id, type, amount, description)
+       values ($1, 'credit', $2, $3)`,
+      [userId, totalReturn, `Beginner task bonus: ${task.title} - ${commission}% interest`]
+    );
+    
+    // Save submission
+    await query(
+      `insert into beginner_task_submissions (task_id, user_id, url)
+       values ($1, $2, $3)`,
+      [taskId, userId, url.trim()]
+    );
+    
+    res.json({ 
+      ok: true, 
+      message: 'Submission successful',
+      earned: totalReturn,
+      next_available_at: new Date(Date.now() + 30 * 60 * 1000)
+    });
+  } catch (error) {
+    console.error('Error submitting beginner task:', error);
+    res.status(500).json({ error: 'Failed to submit task: ' + error.message });
+  }
+});
+
 const port = process.env.PORT || 8080;
 
 async function ensureSchema() {
@@ -603,6 +863,30 @@ async function ensureSchema() {
     )
   `);
   await query('alter table withdrawals add column if not exists account text');
+  
+  // Beginner tasks tables
+  await query(`
+    create table if not exists beginner_tasks (
+      id uuid primary key default gen_random_uuid(),
+      title text not null,
+      description text,
+      amount numeric(12,2) not null,
+      commission numeric(5,2) default 0,
+      status text not null default 'inactive',
+      created_at timestamptz default now()
+    )
+  `);
+
+  await query(`
+    create table if not exists beginner_task_submissions (
+      id uuid primary key default gen_random_uuid(),
+      task_id uuid not null references beginner_tasks(id) on delete cascade,
+      user_id uuid not null references app_users(id) on delete cascade,
+      url text not null,
+      submitted_at timestamptz default now()
+    )
+  `);
+  await query('create index if not exists beginner_submissions_task_user_idx on beginner_task_submissions(task_id, user_id, submitted_at desc)');
   
   await query(`
     create table if not exists task_assignments (

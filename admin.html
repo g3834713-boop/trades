@@ -364,6 +364,10 @@
                     <i class="las la-tasks"></i>
                     <span>Tasks</span>
                 </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('beginner-tasks')">
+                    <i class="las la-graduation-cap"></i>
+                    <span>Beginner Tasks</span>
+                </a></li>
                 <li><a href="#" class="menu-link" onclick="switchSection('products')">
                     <i class="las la-shopping-bag"></i>
                     <span>Products</span>
@@ -469,6 +473,24 @@
                         <div>Actions</div>
                     </div>
                     <div id="tasksTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Beginner Tasks Section -->
+            <div class="content-section" id="beginner-tasks">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Beginner Tasks Management</h2>
+                <button class="btn btn-primary" style="margin-bottom: 20px;" onclick="openAddBeginnerTaskModal()">
+                    <i class="las la-plus"></i> Create New Beginner Task
+                </button>
+                <div class="table-container">
+                    <div class="table-header">
+                        <div>Title</div>
+                        <div>Amount</div>
+                        <div>Commission</div>
+                        <div>Status</div>
+                        <div>Actions</div>
+                    </div>
+                    <div id="beginnerTasksTableBody"></div>
                 </div>
             </div>
 
@@ -734,6 +756,52 @@
         </div>
     </div>
 
+    <!-- Add Beginner Task Modal -->
+    <div class="modal" id="beginnerTaskModal">
+        <div class="modal-content">
+            <div class="modal-title">Create New Beginner Task</div>
+            <div class="form-group">
+                <label class="form-label">Task Title</label>
+                <input type="text" class="form-input" id="beginnerTaskTitle" placeholder="e.g., Visit our website">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="beginnerTaskDescription" placeholder="Describe what users need to do..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount (GHC)</label>
+                <input type="number" class="form-input" id="beginnerTaskAmount" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Commission Interest (%)</label>
+                <input type="number" class="form-input" id="beginnerTaskCommission" placeholder="10" min="0" max="100" step="0.01">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeBeginnerTaskModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createBeginnerTask()">Create Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Submissions Modal -->
+    <div class="modal" id="submissionsModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-title">Task Submissions</div>
+            <div class="table-container">
+                <div class="table-header">
+                    <div>User</div>
+                    <div>URL</div>
+                    <div>Submitted At</div>
+                    <div>Actions</div>
+                </div>
+                <div id="submissionsTableBody"></div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeSubmissionsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Initialize admin data storage
         function initializeAdmin() {
@@ -810,6 +878,7 @@
                 'dashboard': 'Dashboard',
                 'users': 'User Management',
                 'tasks': 'Task Management',
+                'beginner-tasks': 'Beginner Tasks Management',
                 'products': 'Product Management',
                 'deposits': 'Manage Deposits',
                 'payments': 'Manage Payments',
@@ -822,6 +891,7 @@
             if (sectionId === 'dashboard') loadDashboard();
             if (sectionId === 'users') loadUsers();
             if (sectionId === 'tasks') loadTasks();
+            if (sectionId === 'beginner-tasks') loadBeginnerTasks();
             if (sectionId === 'products') loadProducts();
             if (sectionId === 'deposits') loadDeposits();
             if (sectionId === 'payments') loadPayments();
@@ -1572,6 +1642,155 @@
             } catch (error) {
                 console.error('Failed to assign product:', error);
                 alert(error.message || 'Failed to assign product');
+            }
+        }
+
+        // Beginner Tasks Functions
+        async function loadBeginnerTasks() {
+            try {
+                const tasks = await window.API.getBeginnerTasks();
+                const tbody = document.getElementById('beginnerTasksTableBody');
+                
+                if (tasks.length === 0) {
+                    tbody.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No beginner tasks yet</div>';
+                    return;
+                }
+                
+                tbody.innerHTML = tasks.map(task => `
+                    <div class="table-row">
+                        <div><strong>${task.title}</strong></div>
+                        <div>GHC ${parseFloat(task.amount).toFixed(2)}</div>
+                        <div>${parseFloat(task.commission || 0).toFixed(1)}%</div>
+                        <div><span class="status-badge ${task.status === 'active' ? 'status-completed' : 'status-frozen'}">${task.status === 'active' ? 'Active' : 'Inactive'}</span></div>
+                        <div>
+                            ${task.status === 'inactive' ? 
+                                `<button class="btn-action btn-success" onclick="startBeginnerTask('${task.id}')"><i class="las la-play"></i> Start</button>` :
+                                `<button class="btn-action btn-danger" onclick="stopBeginnerTask('${task.id}')"><i class="las la-stop"></i> Stop</button>`
+                            }
+                            <button class="btn-action btn-primary" onclick="viewSubmissions('${task.id}')"><i class="las la-eye"></i> View</button>
+                            <button class="btn-action btn-danger" onclick="deleteBeginnerTask('${task.id}')"><i class="las la-trash"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load beginner tasks:', error);
+            }
+        }
+
+        function openAddBeginnerTaskModal() {
+            document.getElementById('beginnerTaskTitle').value = '';
+            document.getElementById('beginnerTaskDescription').value = '';
+            document.getElementById('beginnerTaskAmount').value = '';
+            document.getElementById('beginnerTaskCommission').value = '';
+            document.getElementById('beginnerTaskModal').classList.add('show');
+        }
+
+        function closeBeginnerTaskModal() {
+            document.getElementById('beginnerTaskModal').classList.remove('show');
+        }
+
+        async function createBeginnerTask() {
+            const title = document.getElementById('beginnerTaskTitle').value.trim();
+            const description = document.getElementById('beginnerTaskDescription').value.trim();
+            const amount = parseFloat(document.getElementById('beginnerTaskAmount').value);
+            const commission = parseFloat(document.getElementById('beginnerTaskCommission').value || 0);
+
+            if (!title || !description || isNaN(amount) || amount <= 0) {
+                alert('Please fill in all required fields with valid data');
+                return;
+            }
+
+            try {
+                await window.API.createBeginnerTask({ title, description, amount, commission });
+                alert('Beginner task created successfully!');
+                closeBeginnerTaskModal();
+                loadBeginnerTasks();
+            } catch (error) {
+                console.error('Failed to create beginner task:', error);
+                alert('Failed to create beginner task: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        async function startBeginnerTask(taskId) {
+            if (confirm('Start this beginner task? It will be available to all users.')) {
+                try {
+                    await window.API.startBeginnerTask(taskId);
+                    alert('Beginner task started!');
+                    loadBeginnerTasks();
+                } catch (error) {
+                    console.error('Failed to start beginner task:', error);
+                    alert('Failed to start task: ' + (error.message || 'Unknown error'));
+                }
+            }
+        }
+
+        async function stopBeginnerTask(taskId) {
+            if (confirm('Stop this beginner task? It will no longer be available to users.')) {
+                try {
+                    await window.API.stopBeginnerTask(taskId);
+                    alert('Beginner task stopped!');
+                    loadBeginnerTasks();
+                } catch (error) {
+                    console.error('Failed to stop beginner task:', error);
+                    alert('Failed to stop task: ' + (error.message || 'Unknown error'));
+                }
+            }
+        }
+
+        async function deleteBeginnerTask(taskId) {
+            if (confirm('Delete this beginner task? All submissions will also be deleted.')) {
+                try {
+                    await window.API.deleteBeginnerTask(taskId);
+                    alert('Beginner task deleted successfully!');
+                    loadBeginnerTasks();
+                } catch (error) {
+                    console.error('Failed to delete beginner task:', error);
+                    alert('Failed to delete task: ' + (error.message || 'Unknown error'));
+                }
+            }
+        }
+
+        async function viewSubmissions(taskId) {
+            try {
+                const submissions = await window.API.getBeginnerTaskSubmissions(taskId);
+                const tbody = document.getElementById('submissionsTableBody');
+                
+                if (submissions.length === 0) {
+                    tbody.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No submissions yet</div>';
+                } else {
+                    tbody.innerHTML = submissions.map(sub => `
+                        <div class="table-row">
+                            <div>${sub.user_email}</div>
+                            <div><a href="${sub.url}" target="_blank" style="color: #667eea; text-decoration: underline;">${sub.url.substring(0, 40)}${sub.url.length > 40 ? '...' : ''}</a></div>
+                            <div>${new Date(sub.submitted_at).toLocaleString()}</div>
+                            <div>
+                                <button class="btn-action btn-danger" onclick="deleteSubmission('${sub.id}', '${taskId}')"><i class="las la-trash"></i></button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+                document.getElementById('submissionsModal').classList.add('show');
+            } catch (error) {
+                console.error('Failed to load submissions:', error);
+                alert('Failed to load submissions: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        function closeSubmissionsModal() {
+            document.getElementById('submissionsModal').classList.remove('show');
+        }
+
+        async function deleteSubmission(submissionId, taskId) {
+            if (confirm('Delete this submission?')) {
+                try {
+                    await window.API.deleteBeginnerTaskSubmission(submissionId);
+                    alert('Submission deleted successfully!');
+                    viewSubmissions(taskId); // Reload submissions
+                } catch (error) {
+                    console.error('Failed to delete submission:', error);
+                    alert('Failed to delete submission: ' + (error.message || 'Unknown error'));
+                }
             }
         }
 

@@ -366,6 +366,113 @@
             display: flex !important;
         }
 
+        /* Beginner Tasks Styles */
+        .beginner-task-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: white;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .beginner-task-header {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .beginner-task-description {
+            font-size: 13px;
+            opacity: 0.95;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+
+        .beginner-task-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .beginner-task-info-item {
+            font-size: 12px;
+        }
+
+        .beginner-task-info-label {
+            opacity: 0.8;
+            margin-bottom: 4px;
+        }
+
+        .beginner-task-info-value {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .beginner-task-url-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+        }
+
+        .beginner-task-url-input:focus {
+            outline: none;
+            border-color: white;
+        }
+
+        .beginner-task-submit-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            color: #667eea;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .beginner-task-submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .beginner-task-submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .beginner-task-cooldown {
+            text-align: center;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        .beginner-task-empty {
+            text-align: center;
+            padding: 30px 20px;
+            color: #999;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
         /* Bottom Navigation */
         .bottom-nav {
             position: fixed;
@@ -439,6 +546,9 @@
         <!-- Award Section -->
         <div class="award-section"></div>
 
+        <!-- Beginner Tasks Section -->
+        <div id="beginnerTasksSection"></div>
+
         <!-- Filter Buttons -->
         <div class="filter-buttons">
             <button class="filter-btn active" onclick="switchFilter('pending')">To Be Completed</button>
@@ -457,9 +567,101 @@
         // Initialize page
         async function initializePage() {
             await loadUserTasks();
+            await loadBeginnerTasks();
             updateBalance();
             updateAward();
             displayTasks('pending');
+        }
+
+        async function loadBeginnerTasks() {
+            try {
+                const tasks = await window.API.getUserBeginnerTasks();
+                const container = document.getElementById('beginnerTasksSection');
+                
+                if (tasks.length === 0) {
+                    container.innerHTML = '';
+                    return;
+                }
+                
+                container.innerHTML = tasks.map(task => {
+                    const canSubmit = task.can_submit;
+                    const nextAvailable = task.next_available_at ? new Date(task.next_available_at) : null;
+                    const timeLeft = nextAvailable ? Math.max(0, nextAvailable - new Date()) : 0;
+                    const minutesLeft = Math.ceil(timeLeft / 1000 / 60);
+                    
+                    return `
+                        <div class="beginner-task-card">
+                            <div class="beginner-task-header">
+                                <i class="las la-graduation-cap" style="font-size: 20px;"></i>
+                                ${task.title}
+                            </div>
+                            <div class="beginner-task-description">${task.description || ''}</div>
+                            <div class="beginner-task-info">
+                                <div class="beginner-task-info-item">
+                                    <div class="beginner-task-info-label">Cost</div>
+                                    <div class="beginner-task-info-value">GHC ${parseFloat(task.amount).toFixed(2)}</div>
+                                </div>
+                                <div class="beginner-task-info-item">
+                                    <div class="beginner-task-info-label">Interest</div>
+                                    <div class="beginner-task-info-value">${parseFloat(task.commission || 0).toFixed(1)}%</div>
+                                </div>
+                            </div>
+                            ${!canSubmit ? `
+                                <div class="beginner-task-cooldown">
+                                    <i class="las la-clock"></i> Next available in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}
+                                </div>
+                            ` : ''}
+                            <input 
+                                type="url" 
+                                class="beginner-task-url-input" 
+                                id="beginnerTaskUrl_${task.id}" 
+                                placeholder="Paste URL here..."
+                                ${!canSubmit ? 'disabled' : ''}
+                            >
+                            <button 
+                                class="beginner-task-submit-btn" 
+                                onclick="submitBeginnerTask('${task.id}')"
+                                ${!canSubmit ? 'disabled' : ''}
+                            >
+                                ${canSubmit ? 'Submit Task' : 'On Cooldown'}
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to load beginner tasks:', error);
+            }
+        }
+
+        async function submitBeginnerTask(taskId) {
+            const urlInput = document.getElementById(`beginnerTaskUrl_${taskId}`);
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                alert('Please enter a URL');
+                return;
+            }
+            
+            // Basic URL validation
+            try {
+                new URL(url);
+            } catch (e) {
+                alert('Please enter a valid URL (must start with http:// or https://)');
+                return;
+            }
+            
+            try {
+                const result = await window.API.submitBeginnerTask(taskId, url);
+                alert(`Task submitted successfully!\nYou earned GHC ${parseFloat(result.earned).toFixed(2)}`);
+                
+                // Reload beginner tasks and balance
+                await loadBeginnerTasks();
+                updateBalance();
+                updateAward();
+            } catch (error) {
+                console.error('Failed to submit beginner task:', error);
+                alert(error.message || 'Failed to submit task. Please try again.');
+            }
         }
 
         async function loadUserTasks() {
