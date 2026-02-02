@@ -808,7 +808,7 @@ app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
     );
     
     await query(
-      `insert into transactions (user_id, type, amount, description)
+      `insert into transactions (user_id, type, amount, reason)
        values ($1, 'debit', $2, $3)`,
       [userId, task.amount, `Beginner task: ${task.title}`]
     );
@@ -823,7 +823,7 @@ app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
     );
     
     await query(
-      `insert into transactions (user_id, type, amount, description)
+      `insert into transactions (user_id, type, amount, reason)
        values ($1, 'credit', $2, $3)`,
       [userId, totalReturn, `Beginner task bonus: ${task.title} - ${commission}% interest`]
     );
