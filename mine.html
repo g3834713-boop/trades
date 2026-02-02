@@ -1296,15 +1296,20 @@
             document.getElementById('logoutModal').classList.remove('show');
         }
 
-        function performLogout() {
-            localStorage.removeItem('isLoggedIn');
-            localStorage.removeItem('currentUser');
-            window.location.href = 'index.html';
-        }
+            async function performLogout() {
+                try {
+                    if (window.AuthService && window.AuthService.logout) {
+                        await window.AuthService.logout();
+                    }
+                } catch (error) {
+                    console.error('Logout error:', error);
+                }
+                window.location.href = 'index.html';
+            }
 
-        // Load user data on page load
-        window.addEventListener('DOMContentLoaded', async function() {
-            applyTranslations();
+            // Load user data on page load
+            window.addEventListener('DOMContentLoaded', async function() {
+                applyTranslations();
             
             try {
                 // Check if user is authenticated
@@ -1448,13 +1453,6 @@
             setLanguage(selectedLanguage);
             alert('Language preference saved!');
             closeActionModal('languageModal');
-        }
-
-        // Confirm logout
-        function confirmLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                logout();
-            }
         }
 
         // Load language and user data on page load
