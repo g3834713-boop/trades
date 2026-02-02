@@ -457,15 +457,15 @@
 
                 // Process tasks
                 tasks.forEach(task => {
-                    const status = task.status || 'pending';
+                    const status = task.assignment_status || 'pending';
                     if (!tasksData[status]) {
                         tasksData[status] = [];
                     }
                     tasksData[status].push({
                         id: task.task_id || task.id,
-                        title: task.name || task.title,
+                        title: task.title,
                         description: task.description,
-                        amount: parseFloat(task.commission || task.amount || 0),
+                        amount: parseFloat(task.amount || 0),
                         status: status,
                         isProduct: false,
                         assignedAt: task.assigned_at
@@ -474,13 +474,13 @@
 
                 // Process products as tasks
                 products.forEach(product => {
-                    const status = product.status || 'pending';
+                    const status = product.assignment_status || 'pending';
                     if (!tasksData[status]) {
                         tasksData[status] = [];
                     }
                     tasksData[status].push({
                         id: product.product_id || product.id,
-                        title: product.name || product.title,
+                        title: product.name,
                         description: product.description,
                         amount: parseFloat(product.price || 0),
                         status: status,
