@@ -346,13 +346,17 @@ app.post('/admin/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) 
 
   for (const userId of userIds) {
     try {
-      await query(
+      const result = await query(
         `insert into task_assignments (task_id, user_id)
          values ($1, $2)
          on conflict (task_id, user_id) do nothing`,
         [taskId, userId]
       );
-      assigned++;
+      if (result.rowCount > 0) {
+        assigned++;
+      } else {
+        skipped++;
+      }
     } catch (error) {
       skipped++;
     }
@@ -393,13 +397,17 @@ app.post('/admin/products/:id/assign', requireAuth, requireAdmin, async (req, re
 
   for (const userId of userIds) {
     try {
-      await query(
+      const result = await query(
         `insert into product_assignments (product_id, user_id)
          values ($1, $2)
          on conflict (product_id, user_id) do nothing`,
         [productId, userId]
       );
-      assigned++;
+      if (result.rowCount > 0) {
+        assigned++;
+      } else {
+        skipped++;
+      }
     } catch (error) {
       skipped++;
     }

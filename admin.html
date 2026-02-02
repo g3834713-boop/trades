@@ -1322,7 +1322,17 @@
             try {
                 const taskId = document.getElementById('assignTaskId').value;
                 const result = await window.API.assignTask(taskId, userIds);
-                alert(`Task assigned to ${result.assigned} user(s)! ${result.skipped} already assigned.`);
+                
+                let message = '';
+                if (result.assigned > 0 && result.skipped > 0) {
+                    message = `Task assigned to ${result.assigned} new user(s)! ${result.skipped} user(s) already had this task.`;
+                } else if (result.assigned > 0) {
+                    message = `Task successfully assigned to ${result.assigned} user(s)!`;
+                } else if (result.skipped > 0) {
+                    message = `All ${result.skipped} selected user(s) already have this task assigned.`;
+                }
+                
+                alert(message);
                 closeAssignTaskModal();
                 loadTasks();
             } catch (error) {
@@ -1484,7 +1494,17 @@
             try {
                 const productId = document.getElementById('assignProductId').value;
                 const result = await window.API.assignProduct(productId, userIds);
-                alert(`Product assigned to ${result.assigned} user(s) as task! ${result.skipped} already assigned.`);
+                
+                let message = '';
+                if (result.assigned > 0 && result.skipped > 0) {
+                    message = `Product assigned to ${result.assigned} new user(s)! ${result.skipped} user(s) already had this product.`;
+                } else if (result.assigned > 0) {
+                    message = `Product successfully assigned to ${result.assigned} user(s)!`;
+                } else if (result.skipped > 0) {
+                    message = `All ${result.skipped} selected user(s) already have this product assigned.`;
+                }
+                
+                alert(message);
                 closeAssignProductModal();
                 loadProducts();
             } catch (error) {
