@@ -4,7 +4,10 @@ import dns from 'dns';
 const { Pool } = pg;
 
 const lookup = (hostname, options, callback) => {
-  dns.lookup(hostname, { family: 4 }, callback);
+  if (typeof options === 'function') {
+    return dns.lookup(hostname, { family: 4 }, options);
+  }
+  return dns.lookup(hostname, { ...options, family: 4 }, callback);
 };
 
 export const pool = new Pool({
