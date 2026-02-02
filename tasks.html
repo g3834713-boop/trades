@@ -652,16 +652,65 @@
             
             try {
                 const result = await window.API.submitBeginnerTask(taskId, url);
-                alert(`Task submitted successfully!\nYou earned GHC ${parseFloat(result.earned).toFixed(2)}`);
                 
-                // Reload beginner tasks and balance
-                await loadBeginnerTasks();
-                updateBalance();
-                updateAward();
+                // Store pending beginner task reward info
+                window.pendingBeginnerReward = {
+                    taskId: taskId,
+                    taskTitle: result.task_title
+                };
+                
+                // Show modal with countdown
+                showBeginnerTaskModal(taskId);
+                
             } catch (error) {
                 console.error('Failed to submit beginner task:', error);
                 alert(error.message || 'Failed to submit task. Please try again.');
             }
+        }
+
+        function showBeginnerTaskModal(taskId) {
+            const modal = document.getElementById('orderSuccessModal');
+            const countdownSection = document.getElementById('countdownSection');
+            const rewardSection = document.getElementById('rewardSection');
+            const countdownTimer = document.getElementById('countdownTimer');
+            const claimBtn = document.getElementById('claimRewardsBtn');
+            
+            // Reset modal state
+            countdownSection.style.display = 'block';
+            rewardSection.style.display = 'none';
+            claimBtn.disabled = false;
+            claimBtn.textContent = 'Claim Rewards';
+            
+            // Update reward amounts display (1 GHC for beginner task)
+            document.getElementById('orderCost').textContent = '0.00';
+            document.getElementById('orderInterest').textContent = '1.00';
+            document.getElementById('orderTotal').textContent = '1.00';
+            
+            // Add data attribute to track this is a beginner task claim
+            claimBtn.setAttribute('data-beginner-task', 'true');
+            
+            // Display modal
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 100);
+
+            // Countdown timer
+            let timeLeft = 10;
+            countdownTimer.textContent = timeLeft;
+            
+            const countdownInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft >= 0) {
+                    countdownTimer.textContent = timeLeft;
+                }
+                
+                if (timeLeft < 0) {
+                    clearInterval(countdownInterval);
+                    // Show claim rewards button
+                    countdownSection.style.display = 'none';
+                    rewardSection.style.display = 'block';
+                }
+            }, 1000);
         }
 
         async function loadUserTasks() {
@@ -956,56 +1005,99 @@
             const claimBtn = document.getElementById('claimRewardsBtn');
             const modal = document.getElementById('orderSuccessModal');
             
-            if (!window.pendingReward) {
-                alert('No pending reward found');
-                return;
-            }
-
-            // Disable button to prevent double-click
-            claimBtn.disabled = true;
-            claimBtn.textContent = 'Processing...';
+            // Check if this is a beginner task claim
+            const isBeginnerTask = claimBtn.getAttribute('data-beginner-task') === 'true';
             
-            try {
-                const { taskId, task, totalReturn, interestAmount, isProduct } = window.pendingReward;
-
-                // Add interest/commission to user
-                await window.API.call('/wallet/add-bonus', {
-                    method: 'POST',
-                    body: JSON.stringify({ 
-                        amount: totalReturn, 
-                        reason: `Task completed: ${task.title} - Cost: ${task.amount.toFixed(2)} + Interest: ${interestAmount.toFixed(2)}`
-                    })
-                });
-
-                // Mark task/product as completed in database
-                if (task.isProduct) {
-                    await window.API.completeProduct(taskId);
-                } else {
-                    await window.API.completeTask(taskId);
+            if (isBeginnerTask) {
+                if (!window.pendingBeginnerReward) {
+                    alert('No pending reward found');
+                    return;
                 }
 
-                // Reload tasks to update status
-                await loadUserTasks();
+                // Disable button to prevent double-click
+                claimBtn.disabled = true;
+                claimBtn.textContent = 'Processing...';
                 
-                // Update display
-                updateBalance();
-                updateAward();
-                displayTasks('completed');
+                try {
+                    const { taskId } = window.pendingBeginnerReward;
 
-                // Close modal
-                modal.classList.remove('show');
-                
-                // Clear pending reward
-                window.pendingReward = null;
-                
-                // Show success message
-                alert(`Task completed successfully!\n\nCost: GHC ${task.amount.toFixed(2)}\nInterest earned: GHC ${interestAmount.toFixed(2)}\nTotal received: GHC ${totalReturn.toFixed(2)}`);
+                    // Claim beginner task reward
+                    await window.API.claimBeginnerTaskReward(taskId);
 
-            } catch (error) {
-                console.error('Error claiming reward:', error);
-                claimBtn.disabled = false;
-                claimBtn.textContent = 'Claim Rewards';
-                alert('Error claiming reward: ' + (error.message || 'Unknown error'));
+                    // Reload beginner tasks and balance
+                    await loadBeginnerTasks();
+                    updateBalance();
+                    updateAward();
+
+                    // Close modal
+                    modal.classList.remove('show');
+                    
+                    // Clear pending reward
+                    window.pendingBeginnerReward = null;
+                    claimBtn.removeAttribute('data-beginner-task');
+                    
+                    // Show success message
+                    alert('Reward claimed successfully!\nYou earned GHC 1.00');
+
+                } catch (error) {
+                    console.error('Error claiming reward:', error);
+                    claimBtn.disabled = false;
+                    claimBtn.textContent = 'Claim Rewards';
+                    alert('Error claiming reward: ' + (error.message || 'Unknown error'));
+                }
+            } else {
+                // Regular task claim
+                if (!window.pendingReward) {
+                    alert('No pending reward found');
+                    return;
+                }
+
+                // Disable button to prevent double-click
+                claimBtn.disabled = true;
+                claimBtn.textContent = 'Processing...';
+                
+                try {
+                    const { taskId, task, totalReturn, interestAmount, isProduct } = window.pendingReward;
+
+                    // Add interest/commission to user
+                    await window.API.call('/wallet/add-bonus', {
+                        method: 'POST',
+                        body: JSON.stringify({ 
+                            amount: totalReturn, 
+                            reason: `Task completed: ${task.title} - Cost: ${task.amount.toFixed(2)} + Interest: ${interestAmount.toFixed(2)}`
+                        })
+                    });
+
+                    // Mark task/product as completed in database
+                    if (task.isProduct) {
+                        await window.API.completeProduct(taskId);
+                    } else {
+                        await window.API.completeTask(taskId);
+                    }
+
+                    // Reload tasks to update status
+                    await loadUserTasks();
+                    
+                    // Update display
+                    updateBalance();
+                    updateAward();
+                    displayTasks('completed');
+
+                    // Close modal
+                    modal.classList.remove('show');
+                    
+                    // Clear pending reward
+                    window.pendingReward = null;
+                    
+                    // Show success message
+                    alert(`Task completed successfully!\n\nCost: GHC ${task.amount.toFixed(2)}\nInterest earned: GHC ${interestAmount.toFixed(2)}\nTotal received: GHC ${totalReturn.toFixed(2)}`);
+
+                } catch (error) {
+                    console.error('Error claiming reward:', error);
+                    claimBtn.disabled = false;
+                    claimBtn.textContent = 'Claim Rewards';
+                    alert('Error claiming reward: ' + (error.message || 'Unknown error'));
+                }
             }
         }
 

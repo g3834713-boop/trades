@@ -304,6 +304,12 @@ window.API = {
     });
   },
 
+  async claimBeginnerTaskReward(taskId) {
+    return this.call(`/beginner-tasks/${taskId}/claim`, {
+      method: 'POST'
+    });
+  },
+
   async getAllUsers() {
     return this.call('/admin/users');
   }

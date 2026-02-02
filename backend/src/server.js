@@ -792,43 +792,8 @@ app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
         });
       }
     }
-    
-    // Check user balance
-    const wallet = await query('select * from wallets where user_id = $1', [userId]);
-    const balance = parseFloat(wallet.rows[0]?.balance || 0);
-    
-    if (balance < parseFloat(task.amount)) {
-      return res.status(400).json({ error: 'Insufficient balance' });
-    }
-    
-    // Deduct balance
-    await query(
-      `update wallets set balance = balance - $1 where user_id = $2`,
-      [task.amount, userId]
-    );
-    
-    await query(
-      `insert into transactions (user_id, type, amount, reason)
-       values ($1, 'debit', $2, $3)`,
-      [userId, task.amount, `Beginner task: ${task.title}`]
-    );
-    
-    // Calculate and add bonus
-    const commission = parseFloat(task.commission || 0);
-    const totalReturn = parseFloat(task.amount) + (parseFloat(task.amount) * commission / 100);
-    
-    await query(
-      `update wallets set bonus = bonus + $1 where user_id = $2`,
-      [totalReturn, userId]
-    );
-    
-    await query(
-      `insert into transactions (user_id, type, amount, reason)
-       values ($1, 'credit', $2, $3)`,
-      [userId, totalReturn, `Beginner task bonus: ${task.title} - ${commission}% interest`]
-    );
-    
-    // Save submission
+
+    // Save submission (no balance deduction - task is FREE)
     await query(
       `insert into beginner_task_submissions (task_id, user_id, url)
        values ($1, $2, $3)`,
@@ -838,12 +803,53 @@ app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
     res.json({ 
       ok: true, 
       message: 'Submission successful',
-      earned: totalReturn,
+      task_title: task.title,
       next_available_at: new Date(Date.now() + 30 * 60 * 1000)
     });
   } catch (error) {
     console.error('Error submitting beginner task:', error);
     res.status(500).json({ error: 'Failed to submit task: ' + error.message });
+  }
+});
+
+// User: Claim beginner task reward
+app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
+  try {
+    const { id: taskId } = req.params;
+    const { id: userId } = req.user;
+    
+    // Check if submission exists
+    const { rows: submissionRows } = await query(
+      `select * from beginner_task_submissions
+       where task_id = $1 and user_id = $2
+       order by submitted_at desc limit 1`,
+      [taskId, userId]
+    );
+    
+    if (submissionRows.length === 0) {
+      return res.status(404).json({ error: 'No submission found' });
+    }
+    
+    // Add 1 GHC to balance
+    await query(
+      `update wallets set balance = balance + 1.00 where user_id = $1`,
+      [userId]
+    );
+    
+    await query(
+      `insert into transactions (user_id, type, amount, reason)
+       values ($1, 'credit', 1.00, $2)`,
+      [userId, 'Beginner task reward: 1 GHC']
+    );
+    
+    res.json({ 
+      ok: true, 
+      message: 'Reward claimed successfully',
+      earned: 1.00
+    });
+  } catch (error) {
+    console.error('Error claiming beginner task reward:', error);
+    res.status(500).json({ error: 'Failed to claim reward: ' + error.message });
   }
 });
 
