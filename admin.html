@@ -896,30 +896,33 @@
         }
 
         // Load Tasks
-        function loadTasks() {
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            const tasks = adminData.tasks || [];
-            let html = '';
+        async function loadTasks() {
+            try {
+                const tasks = await window.API.getTasks();
+                let html = '';
 
-            if (tasks.length === 0) {
-                html = '<div class="empty-state"><p>No tasks created</p></div>';
-            } else {
-                tasks.forEach(task => {
-                    const assignedCount = (task.assignedTo || []).length;
-                    html += `<div class="table-row">
-                        <div class="table-cell">${task.title}</div>
-                        <div class="table-cell">GHC ${task.amount.toFixed(2)}</div>
-                        <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${task.status}</span></div>
-                        <div class="table-cell">${assignedCount}</div>
-                        <div class="table-action">
-                            <button class="btn btn-primary" onclick="openAssignTaskModal(${task.id})">Assign</button>
-                            <button class="btn btn-danger" onclick="deleteTask(${task.id})">Delete</button>
-                        </div>
-                    </div>`;
-                });
+                if (tasks.length === 0) {
+                    html = '<div class="empty-state"><p>No tasks created</p></div>';
+                } else {
+                    tasks.forEach(task => {
+                        html += `<div class="table-row">
+                            <div class="table-cell">${task.title}</div>
+                            <div class="table-cell">GHC ${parseFloat(task.amount || 0).toFixed(2)}</div>
+                            <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${task.status || 'active'}</span></div>
+                            <div class="table-cell">-</div>
+                            <div class="table-action">
+                                <button class="btn btn-primary" onclick="openAssignTaskModal('${task.id}')">Assign</button>
+                                <button class="btn btn-danger" onclick="deleteTask('${task.id}')">Delete</button>
+                            </div>
+                        </div>`;
+                    });
+                }
+
+                document.getElementById('tasksTableBody').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load tasks:', error);
+                document.getElementById('tasksTableBody').innerHTML = '<div class="empty-state"><p>Failed to load tasks</p></div>';
             }
-
-            document.getElementById('tasksTableBody').innerHTML = html;
         }
 
         // Load Deposits
@@ -1056,30 +1059,33 @@
         }
 
         // Load Products
-        function loadProducts() {
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            const products = adminData.products || [];
-            let html = '';
+        async function loadProducts() {
+            try {
+                const products = await window.API.getProducts();
+                let html = '';
 
-            if (products.length === 0) {
-                html = '<div class="empty-state"><p>No products created</p></div>';
-            } else {
-                products.forEach(product => {
-                    const assignedCount = (product.assignedTo || []).length;
-                    html += `<div class="table-row">
-                        <div class="table-cell">${product.name}</div>
-                        <div class="table-cell">GHC ${product.price.toFixed(2)}</div>
-                        <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${product.status}</span></div>
-                        <div class="table-cell">${assignedCount}</div>
-                        <div class="table-action">
-                            <button class="btn btn-primary" onclick="openAssignProductModal(${product.id})">Assign</button>
-                            <button class="btn btn-danger" onclick="deleteProduct(${product.id})">Delete</button>
-                        </div>
-                    </div>`;
-                });
+                if (products.length === 0) {
+                    html = '<div class="empty-state"><p>No products created</p></div>';
+                } else {
+                    products.forEach(product => {
+                        html += `<div class="table-row">
+                            <div class="table-cell">${product.name}</div>
+                            <div class="table-cell">GHC ${parseFloat(product.price || 0).toFixed(2)}</div>
+                            <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${product.status || 'active'}</span></div>
+                            <div class="table-cell">-</div>
+                            <div class="table-action">
+                                <button class="btn btn-primary" onclick="openAssignProductModal('${product.id}')">Assign</button>
+                                <button class="btn btn-danger" onclick="deleteProduct('${product.id}')">Delete</button>
+                            </div>
+                        </div>`;
+                    });
+                }
+
+                document.getElementById('productsTableBody').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load products:', error);
+                document.getElementById('productsTableBody').innerHTML = '<div class="empty-state"><p>Failed to load products</p></div>';
             }
-
-            document.getElementById('productsTableBody').innerHTML = html;
         }
 
         // Load Payouts
@@ -1208,58 +1214,60 @@
             document.getElementById('taskQuantity').value = '1';
         }
 
-        function createTask() {
+        async function createTask() {
             const title = document.getElementById('taskTitle').value;
             const description = document.getElementById('taskDescription').value;
             const amount = parseFloat(document.getElementById('taskAmount').value);
-            const quantity = parseInt(document.getElementById('taskQuantity').value);
 
             if (!title || !amount) {
                 alert('Please fill in required fields');
                 return;
             }
 
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            if (!adminData.tasks) adminData.tasks = [];
-
-            const newTask = {
-                id: Date.now(),
-                title: title,
-                description: description,
-                amount: amount,
-                quantity: quantity,
-                assignedTo: [],
-                status: 'active',
-                createdAt: new Date().toISOString()
-            };
-
-            adminData.tasks.push(newTask);
-            localStorage.setItem('adminData', JSON.stringify(adminData));
-
-            alert('Task created successfully!');
-            closeTaskModal();
-            loadTasks();
+            try {
+                await window.API.createTask(title, description, amount);
+                alert('Task created successfully!');
+                closeTaskModal();
+                
+                // Clear form
+                document.getElementById('taskTitle').value = '';
+                document.getElementById('taskDescription').value = '';
+                document.getElementById('taskAmount').value = '';
+                
+                loadTasks();
+            } catch (error) {
+                console.error('Failed to create task:', error);
+                alert('Failed to create task: ' + (error.message || 'Unknown error'));
+            }
         }
 
-        function deleteTask(taskId) {
+        async function deleteTask(taskId) {
             if (confirm('Delete this task?')) {
-                const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-                adminData.tasks = (adminData.tasks || []).filter(t => t.id !== taskId);
-                localStorage.setItem('adminData', JSON.stringify(adminData));
-                loadTasks();
+                try {
+                    // For now, just show a message since we don't have a delete endpoint
+                    alert('Task deletion not yet implemented on backend');
+                    // TODO: Create DELETE /admin/tasks/:id endpoint
+                } catch (error) {
+                    console.error('Failed to delete task:', error);
+                    alert('Failed to delete task');
+                }
             }
         }
 
         async function openAssignTaskModal(taskId) {
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            const task = (adminData.tasks || []).find(t => t.id === taskId);
-            if (!task) {
-                alert('Task not found');
-                return;
-            }
-
+            // Store the taskId directly - it's already on the backend
             document.getElementById('assignTaskId').value = taskId;
-            document.getElementById('assignTaskName').textContent = task.title;
+            
+            // Load task name from the task list (for display)
+            try {
+                const tasks = await window.API.getTasks();
+                const task = tasks.find(t => t.id === taskId);
+                if (task) {
+                    document.getElementById('assignTaskName').textContent = task.title;
+                }
+            } catch (error) {
+                console.error('Failed to load task:', error);
+            }
 
             try {
                 const allUsers = await window.API.getAllUsers();
@@ -1296,7 +1304,7 @@
         }
 
         async function assignTaskToUsers() {
-            const taskId = parseInt(document.getElementById('assignTaskId').value, 10);
+            const taskId = document.getElementById('assignTaskId').value;
             const scope = document.querySelector('input[name="assignScope"]:checked').value;
 
             let userIds = [];
@@ -1320,7 +1328,6 @@
             }
 
             try {
-                const taskId = document.getElementById('assignTaskId').value;
                 const result = await window.API.assignTask(taskId, userIds);
                 
                 let message = '';
@@ -1369,7 +1376,7 @@
             }
         }
 
-        function createProduct() {
+        async function createProduct() {
             const name = document.getElementById('productName').value;
             const description = document.getElementById('productDescription').value;
             const price = parseFloat(document.getElementById('productPrice').value);
@@ -1386,52 +1393,56 @@
             }
 
             const reader = new FileReader();
-            reader.onload = function(e) {
-                const imageData = e.target.result;
-
-                const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-                if (!adminData.products) adminData.products = [];
-
-                const newProduct = {
-                    id: Date.now(),
-                    name: name,
-                    description: description,
-                    price: price,
-                    image: imageData,
-                    assignedTo: [],
-                    status: 'active',
-                    createdAt: new Date().toISOString()
-                };
-
-                adminData.products.push(newProduct);
-                localStorage.setItem('adminData', JSON.stringify(adminData));
-
-                alert('Product created successfully!');
-                closeProductModal();
-                loadProducts();
+            reader.onload = async function(e) {
+                try {
+                    const imageData = e.target.result;
+                    await window.API.createProduct(name, description, price, imageData);
+                    
+                    alert('Product created successfully!');
+                    closeProductModal();
+                    
+                    // Clear form
+                    document.getElementById('productName').value = '';
+                    document.getElementById('productDescription').value = '';
+                    document.getElementById('productPrice').value = '';
+                    document.getElementById('productImage').value = '';
+                    
+                    loadProducts();
+                } catch (error) {
+                    console.error('Failed to create product:', error);
+                    alert('Failed to create product: ' + (error.message || 'Unknown error'));
+                }
             };
             reader.readAsDataURL(fileInput.files[0]);
         }
 
-        function deleteProduct(productId) {
+        async function deleteProduct(productId) {
             if (confirm('Delete this product?')) {
-                const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-                adminData.products = (adminData.products || []).filter(p => p.id !== productId);
-                localStorage.setItem('adminData', JSON.stringify(adminData));
-                loadProducts();
+                try {
+                    // For now, just show a message since we don't have a delete endpoint
+                    alert('Product deletion not yet implemented on backend');
+                    // TODO: Create DELETE /admin/products/:id endpoint
+                } catch (error) {
+                    console.error('Failed to delete product:', error);
+                    alert('Failed to delete product');
+                }
             }
         }
 
         async function openAssignProductModal(productId) {
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            const product = (adminData.products || []).find(p => p.id === productId);
-            if (!product) {
-                alert('Product not found');
-                return;
-            }
-
+            // Store the productId directly - it's already on the backend
             document.getElementById('assignProductId').value = productId;
-            document.getElementById('assignProductName').textContent = product.name;
+            
+            // Load product name from the product list (for display)
+            try {
+                const products = await window.API.getProducts();
+                const product = products.find(p => p.id === productId);
+                if (product) {
+                    document.getElementById('assignProductName').textContent = product.name;
+                }
+            } catch (error) {
+                console.error('Failed to load product:', error);
+            }
 
             try {
                 const allUsers = await window.API.getAllUsers();
@@ -1468,7 +1479,7 @@
         }
 
         async function assignProductToUsers() {
-            const productId = parseInt(document.getElementById('assignProductId').value, 10);
+            const productId = document.getElementById('assignProductId').value;
             const scope = document.querySelector('input[name="assignProductScope"]:checked').value;
 
             let userIds = [];
@@ -1492,7 +1503,6 @@
             }
 
             try {
-                const productId = document.getElementById('assignProductId').value;
                 const result = await window.API.assignProduct(productId, userIds);
                 
                 let message = '';
