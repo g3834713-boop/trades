@@ -880,7 +880,7 @@
                         </div>` : ''}
                     </div>
                     <div class="task-item-reward">
-                        ${task.commission > 0 ? `Earn: GHC ${(task.amount * task.commission / 100).toFixed(2)} interest` : `Reward: GHC ${task.amount.toFixed(2)}`}
+                        ${task.isBeginnerTask ? `Reward: GHC ${task.amount.toFixed(2)}` : (task.commission > 0 ? `Earn: GHC ${(task.amount * task.commission / 100).toFixed(2)} interest` : '')}
                     </div>
                     ${task.status === 'pending' ? `
                         <button class="task-action-btn" onclick="completeTask('${task.id}', '${task.isProduct}')">${task.isProduct ? 'Place Order' : 'Start Task'}</button>
