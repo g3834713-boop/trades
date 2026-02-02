@@ -1596,9 +1596,12 @@
                     return;
                 }
 
+                // Sync user to backend
+                await window.API.call('POST', '/users/sync', {});
+
                 // Fetch complete user profile from backend
                 const userProfile = await window.API.getUserProfile();
-                const totalBalance = (userProfile.balance || 0) + (userProfile.bonus || 0);
+                const totalBalance = parseFloat(userProfile.balance || 0) + parseFloat(userProfile.bonus || 0);
                 document.getElementById('commissionDisplay').textContent = `GHC ${totalBalance.toFixed(2)}`;
                 
                 // Store user profile globally

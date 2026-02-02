@@ -694,6 +694,9 @@
                     return;
                 }
 
+                // Sync user to backend
+                await window.API.call('POST', '/users/sync', {});
+
                 // Apply language translations
                 applyLanguage();
                 
@@ -701,7 +704,7 @@
                 const wallet = await window.API.getWallet();
                 const balanceDisplay = document.getElementById('balanceDisplay');
                 if (balanceDisplay) {
-                    balanceDisplay.textContent = `GHC ${wallet.balance.toFixed(2)}`;
+                    balanceDisplay.textContent = `GHC ${parseFloat(wallet.balance || 0).toFixed(2)}`;
                 }
             } catch (error) {
                 console.error('Error loading tasks page:', error);
