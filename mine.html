@@ -1123,7 +1123,7 @@
             
             // Update display
             document.getElementById('displayPaymentNumber').textContent = paymentNumber;
-            document.getElementById('displayAmount').textContent = paymentRequest.amount.toFixed(2);
+            document.getElementById('displayAmount').textContent = parseFloat(paymentRequest.amount || 0).toFixed(2);
             
             const methodNames = {
                 'mtn': 'MTN Mobile Money',
