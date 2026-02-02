@@ -539,6 +539,54 @@ app.post('/admin/products/:id/assign', requireAuth, requireAdmin, async (req, re
   res.json({ assigned, skipped });
 });
 
+// Mark task as completed
+app.post('/tasks/:id/complete', requireAuth, async (req, res) => {
+  try {
+    const { id: taskId } = req.params;
+    const { id: userId } = req.user;
+
+    const { rowCount } = await query(
+      `update task_assignments 
+       set status = 'completed', completed_at = now()
+       where task_id = $1 and user_id = $2`,
+      [taskId, userId]
+    );
+
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Task assignment not found' });
+    }
+
+    res.json({ ok: true, message: 'Task marked as completed' });
+  } catch (error) {
+    console.error('Error completing task:', error);
+    res.status(500).json({ error: 'Failed to complete task: ' + error.message });
+  }
+});
+
+// Mark product as completed
+app.post('/products/:id/complete', requireAuth, async (req, res) => {
+  try {
+    const { id: productId } = req.params;
+    const { id: userId } = req.user;
+
+    const { rowCount } = await query(
+      `update product_assignments 
+       set status = 'completed', completed_at = now()
+       where product_id = $1 and user_id = $2`,
+      [productId, userId]
+    );
+
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Product assignment not found' });
+    }
+
+    res.json({ ok: true, message: 'Product marked as completed' });
+  } catch (error) {
+    console.error('Error completing product:', error);
+    res.status(500).json({ error: 'Failed to complete product: ' + error.message });
+  }
+});
+
 const port = process.env.PORT || 8080;
 
 async function ensureSchema() {

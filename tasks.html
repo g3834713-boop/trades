@@ -691,7 +691,8 @@
                     taskId: taskId,
                     task: task,
                     totalReturn: totalReturn,
-                    interestAmount: interestAmount
+                    interestAmount: interestAmount,
+                    isProduct: isProduct === 'true' || isProduct === true
                 };
 
                 // Deduct cost from balance
@@ -763,7 +764,7 @@
             claimBtn.textContent = 'Processing...';
             
             try {
-                const { taskId, task, totalReturn, interestAmount } = window.pendingReward;
+                const { taskId, task, totalReturn, interestAmount, isProduct } = window.pendingReward;
 
                 // Add interest/commission to user
                 await window.API.call('/wallet/add-bonus', {
@@ -773,6 +774,13 @@
                         reason: `Task completed: ${task.title} - Cost: ${task.amount.toFixed(2)} + Interest: ${interestAmount.toFixed(2)}`
                     })
                 });
+
+                // Mark task/product as completed in database
+                if (task.isProduct) {
+                    await window.API.completeProduct(taskId);
+                } else {
+                    await window.API.completeTask(taskId);
+                }
 
                 // Reload tasks to update status
                 await loadUserTasks();

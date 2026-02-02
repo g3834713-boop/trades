@@ -241,6 +241,18 @@ window.API = {
     });
   },
 
+  async completeTask(taskId) {
+    return this.call(`/tasks/${taskId}/complete`, {
+      method: 'POST'
+    });
+  },
+
+  async completeProduct(productId) {
+    return this.call(`/products/${productId}/complete`, {
+      method: 'POST'
+    });
+  },
+
   async getAllUsers() {
     return this.call('/admin/users');
   }
