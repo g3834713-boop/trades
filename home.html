@@ -1369,18 +1369,6 @@
                 alert(error.message || 'Failed to submit transaction ID');
             }
         }
-            if (userIndex !== -1) {
-                userPayments[userIndex].transactionId = transactionId;
-                userPayments[userIndex].transactionSubmittedAt = new Date().toISOString();
-                if (userPayments[userIndex].status === 'pending') {
-                    userPayments[userIndex].status = 'submitted';
-                }
-                localStorage.setItem('userPayments_' + userId, JSON.stringify(userPayments));
-            }
-
-            alert('Transaction ID submitted. Awaiting admin confirmation.');
-            document.getElementById('transactionIdInput').value = '';
-        }
 
         function updateAccount() {
             const userData = localStorage.getItem('currentUser');
