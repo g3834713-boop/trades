@@ -1494,17 +1494,6 @@
         }
 
         function deleteDeposit(index) {
-                    if (!product.assignedTo.includes(userId)) product.assignedTo.push(userId);
-                });
-                localStorage.setItem('adminData', JSON.stringify(adminData));
-            }
-
-            alert(`Product assigned to ${result.assigned} user(s) as task! ${result.skipped} skipped.`);
-            closeAssignProductModal();
-            loadProducts();
-        }
-
-        function deleteDeposit(index) {
             if (confirm('Delete this deposit record?')) {
                 const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
                 adminData.deposits.splice(index, 1);
