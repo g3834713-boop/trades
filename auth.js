@@ -185,6 +185,50 @@ window.API = {
     });
   },
 
+  async getMyTasks() {
+    return this.call('/tasks/my');
+  },
+
+  async getMyProducts() {
+    return this.call('/products/my');
+  },
+
+  async createTask(title, description, amount) {
+    return this.call('/admin/tasks', {
+      method: 'POST',
+      body: JSON.stringify({ title, description, amount })
+    });
+  },
+
+  async getTasks() {
+    return this.call('/admin/tasks');
+  },
+
+  async assignTask(taskId, userIds) {
+    return this.call(`/admin/tasks/${taskId}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ userIds })
+    });
+  },
+
+  async createProduct(name, description, price, image) {
+    return this.call('/admin/products', {
+      method: 'POST',
+      body: JSON.stringify({ name, description, price, image })
+    });
+  },
+
+  async getProducts() {
+    return this.call('/admin/products');
+  },
+
+  async assignProduct(productId, userIds) {
+    return this.call(`/admin/products/${productId}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ userIds })
+    });
+  },
+
   async getAllUsers() {
     return this.call('/admin/users');
   }

@@ -1319,36 +1319,16 @@
                 return;
             }
 
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            const task = (adminData.tasks || []).find(t => t.id === taskId);
-            if (task) {
-                if (!task.assignedTo) task.assignedTo = [];
-                userIds.forEach(userId => {
-                    if (!task.assignedTo.includes(userId)) task.assignedTo.push(userId);
-                    
-                    // Store assignment in each user's tasks
-                    const userTasks = JSON.parse(localStorage.getItem(`userTasks_${userId}`) || '{"pending":[],"frozen":[],"completed":[]}');
-                    const alreadyAssigned = ['pending', 'frozen', 'completed'].some(status => 
-                        (userTasks[status] || []).some(t => t.id === taskId)
-                    );
-                    
-                    if (!alreadyAssigned) {
-                        const taskInstance = {
-                            ...task,
-                            status: 'pending',
-                            assignedAt: new Date().toISOString()
-                        };
-                        userTasks.pending = userTasks.pending || [];
-                        userTasks.pending.push(taskInstance);
-                        localStorage.setItem(`userTasks_${userId}`, JSON.stringify(userTasks));
-                    }
-                });
-                localStorage.setItem('adminData', JSON.stringify(adminData));
+            try {
+                const taskId = document.getElementById('assignTaskId').value;
+                const result = await window.API.assignTask(taskId, userIds);
+                alert(`Task assigned to ${result.assigned} user(s)! ${result.skipped} already assigned.`);
+                closeAssignTaskModal();
+                loadTasks();
+            } catch (error) {
+                console.error('Failed to assign task:', error);
+                alert(error.message || 'Failed to assign task');
             }
-
-            alert(`Task assigned to ${userIds.length} user(s)!`);
-            closeAssignTaskModal();
-            loadTasks();
         }
                 if (!task.assignedTo) task.assignedTo = [];
                 userIds.forEach(userId => {
@@ -1512,42 +1492,16 @@
                 return;
             }
 
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            const product = (adminData.products || []).find(p => p.id === productId);
-            if (product) {
-                if (!product.assignedTo) product.assignedTo = [];
-                userIds.forEach(userId => {
-                    if (!product.assignedTo.includes(userId)) product.assignedTo.push(userId);
-                    
-                    // Store product as task in each user's tasks
-                    const userTasks = JSON.parse(localStorage.getItem(`userTasks_${userId}`) || '{"pending":[],"frozen":[],"completed":[]}');
-                    const alreadyAssigned = ['pending', 'frozen', 'completed'].some(status => 
-                        (userTasks[status] || []).some(t => t.productId === productId)
-                    );
-                    
-                    if (!alreadyAssigned) {
-                        const taskInstance = {
-                            id: productId,
-                            productId: productId,
-                            title: `Order: ${product.name}`,
-                            description: product.description,
-                            amount: product.price,
-                            productImage: product.image,
-                            status: 'pending',
-                            isProduct: true,
-                            assignedAt: new Date().toISOString()
-                        };
-                        userTasks.pending = userTasks.pending || [];
-                        userTasks.pending.push(taskInstance);
-                        localStorage.setItem(`userTasks_${userId}`, JSON.stringify(userTasks));
-                    }
-                });
-                localStorage.setItem('adminData', JSON.stringify(adminData));
+            try {
+                const productId = document.getElementById('assignProductId').value;
+                const result = await window.API.assignProduct(productId, userIds);
+                alert(`Product assigned to ${result.assigned} user(s) as task! ${result.skipped} already assigned.`);
+                closeAssignProductModal();
+                loadProducts();
+            } catch (error) {
+                console.error('Failed to assign product:', error);
+                alert(error.message || 'Failed to assign product');
             }
-
-            alert(`Product assigned to ${userIds.length} user(s) as task!`);
-            closeAssignProductModal();
-            loadProducts();
         }
 
         function deleteDeposit(index) {

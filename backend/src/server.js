@@ -286,6 +286,128 @@ app.post('/admin/deposits', requireAuth, requireAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Tasks - Get user's assigned tasks
+app.get('/tasks/my', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  const { rows } = await query(
+    `select t.*, ta.status as assignment_status, ta.assigned_at, ta.completed_at
+     from task_assignments ta
+     join tasks t on t.id = ta.task_id
+     where ta.user_id = $1
+     order by ta.assigned_at desc`,
+    [id]
+  );
+  res.json(rows);
+});
+
+// Products - Get user's assigned products
+app.get('/products/my', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  const { rows } = await query(
+    `select p.*, pa.status as assignment_status, pa.assigned_at, pa.completed_at
+     from product_assignments pa
+     join products p on p.id = pa.product_id
+     where pa.user_id = $1
+     order by pa.assigned_at desc`,
+    [id]
+  );
+  res.json(rows);
+});
+
+// Admin: Create task
+app.post('/admin/tasks', requireAuth, requireAdmin, async (req, res) => {
+  const { title, description, amount } = req.body;
+  const { rows } = await query(
+    `insert into tasks (title, description, amount)
+     values ($1, $2, $3)
+     returning *`,
+    [title, description, amount]
+  );
+  res.json(rows[0]);
+});
+
+// Admin: Get all tasks
+app.get('/admin/tasks', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await query('select * from tasks order by created_at desc');
+  res.json(rows);
+});
+
+// Admin: Assign task to users
+app.post('/admin/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) => {
+  const { id: taskId } = req.params;
+  const { userIds } = req.body;
+  
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'User IDs required' });
+  }
+
+  let assigned = 0;
+  let skipped = 0;
+
+  for (const userId of userIds) {
+    try {
+      await query(
+        `insert into task_assignments (task_id, user_id)
+         values ($1, $2)
+         on conflict (task_id, user_id) do nothing`,
+        [taskId, userId]
+      );
+      assigned++;
+    } catch (error) {
+      skipped++;
+    }
+  }
+
+  res.json({ assigned, skipped });
+});
+
+// Admin: Create product
+app.post('/admin/products', requireAuth, requireAdmin, async (req, res) => {
+  const { name, description, price, image } = req.body;
+  const { rows } = await query(
+    `insert into products (name, description, price, image)
+     values ($1, $2, $3, $4)
+     returning *`,
+    [name, description, price, image]
+  );
+  res.json(rows[0]);
+});
+
+// Admin: Get all products
+app.get('/admin/products', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await query('select * from products order by created_at desc');
+  res.json(rows);
+});
+
+// Admin: Assign product to users
+app.post('/admin/products/:id/assign', requireAuth, requireAdmin, async (req, res) => {
+  const { id: productId } = req.params;
+  const { userIds } = req.body;
+  
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'User IDs required' });
+  }
+
+  let assigned = 0;
+  let skipped = 0;
+
+  for (const userId of userIds) {
+    try {
+      await query(
+        `insert into product_assignments (product_id, user_id)
+         values ($1, $2)
+         on conflict (product_id, user_id) do nothing`,
+        [productId, userId]
+      );
+      assigned++;
+    } catch (error) {
+      skipped++;
+    }
+  }
+
+  res.json({ assigned, skipped });
+});
+
 const port = process.env.PORT || 8080;
 
 async function ensureSchema() {
@@ -302,6 +424,42 @@ async function ensureSchema() {
     )
   `);
   await query('alter table withdrawals add column if not exists account text');
+  
+  await query(`
+    create table if not exists task_assignments (
+      id uuid primary key default gen_random_uuid(),
+      task_id uuid not null references tasks(id) on delete cascade,
+      user_id uuid not null references app_users(id) on delete cascade,
+      status text not null default 'pending',
+      assigned_at timestamptz default now(),
+      completed_at timestamptz
+    )
+  `);
+  await query('create unique index if not exists task_assignments_unique on task_assignments(task_id, user_id)');
+  
+  await query(`
+    create table if not exists products (
+      id uuid primary key default gen_random_uuid(),
+      name text not null,
+      description text,
+      price numeric(12,2) not null,
+      image text,
+      status text not null default 'active',
+      created_at timestamptz default now()
+    )
+  `);
+  
+  await query(`
+    create table if not exists product_assignments (
+      id uuid primary key default gen_random_uuid(),
+      product_id uuid not null references products(id) on delete cascade,
+      user_id uuid not null references app_users(id) on delete cascade,
+      status text not null default 'pending',
+      assigned_at timestamptz default now(),
+      completed_at timestamptz
+    )
+  `);
+  await query('create unique index if not exists product_assignments_unique on product_assignments(product_id, user_id)');
 }
 
 ensureSchema()

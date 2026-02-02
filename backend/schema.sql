@@ -39,6 +39,36 @@ create table if not exists task_completions (
   completed_at timestamptz default now()
 );
 
+create table if not exists task_assignments (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references tasks(id) on delete cascade,
+  user_id uuid not null references app_users(id) on delete cascade,
+  status text not null default 'pending', -- pending, completed, frozen
+  assigned_at timestamptz default now(),
+  completed_at timestamptz,
+  unique(task_id, user_id)
+);
+
+create table if not exists products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  price numeric(12,2) not null,
+  image text,
+  status text not null default 'active',
+  created_at timestamptz default now()
+);
+
+create table if not exists product_assignments (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references products(id) on delete cascade,
+  user_id uuid not null references app_users(id) on delete cascade,
+  status text not null default 'pending', -- pending, completed
+  assigned_at timestamptz default now(),
+  completed_at timestamptz,
+  unique(product_id, user_id)
+);
+
 create table if not exists withdrawals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references app_users(id) on delete cascade,
