@@ -178,6 +178,13 @@ window.API = {
     });
   },
 
+  async transferBonus(amount) {
+    return this.call('/wallet/transfer-bonus', {
+      method: 'POST',
+      body: JSON.stringify({ amount })
+    });
+  },
+
   async getAllUsers() {
     return this.call('/admin/users');
   }

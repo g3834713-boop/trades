@@ -70,6 +70,37 @@ app.get('/wallet', requireAuth, async (req, res) => {
   res.json(rows[0] || { balance: 0, bonus: 0 });
 });
 
+// Transfer bonus to balance
+app.post('/wallet/transfer-bonus', requireAuth, async (req, res) => {
+  const { amount } = req.body;
+  const { id } = req.user;
+  
+  const numericAmount = Number(amount || 0);
+  if (!numericAmount || numericAmount <= 0) {
+    return res.status(400).json({ error: 'Invalid transfer amount' });
+  }
+  
+  const { rows: walletRows } = await query('select balance, bonus from wallets where user_id = $1', [id]);
+  const currentBonus = Number(walletRows[0]?.bonus || 0);
+  
+  if (numericAmount > currentBonus) {
+    return res.status(400).json({ error: 'Insufficient bonus' });
+  }
+  
+  await query(
+    'update wallets set balance = balance + $1, bonus = bonus - $1, updated_at = now() where user_id = $2',
+    [numericAmount, id]
+  );
+  
+  await query(
+    'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
+    [id, 'bonus_transfer', numericAmount, 'Bonus transferred to balance']
+  );
+  
+  const { rows } = await query('select balance, bonus from wallets where user_id = $1', [id]);
+  res.json(rows[0]);
+});
+
 // Transactions
 app.get('/transactions', requireAuth, async (req, res) => {
   const { id } = req.user;

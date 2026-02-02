@@ -419,8 +419,8 @@
             <div class="balance-label">My Balance</div>
             <div class="balance-value" id="balanceDisplay">GHC 0.00</div>
         </div>
-        <div class="balance-card">
-            <div class="balance-label">My Bonus</div>
+        <div class="balance-card" onclick="openBonusTransferModal()" style="cursor: pointer;">
+            <div class="balance-label">My Bonus <i class="las la-exchange-alt" style="font-size: 14px;"></i></div>
             <div class="balance-value" id="bonusDisplay">GHC 0.00</div>
         </div>
     </div>
@@ -746,6 +746,31 @@
             </div>
             <div class="modal-buttons">
                 <button class="btn-submit" onclick="closeActionModal('paymentNumberModal')">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bonus Transfer Modal -->
+    <div class="action-modal" id="bonusTransferModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-exchange-alt"></i>
+                Transfer Bonus to Balance
+            </div>
+            <div class="info-box">
+                Transfer your bonus amount to your main balance to use for withdrawals.
+            </div>
+            <div class="form-group">
+                <label class="form-label">Available Bonus</label>
+                <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; color: #667eea; font-weight: bold;" id="availableBonus">GHC 0.00</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount to Transfer (GHC)</label>
+                <input type="number" class="form-input" id="bonusTransferAmount" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('bonusTransferModal')">Cancel</button>
+                <button class="btn-submit" onclick="submitBonusTransfer()">Transfer to Balance</button>
             </div>
         </div>
     </div>
@@ -1191,6 +1216,60 @@
         }
 
         // Submit withdrawal
+        async function openBonusTransferModal() {
+            try {
+                const wallet = await window.API.getWallet();
+                const bonusAmount = parseFloat(wallet.bonus || 0);
+                
+                if (bonusAmount <= 0) {
+                    alert('You have no bonus available to transfer.');
+                    return;
+                }
+                
+                document.getElementById('availableBonus').textContent = `GHC ${bonusAmount.toFixed(2)}`;
+                document.getElementById('bonusTransferAmount').value = '';
+                document.getElementById('bonusTransferAmount').max = bonusAmount;
+                openActionModal('bonusTransferModal');
+            } catch (error) {
+                console.error('Error loading bonus:', error);
+                alert('Failed to load bonus information');
+            }
+        }
+
+        async function submitBonusTransfer() {
+            try {
+                const amount = document.getElementById('bonusTransferAmount').value;
+                
+                if (!amount || parseFloat(amount) <= 0) {
+                    alert('Please enter a valid amount');
+                    return;
+                }
+                
+                const wallet = await window.API.getWallet();
+                const bonusAmount = parseFloat(wallet.bonus || 0);
+                
+                if (parseFloat(amount) > bonusAmount) {
+                    alert(`Insufficient bonus. Your available bonus is GHC ${bonusAmount.toFixed(2)}`);
+                    return;
+                }
+                
+                if (confirm(`Transfer GHC ${parseFloat(amount).toFixed(2)} from bonus to balance?`)) {
+                    await window.API.transferBonus(parseFloat(amount));
+                    alert('Bonus transferred successfully!');
+                    
+                    // Clear and close modal
+                    document.getElementById('bonusTransferAmount').value = '';
+                    closeActionModal('bonusTransferModal');
+                    
+                    // Reload profile to show updated balance
+                    setTimeout(() => location.reload(), 500);
+                }
+            } catch (error) {
+                console.error('Bonus transfer error:', error);
+                alert(error.message || 'Failed to transfer bonus');
+            }
+        }
+
         async function submitWithdraw() {
             try {
                 const method = document.getElementById('withdrawMethod').value;
