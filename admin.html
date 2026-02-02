@@ -485,8 +485,7 @@
                 <div class="table-container">
                     <div class="table-header">
                         <div>Title</div>
-                        <div>Amount</div>
-                        <div>Commission</div>
+                        <div>Reward</div>
                         <div>Status</div>
                         <div>Actions</div>
                     </div>
@@ -769,12 +768,8 @@
                 <textarea class="form-textarea" id="beginnerTaskDescription" placeholder="Describe what users need to do..."></textarea>
             </div>
             <div class="form-group">
-                <label class="form-label">Amount (GHC)</label>
-                <input type="number" class="form-input" id="beginnerTaskAmount" placeholder="0.00" min="0" step="0.01">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Commission Interest (%)</label>
-                <input type="number" class="form-input" id="beginnerTaskCommission" placeholder="10" min="0" max="100" step="0.01">
+                <label class="form-label">Reward Amount (GHC)</label>
+                <input type="number" class="form-input" id="beginnerTaskAmount" placeholder="1.00" min="0" step="0.01" value="1.00">
             </div>
             <div class="modal-buttons">
                 <button class="btn" style="background: #ddd; color: #333;" onclick="closeBeginnerTaskModal()">Cancel</button>
@@ -1660,7 +1655,6 @@
                     <div class="table-row">
                         <div><strong>${task.title}</strong></div>
                         <div>GHC ${parseFloat(task.amount).toFixed(2)}</div>
-                        <div>${parseFloat(task.commission || 0).toFixed(1)}%</div>
                         <div><span class="status-badge ${task.status === 'active' ? 'status-completed' : 'status-frozen'}">${task.status === 'active' ? 'Active' : 'Inactive'}</span></div>
                         <div>
                             ${task.status === 'inactive' ? 
@@ -1680,8 +1674,7 @@
         function openAddBeginnerTaskModal() {
             document.getElementById('beginnerTaskTitle').value = '';
             document.getElementById('beginnerTaskDescription').value = '';
-            document.getElementById('beginnerTaskAmount').value = '';
-            document.getElementById('beginnerTaskCommission').value = '';
+            document.getElementById('beginnerTaskAmount').value = '1.00';
             document.getElementById('beginnerTaskModal').classList.add('show');
         }
 
@@ -1693,7 +1686,6 @@
             const title = document.getElementById('beginnerTaskTitle').value.trim();
             const description = document.getElementById('beginnerTaskDescription').value.trim();
             const amount = parseFloat(document.getElementById('beginnerTaskAmount').value);
-            const commission = parseFloat(document.getElementById('beginnerTaskCommission').value || 0);
 
             if (!title || !description || isNaN(amount) || amount <= 0) {
                 alert('Please fill in all required fields with valid data');
@@ -1701,7 +1693,7 @@
             }
 
             try {
-                await window.API.createBeginnerTask({ title, description, amount, commission });
+                await window.API.createBeginnerTask({ title, description, amount });
                 alert('Beginner task created successfully!');
                 closeBeginnerTaskModal();
                 loadBeginnerTasks();

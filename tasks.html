@@ -653,14 +653,19 @@
             try {
                 const result = await window.API.submitBeginnerTask(taskId, url);
                 
+                // Get task details to show reward amount
+                const tasks = await window.API.getUserBeginnerTasks();
+                const task = tasks.find(t => t.id === taskId);
+                
                 // Store pending beginner task reward info
                 window.pendingBeginnerReward = {
                     taskId: taskId,
-                    taskTitle: result.task_title
+                    taskTitle: result.task_title,
+                    rewardAmount: task ? parseFloat(task.amount) : 1.00
                 };
                 
                 // Show modal with countdown
-                showBeginnerTaskModal(taskId);
+                showBeginnerTaskModal(window.pendingBeginnerReward.rewardAmount);
                 
             } catch (error) {
                 console.error('Failed to submit beginner task:', error);
@@ -668,7 +673,7 @@
             }
         }
 
-        function showBeginnerTaskModal(taskId) {
+        function showBeginnerTaskModal(rewardAmount) {
             const modal = document.getElementById('orderSuccessModal');
             const countdownSection = document.getElementById('countdownSection');
             const rewardSection = document.getElementById('rewardSection');
@@ -681,10 +686,10 @@
             claimBtn.disabled = false;
             claimBtn.textContent = 'Claim Rewards';
             
-            // Update reward amounts display (1 GHC for beginner task)
+            // Update reward amounts display with dynamic amount
             document.getElementById('orderCost').textContent = '0.00';
-            document.getElementById('orderInterest').textContent = '1.00';
-            document.getElementById('orderTotal').textContent = '1.00';
+            document.getElementById('orderInterest').textContent = rewardAmount.toFixed(2);
+            document.getElementById('orderTotal').textContent = rewardAmount.toFixed(2);
             
             // Add data attribute to track this is a beginner task claim
             claimBtn.setAttribute('data-beginner-task', 'true');

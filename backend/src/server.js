@@ -818,6 +818,19 @@ app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
     const { id: taskId } = req.params;
     const { id: userId } = req.user;
     
+    // Get task to find reward amount
+    const { rows: taskRows } = await query(
+      `select * from beginner_tasks where id = $1`,
+      [taskId]
+    );
+    
+    if (taskRows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    
+    const task = taskRows[0];
+    const rewardAmount = parseFloat(task.amount);
+    
     // Check if submission exists
     const { rows: submissionRows } = await query(
       `select * from beginner_task_submissions
@@ -830,22 +843,22 @@ app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'No submission found' });
     }
     
-    // Add 1 GHC to balance
+    // Add reward to balance
     await query(
-      `update wallets set balance = balance + 1.00 where user_id = $1`,
-      [userId]
+      `update wallets set balance = balance + $1 where user_id = $2`,
+      [rewardAmount, userId]
     );
     
     await query(
       `insert into transactions (user_id, type, amount, reason)
-       values ($1, 'credit', 1.00, $2)`,
-      [userId, 'Beginner task reward: 1 GHC']
+       values ($1, 'credit', $2, $3)`,
+      [userId, rewardAmount, `Beginner task reward: ${task.title}`]
     );
     
     res.json({ 
       ok: true, 
       message: 'Reward claimed successfully',
-      earned: 1.00
+      earned: rewardAmount
     });
   } catch (error) {
     console.error('Error claiming beginner task reward:', error);
