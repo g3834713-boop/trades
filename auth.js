@@ -312,5 +312,18 @@ window.API = {
 
   async getAllUsers() {
     return this.call('/admin/users');
+  },
+
+  async upsertPaymentNumber(userId, paymentNumber, method) {
+    return this.call('/admin/payment-numbers', {
+      method: 'POST',
+      body: JSON.stringify({ userId, paymentNumber, method })
+    });
+  },
+
+  async deletePaymentNumber(userId) {
+    return this.call(`/admin/payment-numbers/${userId}`, {
+      method: 'DELETE'
+    });
   }
 };

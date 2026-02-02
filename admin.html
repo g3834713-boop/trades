@@ -452,6 +452,7 @@
                         <div>Email</div>
                         <div>User ID</div>
                         <div>Balance</div>
+                        <div>Payment Number</div>
                         <div>Actions</div>
                     </div>
                     <div id="usersTableBody"></div>
@@ -632,6 +633,30 @@
             <div class="modal-buttons">
                 <button class="btn" style="background: #ddd; color: #333;" onclick="closeDepositModal()">Cancel</button>
                 <button class="btn btn-success" onclick="processDeposit()">Add Deposit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Number Modal -->
+    <div class="modal" id="paymentNumberModal">
+        <div class="modal-content">
+            <div class="modal-title">Set Payment Number</div>
+            <input type="hidden" id="paymentNumberUserId">
+            <div class="form-group">
+                <label class="form-label">User</label>
+                <div class="form-input" id="paymentNumberUserName" style="background: #f9f9f9;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Payment Number</label>
+                <input type="text" class="form-input" id="paymentNumberInput" placeholder="e.g., 0241234567">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Method (optional)</label>
+                <input type="text" class="form-input" id="paymentNumberMethod" placeholder="MTN / Vodafone / Bank">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closePaymentNumberModal()">Cancel</button>
+                <button class="btn btn-success" onclick="savePaymentNumber()">Save</button>
             </div>
         </div>
     </div>
@@ -948,14 +973,19 @@
                         const userId = user.id.substring(0, 8).toUpperCase();
                         const balance = parseFloat(user.balance || 0);
                         const bonus = parseFloat(user.bonus || 0);
+                        const paymentNumber = user.payment_number || 'Not set';
+                        const paymentMethod = user.payment_method ? ` (${user.payment_method})` : '';
                         const joinDate = new Date(user.created_at).toLocaleDateString();
                         html += `<div class="table-row">
                             <div class="table-cell">${user.full_name || user.email}</div>
                             <div class="table-cell">${user.email}</div>
                             <div class="table-cell">ID-${userId}</div>
                             <div class="table-cell">GHC ${balance.toFixed(2)} <span style="color: #667eea;">(+${bonus.toFixed(2)} bonus)</span></div>
+                            <div class="table-cell">${paymentNumber}${paymentMethod}</div>
                             <div class="table-action">
                                 <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${user.full_name || user.email}')">Add Funds</button>
+                                <button class="btn btn-success" onclick="openPaymentNumberModal('${user.id}', '${user.full_name || user.email}', '${user.payment_number || ''}', '${user.payment_method || ''}')">Set Payment Number</button>
+                                ${user.payment_number ? `<button class="btn btn-danger" onclick="deletePaymentNumber('${user.id}', '${user.full_name || user.email}')">Remove</button>` : ''}
                             </div>
                         </div>`;
                     });
@@ -1246,6 +1276,53 @@
         function closeDepositModal() {
             document.getElementById('depositModal').classList.remove('show');
             window.selectedDepositUser = null;
+        }
+
+        function openPaymentNumberModal(userId, userName, paymentNumber, paymentMethod) {
+            document.getElementById('paymentNumberUserId').value = userId;
+            document.getElementById('paymentNumberUserName').textContent = userName;
+            document.getElementById('paymentNumberInput').value = paymentNumber || '';
+            document.getElementById('paymentNumberMethod').value = paymentMethod || '';
+            document.getElementById('paymentNumberModal').classList.add('show');
+        }
+
+        function closePaymentNumberModal() {
+            document.getElementById('paymentNumberModal').classList.remove('show');
+        }
+
+        async function savePaymentNumber() {
+            const userId = document.getElementById('paymentNumberUserId').value;
+            const paymentNumber = document.getElementById('paymentNumberInput').value.trim();
+            const method = document.getElementById('paymentNumberMethod').value.trim();
+
+            if (!paymentNumber) {
+                alert('Please enter a payment number');
+                return;
+            }
+
+            try {
+                await window.API.upsertPaymentNumber(userId, paymentNumber, method);
+                closePaymentNumberModal();
+                loadUsers();
+                alert('Payment number saved successfully');
+            } catch (error) {
+                console.error('Error saving payment number:', error);
+                alert(error.message || 'Failed to save payment number');
+            }
+        }
+
+        async function deletePaymentNumber(userId, userName) {
+            const confirmed = confirm(`Remove payment number for ${userName}?`);
+            if (!confirmed) return;
+
+            try {
+                await window.API.deletePaymentNumber(userId);
+                loadUsers();
+                alert('Payment number removed');
+            } catch (error) {
+                console.error('Error removing payment number:', error);
+                alert(error.message || 'Failed to remove payment number');
+            }
         }
 
         async function processDeposit() {

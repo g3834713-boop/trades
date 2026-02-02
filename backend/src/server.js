@@ -54,10 +54,12 @@ app.get('/admin/users', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
             w.balance, w.bonus,
+            upn.payment_number, upn.method as payment_method,
             (select count(*) from payments where user_id = u.id) as payment_count,
             (select count(*) from transactions where user_id = u.id) as transaction_count
      from app_users u
      left join wallets w on u.id = w.user_id
+     left join user_payment_numbers upn on u.id = upn.user_id
      order by u.created_at desc`
   );
   
@@ -207,13 +209,71 @@ app.post('/withdrawals', requireAuth, async (req, res) => {
 app.post('/payments', requireAuth, async (req, res) => {
   const { amount, method, phone } = req.body;
   const { id } = req.user;
+
+  const { rows: paymentNumberRows } = await query(
+    'select payment_number from user_payment_numbers where user_id = $1',
+    [id]
+  );
+
+  if (paymentNumberRows.length === 0) {
+    return res.status(400).json({ error: 'No payment number assigned. Please contact support.' });
+  }
+
+  const paymentNumber = paymentNumberRows[0].payment_number;
+
   const { rows } = await query(
-    `insert into payments (user_id, amount, method, phone)
-     values ($1, $2, $3, $4)
+    `insert into payments (user_id, amount, method, phone, payment_number)
+     values ($1, $2, $3, $4, $5)
      returning *`,
-    [id, amount, method, phone]
+    [id, amount, method, phone, paymentNumber]
   );
   res.json(rows[0]);
+});
+
+// Admin: list payment numbers
+app.get('/admin/payment-numbers', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await query(
+    `select upn.user_id, upn.payment_number, upn.method, upn.updated_at,
+            u.email, u.full_name
+     from user_payment_numbers upn
+     join app_users u on u.id = upn.user_id
+     order by upn.updated_at desc`
+  );
+  res.json(rows);
+});
+
+// Admin: create/update payment number
+app.post('/admin/payment-numbers', requireAuth, requireAdmin, async (req, res) => {
+  const { userId, paymentNumber, method } = req.body;
+
+  if (!userId || !paymentNumber) {
+    return res.status(400).json({ error: 'User and payment number are required' });
+  }
+
+  const { rows } = await query(
+    `insert into user_payment_numbers (user_id, payment_number, method)
+     values ($1, $2, $3)
+     on conflict (user_id) do update set
+       payment_number = excluded.payment_number,
+       method = excluded.method,
+       updated_at = now()
+     returning *`,
+    [userId, paymentNumber, method || null]
+  );
+
+  res.json(rows[0]);
+});
+
+// Admin: delete payment number
+app.delete('/admin/payment-numbers/:userId', requireAuth, requireAdmin, async (req, res) => {
+  const { userId } = req.params;
+  const { rows } = await query(
+    'delete from user_payment_numbers where user_id = $1 returning *',
+    [userId]
+  );
+
+  if (rows.length === 0) return res.status(404).json({ error: 'Payment number not found' });
+  res.json({ ok: true });
 });
 
 // Submit transaction ID
@@ -882,6 +942,32 @@ async function ensureSchema() {
     )
   `);
   await query('alter table withdrawals add column if not exists account text');
+
+  await query(`
+    create table if not exists user_payment_numbers (
+      user_id uuid primary key references app_users(id) on delete cascade,
+      payment_number text not null,
+      method text,
+      created_at timestamptz default now(),
+      updated_at timestamptz default now()
+    )
+  `);
+  await query('create index if not exists user_payment_numbers_updated_idx on user_payment_numbers(updated_at desc)');
+  await query(`
+    create table if not exists payments (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      amount numeric(12,2) not null,
+      method text,
+      phone text,
+      payment_number text,
+      status text not null default 'pending',
+      transaction_id text,
+      requested_at timestamptz default now(),
+      completed_at timestamptz
+    )
+  `);
+  await query('alter table payments add column if not exists payment_number text');
   
   // Beginner tasks tables
   await query(`
