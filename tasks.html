@@ -688,14 +688,22 @@
                     return;
                 }
 
-                const session = await window.AuthService.getSession();
+                let session = await window.AuthService.getSession();
+                if (!session) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    session = await window.AuthService.getSession();
+                }
                 if (!session) {
                     window.location.href = 'index.html';
                     return;
                 }
 
-                // Sync user to backend
-                await window.API.call('POST', '/users/sync', {});
+                // Sync user to backend (non-blocking)
+                try {
+                    await window.API.call('POST', '/users/sync', {});
+                } catch (syncError) {
+                    console.warn('User sync failed:', syncError);
+                }
 
                 // Apply language translations
                 applyLanguage();
