@@ -825,8 +825,8 @@
                 
                 // Calculate stats
                 const totalUsers = allUsers.length;
-                const totalBalance = allUsers.reduce((sum, u) => sum + (u.balance || 0), 0);
-                const totalBonus = allUsers.reduce((sum, u) => sum + (u.bonus || 0), 0);
+                const totalBalance = allUsers.reduce((sum, u) => sum + parseFloat(u.balance || 0), 0);
+                const totalBonus = allUsers.reduce((sum, u) => sum + parseFloat(u.bonus || 0), 0);
                 const pendingPayments = payments.filter(p => p.status === 'pending' || p.status === 'submitted').length;
                 
                 document.getElementById('totalUsers').textContent = totalUsers;
@@ -846,7 +846,7 @@
                         html += `<div class="table-row" style="grid-template-columns: repeat(4, 1fr);">
                             <div class="table-cell">${user.full_name || user.email}</div>
                             <div class="table-cell">${user.email}</div>
-                            <div class="table-cell">GHC ${(user.balance || 0).toFixed(2)}</div>
+                            <div class="table-cell">GHC ${parseFloat(user.balance || 0).toFixed(2)}</div>
                             <div class="table-cell">${joinDate}</div>
                         </div>`;
                     });
@@ -868,8 +868,8 @@
                 } else {
                     allUsers.forEach(user => {
                         const userId = user.id.substring(0, 8).toUpperCase();
-                        const balance = user.balance || 0;
-                        const bonus = user.bonus || 0;
+                        const balance = parseFloat(user.balance || 0);
+                        const bonus = parseFloat(user.bonus || 0);
                         const joinDate = new Date(user.created_at).toLocaleDateString();
                         html += `<div class="table-row">
                             <div class="table-cell">${user.full_name || user.email}</div>
@@ -971,7 +971,7 @@
                         
                         html += `<div class="table-row">
                             <div class="table-cell">${payment.user_email || 'N/A'}</div>
-                            <div class="table-cell">GHC ${payment.amount.toFixed(2)}</div>
+                            <div class="table-cell">GHC ${parseFloat(payment.amount || 0).toFixed(2)}</div>
                             <div class="table-cell">${methodNames[payment.method] || payment.method}</div>
                             <div class="table-cell"><span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${statusText}</span></div>
                             <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${paymentNumber}</code></div>
@@ -1079,7 +1079,8 @@
 
         // Load Payouts
         function loadPayouts() {
-            const withdrawals = DataManager.getAllWithdrawals();
+            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+            const withdrawals = adminData.payouts || [];
             let html = '';
 
             if (!withdrawals || withdrawals.length === 0) {
