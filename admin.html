@@ -1250,7 +1250,7 @@
             }
         }
 
-        function openAssignTaskModal(taskId) {
+        async function openAssignTaskModal(taskId) {
             const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
             const task = (adminData.tasks || []).find(t => t.id === taskId);
             if (!task) {
@@ -1261,17 +1261,24 @@
             document.getElementById('assignTaskId').value = taskId;
             document.getElementById('assignTaskName').textContent = task.title;
 
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-            const listHtml = allUsers.map(user => {
-                const userId = user.id || user.userId;
-                return `
-                <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #333;">
-                    <input type="checkbox" value="${userId}" style="margin-right: 8px;">
-                    ${user.fullName} (${user.email})
-                </label>`;
-            }).join('') || '<div style="color: #999; font-size: 13px;">No users registered</div>';
+            try {
+                const allUsers = await window.API.getAllUsers();
+                const listHtml = allUsers.map(user => {
+                    const userId = user.id;
+                    const userName = user.full_name || user.email;
+                    return `
+                    <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #333;">
+                        <input type="checkbox" value="${userId}" style="margin-right: 8px;">
+                        ${userName} (${user.email})
+                    </label>`;
+                }).join('') || '<div style="color: #999; font-size: 13px;">No users registered</div>';
 
-            document.getElementById('assignUsersList').innerHTML = listHtml;
+                document.getElementById('assignUsersList').innerHTML = listHtml;
+            } catch (error) {
+                console.error('Failed to load users:', error);
+                document.getElementById('assignUsersList').innerHTML = '<div style="color: #e74c3c; font-size: 13px;">Failed to load users</div>';
+            }
+
             document.querySelector('input[name="assignScope"][value="all"]').checked = true;
             toggleAssignScope();
             document.getElementById('assignTaskModal').classList.add('show');
@@ -1288,14 +1295,20 @@
             document.getElementById('assignUsersGroup').style.display = scope === 'selected' ? 'block' : 'none';
         }
 
-        function assignTaskToUsers() {
+        async function assignTaskToUsers() {
             const taskId = parseInt(document.getElementById('assignTaskId').value, 10);
             const scope = document.querySelector('input[name="assignScope"]:checked').value;
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
 
             let userIds = [];
             if (scope === 'all') {
-                userIds = allUsers.map(user => user.userId);
+                try {
+                    const allUsers = await window.API.getAllUsers();
+                    userIds = allUsers.map(user => user.id);
+                } catch (error) {
+                    console.error('Failed to load users:', error);
+                    alert('Failed to load users');
+                    return;
+                }
             } else {
                 userIds = Array.from(document.querySelectorAll('#assignUsersList input[type="checkbox"]:checked'))
                     .map(input => input.value);
@@ -1404,7 +1417,7 @@
             }
         }
 
-        function openAssignProductModal(productId) {
+        async function openAssignProductModal(productId) {
             const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
             const product = (adminData.products || []).find(p => p.id === productId);
             if (!product) {
@@ -1415,17 +1428,24 @@
             document.getElementById('assignProductId').value = productId;
             document.getElementById('assignProductName').textContent = product.name;
 
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-            const listHtml = allUsers.map(user => {
-                const userId = user.id || user.userId;
-                return `
-                <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #333;">
-                    <input type="checkbox" value="${userId}" style="margin-right: 8px;">
-                    ${user.fullName} (${user.email})
-                </label>`;
-            }).join('') || '<div style="color: #999; font-size: 13px;">No users registered</div>';
+            try {
+                const allUsers = await window.API.getAllUsers();
+                const listHtml = allUsers.map(user => {
+                    const userId = user.id;
+                    const userName = user.full_name || user.email;
+                    return `
+                    <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #333;">
+                        <input type="checkbox" value="${userId}" style="margin-right: 8px;">
+                        ${userName} (${user.email})
+                    </label>`;
+                }).join('') || '<div style="color: #999; font-size: 13px;">No users registered</div>';
 
-            document.getElementById('assignProductUsersList').innerHTML = listHtml;
+                document.getElementById('assignProductUsersList').innerHTML = listHtml;
+            } catch (error) {
+                console.error('Failed to load users:', error);
+                document.getElementById('assignProductUsersList').innerHTML = '<div style="color: #e74c3c; font-size: 13px;">Failed to load users</div>';
+            }
+
             document.querySelector('input[name="assignProductScope"][value="all"]').checked = true;
             toggleAssignProductScope();
             document.getElementById('assignProductModal').classList.add('show');
@@ -1442,14 +1462,20 @@
             document.getElementById('assignProductUsersGroup').style.display = scope === 'selected' ? 'block' : 'none';
         }
 
-        function assignProductToUsers() {
+        async function assignProductToUsers() {
             const productId = parseInt(document.getElementById('assignProductId').value, 10);
             const scope = document.querySelector('input[name="assignProductScope"]:checked').value;
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
 
             let userIds = [];
             if (scope === 'all') {
-                userIds = allUsers.map(user => user.userId);
+                try {
+                    const allUsers = await window.API.getAllUsers();
+                    userIds = allUsers.map(user => user.id);
+                } catch (error) {
+                    console.error('Failed to load users:', error);
+                    alert('Failed to load users');
+                    return;
+                }
             } else {
                 userIds = Array.from(document.querySelectorAll('#assignProductUsersList input[type="checkbox"]:checked'))
                     .map(input => input.value);
