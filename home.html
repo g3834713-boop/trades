@@ -1197,34 +1197,6 @@
             }
         }
 
-        // Helper function for account button click
-        function handleAccountClick() {
-            openActionModal('accountModal');
-            loadAccountData();
-        }
-
-        // Helper function for withdraw button click
-        function handleWithdrawClick() {
-            openActionModal('withdrawModal');
-            loadWithdrawData();
-        }
-
-        function openActionModal(modalId) {
-            document.getElementById(modalId).classList.add('show');
-        }
-
-        function closeActionModal(modalId) {
-            document.getElementById(modalId).classList.remove('show');
-            // Clear form fields
-            const modal = document.getElementById(modalId);
-            const inputs = modal.querySelectorAll('.form-input, .form-select');
-            inputs.forEach(input => {
-                if (!input.hasAttribute('readonly')) {
-                    input.value = '';
-                }
-            });
-        }
-
         async function loadAccountData() {
             try {
                 const profile = window.currentUserProfile || await window.API.getUserProfile();
@@ -1576,6 +1548,33 @@
                 closeNotificationsModal();
             }
         });
+
+        // Helper function for account button click
+        function handleAccountClick() {
+            openActionModal('accountModal');
+            loadAccountData();
+        }
+
+        // Helper function for withdraw button click
+        function handleWithdrawClick() {
+            openActionModal('withdrawModal');
+            loadWithdrawData();
+        }
+
+        function openActionModal(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        }
+
+        function closeActionModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+            const modal = document.getElementById(modalId);
+            const inputs = modal.querySelectorAll('.form-input, .form-select');
+            inputs.forEach(input => {
+                if (!input.hasAttribute('readonly')) {
+                    input.value = '';
+                }
+            });
+        }
 
         // Load user data and apply language on page load
         window.addEventListener('DOMContentLoaded', async function() {
