@@ -119,6 +119,13 @@ window.API = {
     return this.call('/transactions');
   },
 
+  async createWithdrawal(amount, method, account) {
+    return this.call('/withdrawals', {
+      method: 'POST',
+      body: JSON.stringify({ amount, method, account })
+    });
+  },
+
   async getUserProfile() {
     return this.call('/users/me');
   },
@@ -151,6 +158,23 @@ window.API = {
     return this.call('/admin/deposits', {
       method: 'POST',
       body: JSON.stringify({ userId, amount, bonus, reason })
+    });
+  },
+
+  async getWithdrawals() {
+    return this.call('/admin/withdrawals');
+  },
+
+  async approveWithdrawal(withdrawalId) {
+    return this.call(`/admin/withdrawals/${withdrawalId}/approve`, {
+      method: 'POST'
+    });
+  },
+
+  async rejectWithdrawal(withdrawalId, reason) {
+    return this.call(`/admin/withdrawals/${withdrawalId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason })
     });
   },
 

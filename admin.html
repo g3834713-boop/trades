@@ -1083,33 +1083,37 @@
         }
 
         // Load Payouts
-        function loadPayouts() {
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            const withdrawals = adminData.payouts || [];
+        async function loadPayouts() {
             let html = '';
 
-            if (!withdrawals || withdrawals.length === 0) {
-                html = '<div class="empty-state"><p>No withdrawal requests</p></div>';
-            } else {
-                withdrawals.forEach((withdrawal) => {
-                    const user = JSON.parse(localStorage.getItem('allUsers') || '[]').find(u => u.userId === withdrawal.userId);
-                    const userName = user ? user.fullName : 'Unknown User';
-                    const date = new Date(withdrawal.requestDate).toLocaleDateString();
-                    const statusColor = withdrawal.status === 'pending' ? '#fff3cd' : withdrawal.status === 'approved' ? '#d4edda' : '#f8d7da';
-                    const statusBg = withdrawal.status === 'pending' ? '#856404' : withdrawal.status === 'approved' ? '#155724' : '#721c24';
-                    html += `<div class="table-row">
-                        <div class="table-cell">${userName}</div>
-                        <div class="table-cell">GHC ${withdrawal.amount.toFixed(2)}</div>
-                        <div class="table-cell"><span style="background: ${statusColor}; color: ${statusBg}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${withdrawal.status}</span></div>
-                        <div class="table-cell">${date}</div>
-                        <div class="table-action">
-                            ${withdrawal.status === 'pending' ? `
-                                <button class="btn btn-success" onclick="approveWithdrawal('${withdrawal.id}')">Approve</button>
-                                <button class="btn btn-danger" onclick="rejectWithdrawal('${withdrawal.id}')">Reject</button>
-                            ` : `<span style="color: #999;">Processed</span>`}
-                        </div>
-                    </div>`;
-                });
+            try {
+                const withdrawals = await window.API.getWithdrawals();
+
+                if (!withdrawals || withdrawals.length === 0) {
+                    html = '<div class="empty-state"><p>No withdrawal requests</p></div>';
+                } else {
+                    withdrawals.forEach((withdrawal) => {
+                        const userName = withdrawal.full_name || withdrawal.email || 'Unknown User';
+                        const date = new Date(withdrawal.requested_at).toLocaleDateString();
+                        const statusColor = withdrawal.status === 'pending' ? '#fff3cd' : withdrawal.status === 'approved' ? '#d4edda' : '#f8d7da';
+                        const statusBg = withdrawal.status === 'pending' ? '#856404' : withdrawal.status === 'approved' ? '#155724' : '#721c24';
+                        html += `<div class="table-row">
+                            <div class="table-cell">${userName}</div>
+                            <div class="table-cell">GHC ${parseFloat(withdrawal.amount || 0).toFixed(2)}</div>
+                            <div class="table-cell"><span style="background: ${statusColor}; color: ${statusBg}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${withdrawal.status}</span></div>
+                            <div class="table-cell">${date}</div>
+                            <div class="table-action">
+                                ${withdrawal.status === 'pending' ? `
+                                    <button class="btn btn-success" onclick="approveWithdrawal('${withdrawal.id}')">Approve</button>
+                                    <button class="btn btn-danger" onclick="rejectWithdrawal('${withdrawal.id}')">Reject</button>
+                                ` : `<span style="color: #999;">Processed</span>`}
+                            </div>
+                        </div>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load withdrawals:', error);
+                html = '<div class="empty-state"><p>Failed to load withdrawal requests</p></div>';
             }
 
             document.getElementById('payoutsTableBody').innerHTML = html;
@@ -1582,28 +1586,30 @@
             alert(details);
         }
 
-        function approveWithdrawal(withdrawalId) {
-            const result = DataManager.approveWithdrawal(withdrawalId);
-            if (result) {
+        async function approveWithdrawal(withdrawalId) {
+            try {
+                await window.API.approveWithdrawal(withdrawalId);
                 alert('Withdrawal approved! User balance updated.');
                 loadPayouts();
                 loadDashboard();
-            } else {
-                alert('Failed to approve withdrawal');
+            } catch (error) {
+                console.error('Approve withdrawal error:', error);
+                alert(error.message || 'Failed to approve withdrawal');
             }
         }
 
-        function rejectWithdrawal(withdrawalId) {
+        async function rejectWithdrawal(withdrawalId) {
             const reason = prompt('Enter rejection reason:');
             if (reason === null) return;
-            
-            const result = DataManager.rejectWithdrawal(withdrawalId, reason);
-            if (result) {
+
+            try {
+                await window.API.rejectWithdrawal(withdrawalId, reason);
                 alert('Withdrawal rejected!');
                 loadPayouts();
                 loadDashboard();
-            } else {
-                alert('Failed to reject withdrawal');
+            } catch (error) {
+                console.error('Reject withdrawal error:', error);
+                alert(error.message || 'Failed to reject withdrawal');
             }
         }
 

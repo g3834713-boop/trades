@@ -1279,6 +1279,7 @@
 
                 // Show confirmation
                 if (confirm(`Submit withdrawal request of GHC ${parseFloat(amount).toFixed(2)} to ${method}?`)) {
+                    await window.API.createWithdrawal(parseFloat(amount), method, account);
                     alert(`Withdrawal request of GHC ${parseFloat(amount).toFixed(2)} to ${method} submitted. Admin will process it within 24 hours.`);
                     
                     // Clear form and close modal

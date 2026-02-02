@@ -1210,13 +1210,14 @@
                 // Get current balance from API
                 const wallet = await window.API.getWallet();
                 
-                if (parseFloat(amount) > wallet.balance) {
-                    alert(`Insufficient balance. Your available balance is GHC ${wallet.balance.toFixed(2)}`);
+                if (parseFloat(amount) > parseFloat(wallet.balance || 0)) {
+                    alert(`Insufficient balance. Your available balance is GHC ${parseFloat(wallet.balance || 0).toFixed(2)}`);
                     return;
                 }
 
                 // Show confirmation
                 if (confirm(`Submit withdrawal request of GHC ${parseFloat(amount).toFixed(2)} to ${method}?`)) {
+                    await window.API.createWithdrawal(parseFloat(amount), method, account);
                     alert(`Withdrawal request of GHC ${parseFloat(amount).toFixed(2)} to ${method} submitted. Admin will process it within 24 hours.`);
                     
                     // Clear form and close modal
