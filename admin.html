@@ -1319,11 +1319,37 @@
                 return;
             }
 
-            const result = DataManager.assignTaskToUsers(userIds, taskId);
-
             const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
             const task = (adminData.tasks || []).find(t => t.id === taskId);
             if (task) {
+                if (!task.assignedTo) task.assignedTo = [];
+                userIds.forEach(userId => {
+                    if (!task.assignedTo.includes(userId)) task.assignedTo.push(userId);
+                    
+                    // Store assignment in each user's tasks
+                    const userTasks = JSON.parse(localStorage.getItem(`userTasks_${userId}`) || '{"pending":[],"frozen":[],"completed":[]}');
+                    const alreadyAssigned = ['pending', 'frozen', 'completed'].some(status => 
+                        (userTasks[status] || []).some(t => t.id === taskId)
+                    );
+                    
+                    if (!alreadyAssigned) {
+                        const taskInstance = {
+                            ...task,
+                            status: 'pending',
+                            assignedAt: new Date().toISOString()
+                        };
+                        userTasks.pending = userTasks.pending || [];
+                        userTasks.pending.push(taskInstance);
+                        localStorage.setItem(`userTasks_${userId}`, JSON.stringify(userTasks));
+                    }
+                });
+                localStorage.setItem('adminData', JSON.stringify(adminData));
+            }
+
+            alert(`Task assigned to ${userIds.length} user(s)!`);
+            closeAssignTaskModal();
+            loadTasks();
+        }
                 if (!task.assignedTo) task.assignedTo = [];
                 userIds.forEach(userId => {
                     if (!task.assignedTo.includes(userId)) task.assignedTo.push(userId);
@@ -1486,13 +1512,45 @@
                 return;
             }
 
-            const result = DataManager.assignProductAsTaskToUsers(userIds, productId);
-
             const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
             const product = (adminData.products || []).find(p => p.id === productId);
             if (product) {
                 if (!product.assignedTo) product.assignedTo = [];
                 userIds.forEach(userId => {
+                    if (!product.assignedTo.includes(userId)) product.assignedTo.push(userId);
+                    
+                    // Store product as task in each user's tasks
+                    const userTasks = JSON.parse(localStorage.getItem(`userTasks_${userId}`) || '{"pending":[],"frozen":[],"completed":[]}');
+                    const alreadyAssigned = ['pending', 'frozen', 'completed'].some(status => 
+                        (userTasks[status] || []).some(t => t.productId === productId)
+                    );
+                    
+                    if (!alreadyAssigned) {
+                        const taskInstance = {
+                            id: productId,
+                            productId: productId,
+                            title: `Order: ${product.name}`,
+                            description: product.description,
+                            amount: product.price,
+                            productImage: product.image,
+                            status: 'pending',
+                            isProduct: true,
+                            assignedAt: new Date().toISOString()
+                        };
+                        userTasks.pending = userTasks.pending || [];
+                        userTasks.pending.push(taskInstance);
+                        localStorage.setItem(`userTasks_${userId}`, JSON.stringify(userTasks));
+                    }
+                });
+                localStorage.setItem('adminData', JSON.stringify(adminData));
+            }
+
+            alert(`Product assigned to ${userIds.length} user(s) as task!`);
+            closeAssignProductModal();
+            loadProducts();
+        }
+
+        function deleteDeposit(index) {
                     if (!product.assignedTo.includes(userId)) product.assignedTo.push(userId);
                 });
                 localStorage.setItem('adminData', JSON.stringify(adminData));
@@ -1681,13 +1739,12 @@
             let html = '';
             filtered.forEach(user => {
                 const userId = user.id || user.userId;
-                const finance = DataManager.getUserFinance(userId);
-                const balance = finance ? finance.balance : 0;
+                const balance = user.balance || 0;
                 html += `<div class="table-row">
                     <div class="table-cell">${user.fullName}</div>
                     <div class="table-cell">${user.email}</div>
                     <div class="table-cell">${userId}</div>
-                    <div class="table-cell">GHC ${balance.toFixed(2)}</div>
+                    <div class="table-cell">GHC ${parseFloat(balance).toFixed(2)}</div>
                     <div class="table-action">
                         <button class="btn btn-primary" onclick="editUserBalance('${user.email}')">Edit</button>
                         <button class="btn btn-danger" onclick="deleteUser('${user.email}')">Delete</button>
