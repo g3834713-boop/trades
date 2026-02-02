@@ -656,10 +656,11 @@
             try {
                 // Get current wallet
                 const wallet = await window.API.getWallet();
+                const balance = parseFloat(wallet.balance || 0);
                 
                 // Check if user has enough balance
-                if (wallet.balance < task.amount) {
-                    alert(`Insufficient balance. You need GHC ${task.amount.toFixed(2)} to complete this task. Your balance: GHC ${wallet.balance.toFixed(2)}`);
+                if (balance < task.amount) {
+                    alert(`Insufficient balance. You need GHC ${task.amount.toFixed(2)} to complete this task. Your balance: GHC ${balance.toFixed(2)}`);
                     return;
                 }
 
