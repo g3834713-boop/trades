@@ -469,6 +469,7 @@
                         title: task.title,
                         description: task.description,
                         amount: parseFloat(task.amount || 0),
+                        commission: parseFloat(task.commission || 0),
                         status: status,
                         isProduct: false,
                         assignedAt: task.assigned_at
@@ -486,6 +487,7 @@
                         title: product.name,
                         description: product.description,
                         amount: parseFloat(product.price || 0),
+                        commission: parseFloat(product.commission || 0),
                         status: status,
                         isProduct: true,
                         productImage: product.image,
@@ -591,19 +593,23 @@
                     </div>
                     <div class="task-item-info">
                         <div class="task-item-info-row">
-                            <span>Amount:</span>
+                            <span>Cost:</span>
                             <strong>GHC ${task.amount.toFixed(2)}</strong>
                         </div>
+                        ${task.commission > 0 ? `<div class="task-item-info-row">
+                            <span>Interest:</span>
+                            <strong>${task.commission}%</strong>
+                        </div>` : ''}
                         ${task.quantity ? `<div class="task-item-info-row">
                             <span>Quantity:</span>
                             <strong>${task.quantity}</strong>
                         </div>` : ''}
                     </div>
                     <div class="task-item-reward">
-                        ${task.isProduct ? `Order & Earn: GHC ${(task.amount * 0.215).toFixed(2)} bonus` : `Reward: GHC ${task.amount.toFixed(2)}`}
+                        ${task.commission > 0 ? `Earn: GHC ${(task.amount * task.commission / 100).toFixed(2)} interest` : `Reward: GHC ${task.amount.toFixed(2)}`}
                     </div>
                     ${task.status === 'pending' ? `
-                        <button class="task-action-btn" onclick="completeTask(${task.id})">${task.isProduct ? 'Place Order' : 'Mark Completed'}</button>
+                        <button class="task-action-btn" onclick="completeTask('${task.id}', '${task.isProduct}')">${task.isProduct ? 'Place Order' : 'Start Task'}</button>
                     ` : ''}
                 </div>
             `).join('');
@@ -638,16 +644,8 @@
             element.classList.add('active');
         }
 
-        function completeTask(taskId) {
-            const userData = localStorage.getItem('currentUser');
-            if (!userData) {
-                alert('User not found');
-                return;
-            }
-            
-            const user = JSON.parse(userData);
-            
-            // Find task in tasksData and get its details
+        async function completeTask(taskId, isProduct) {
+            // Find task in tasksData
             const task = (tasksData.pending || []).find(t => t.id === taskId);
             
             if (!task) {
@@ -655,56 +653,73 @@
                 return;
             }
             
-            // If it's a product order task, process as order
-            if (task.isProduct) {
-                completeProductOrder(user.userId, taskId, task);
-            } else {
-                // Regular task completion
-                const result = DataManager.completeTask(user.userId, task.id, task.title, task.amount, 0);
+            try {
+                // Get current wallet
+                const wallet = await window.API.getWallet();
                 
-                if (result) {
-                    DataManager.completeUserTask(user.userId, task.id);
-                    loadUserTasks();
-                    alert(`Task "${task.title}" completed! You earned GHC ${task.amount.toFixed(2)}`);
-                    updateBalance();
-                    updateAward();
-                    displayTasks('completed');
-                    DataManager.syncAllPages(user.userId);
-                } else {
-                    alert('Failed to complete task');
+                // Check if user has enough balance
+                if (wallet.balance < task.amount) {
+                    alert(`Insufficient balance. You need GHC ${task.amount.toFixed(2)} to complete this task. Your balance: GHC ${wallet.balance.toFixed(2)}`);
+                    return;
                 }
+
+                // Calculate interest amount
+                const interestAmount = (task.amount * task.commission) / 100;
+                const totalReturn = task.amount + interestAmount;
+
+                // Deduct cost from balance
+                await window.API.call('/wallet/deduct', {
+                    method: 'POST',
+                    body: JSON.stringify({ amount: task.amount, reason: `Task: ${task.title}` })
+                });
+
+                // Update UI to show balance deduction
+                updateBalance();
+
+                // Show countdown modal/alert
+                let timeLeft = 4;
+                const countdownInterval = setInterval(() => {
+                    if (timeLeft <= 0) {
+                        clearInterval(countdownInterval);
+                        
+                        // Complete task: add back amount + interest and mark as completed
+                        completeTaskCompletion(taskId, totalReturn, task);
+                    } else {
+                        console.log(`Task completion in ${timeLeft} seconds...`);
+                        timeLeft--;
+                    }
+                }, 1000);
+
+            } catch (error) {
+                console.error('Error completing task:', error);
+                alert('Failed to start task: ' + (error.message || 'Unknown error'));
             }
         }
 
-        function completeProductOrder(userId, taskId, task) {
-            const finance = DataManager.getUserFinance(userId);
+        async function completeTaskCompletion(taskId, totalReturn, task) {
+            try {
+                // Add interest/commission to user
+                await window.API.call('/wallet/add-bonus', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        amount: totalReturn, 
+                        reason: `Task completed: ${task.title} - Cost: ${task.amount.toFixed(2)} + Interest: ${(totalReturn - task.amount).toFixed(2)}`
+                    })
+                });
 
-            if (finance.balance < task.amount) {
-                alert(`Insufficient balance. You need GHC ${task.amount} to complete this order.`);
-                return;
-            }
-
-            // Process order (deducts balance, waits 6 seconds, adds bonus)
-            const result = DataManager.processOrder(userId, task.amount, 21.5);
-
-            if (result.success) {
-                // Update UI immediately with balance deduction
+                // Reload tasks to update status
+                await loadUserTasks();
+                
+                // Update display
                 updateBalance();
+                updateAward();
+                displayTasks('completed');
 
-                // After 6 seconds, the bonus is added (in DataManager) and we complete the task
-                setTimeout(() => {
-                    // Move task to completed
-                    DataManager.completeUserTask(userId, taskId);
-                    loadUserTasks();
-                    updateBalance();
-                    updateAward();
-                    displayTasks('completed');
-                    DataManager.syncAllPages(userId);
-                    
-                    alert(`Order completed! GHC ${task.amount} returned + GHC ${(task.amount * 0.215).toFixed(2)} bonus earned!`);
-                }, 6000);
-            } else {
-                alert('Failed to process order: ' + result.reason);
+                alert(`Task completed successfully!\n\nCost: GHC ${task.amount.toFixed(2)}\nInterest earned: GHC ${(totalReturn - task.amount).toFixed(2)}\nTotal received: GHC ${totalReturn.toFixed(2)}`);
+
+            } catch (error) {
+                console.error('Error completing task:', error);
+                alert('Error completing task: ' + (error.message || 'Unknown error'));
             }
         }
 

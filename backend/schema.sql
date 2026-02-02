@@ -28,6 +28,7 @@ create table if not exists tasks (
   title text not null,
   description text,
   amount numeric(12,2) not null,
+  commission numeric(5,2) not null default 0, -- percentage commission/interest
   status text not null default 'active',
   created_at timestamptz default now()
 );
@@ -54,6 +55,7 @@ create table if not exists products (
   name text not null,
   description text,
   price numeric(12,2) not null,
+  commission numeric(5,2) not null default 0, -- percentage commission/interest
   image text,
   status text not null default 'active',
   created_at timestamptz default now()

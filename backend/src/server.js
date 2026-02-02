@@ -102,6 +102,65 @@ app.post('/wallet/transfer-bonus', requireAuth, async (req, res) => {
   res.json(rows[0]);
 });
 
+// Deduct balance (for task cost)
+app.post('/wallet/deduct', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  const { amount, reason } = req.body;
+  const numericAmount = Number(amount) || 0;
+
+  if (numericAmount <= 0) {
+    return res.status(400).json({ error: 'Invalid amount' });
+  }
+
+  const { rows: walletRows } = await query('select balance from wallets where user_id = $1', [id]);
+  if (!walletRows[0]) {
+    return res.status(404).json({ error: 'Wallet not found' });
+  }
+
+  const currentBalance = Number(walletRows[0]?.balance || 0);
+  
+  if (numericAmount > currentBalance) {
+    return res.status(400).json({ error: 'Insufficient balance' });
+  }
+  
+  await query(
+    'update wallets set balance = balance - $1, updated_at = now() where user_id = $2',
+    [numericAmount, id]
+  );
+  
+  await query(
+    'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
+    [id, 'task_cost', numericAmount, reason || 'Task cost']
+  );
+  
+  const { rows } = await query('select balance, bonus from wallets where user_id = $1', [id]);
+  res.json(rows[0]);
+});
+
+// Add bonus (for task completion with interest)
+app.post('/wallet/add-bonus', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  const { amount, reason } = req.body;
+  const numericAmount = Number(amount) || 0;
+
+  if (numericAmount <= 0) {
+    return res.status(400).json({ error: 'Invalid amount' });
+  }
+
+  await query(
+    'update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2',
+    [numericAmount, id]
+  );
+  
+  await query(
+    'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
+    [id, 'bonus', numericAmount, reason || 'Task completion bonus']
+  );
+  
+  const { rows } = await query('select balance, bonus from wallets where user_id = $1', [id]);
+  res.json(rows[0]);
+});
+
 // Transactions
 app.get('/transactions', requireAuth, async (req, res) => {
   const { id } = req.user;
@@ -317,12 +376,12 @@ app.get('/products/my', requireAuth, async (req, res) => {
 
 // Admin: Create task
 app.post('/admin/tasks', requireAuth, requireAdmin, async (req, res) => {
-  const { title, description, amount } = req.body;
+  const { title, description, amount, commission } = req.body;
   const { rows } = await query(
-    `insert into tasks (title, description, amount)
-     values ($1, $2, $3)
+    `insert into tasks (title, description, amount, commission)
+     values ($1, $2, $3, $4)
      returning *`,
-    [title, description, amount]
+    [title, description, amount, commission || 0]
   );
   res.json(rows[0]);
 });
@@ -368,12 +427,12 @@ app.post('/admin/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) 
 
 // Admin: Create product
 app.post('/admin/products', requireAuth, requireAdmin, async (req, res) => {
-  const { name, description, price, image } = req.body;
+  const { name, description, price, image, commission } = req.body;
   const { rows } = await query(
-    `insert into products (name, description, price, image)
-     values ($1, $2, $3, $4)
+    `insert into products (name, description, price, image, commission)
+     values ($1, $2, $3, $4, $5)
      returning *`,
-    [name, description, price, image]
+    [name, description, price, image, commission || 0]
   );
   res.json(rows[0]);
 });

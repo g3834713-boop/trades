@@ -193,10 +193,10 @@ window.API = {
     return this.call('/products/my');
   },
 
-  async createTask(title, description, amount) {
+  async createTask(title, description, amount, commission = 0) {
     return this.call('/admin/tasks', {
       method: 'POST',
-      body: JSON.stringify({ title, description, amount })
+      body: JSON.stringify({ title, description, amount, commission })
     });
   },
 
@@ -211,10 +211,10 @@ window.API = {
     });
   },
 
-  async createProduct(name, description, price, image) {
+  async createProduct(name, description, price, image, commission = 0) {
     return this.call('/admin/products', {
       method: 'POST',
-      body: JSON.stringify({ name, description, price, image })
+      body: JSON.stringify({ name, description, price, image, commission })
     });
   },
 
