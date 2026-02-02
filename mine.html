@@ -1330,8 +1330,8 @@
                 // Display user information
                 document.getElementById('profileName').textContent = userProfile.full_name || userProfile.email;
                 document.getElementById('profileId').textContent = 'ID-' + userProfile.id.substring(0, 8).toUpperCase();
-                document.getElementById('balanceDisplay').textContent = `GHC ${(userProfile.balance || 0).toFixed(2)}`;
-                document.getElementById('bonusDisplay').textContent = `GHC ${(userProfile.bonus || 0).toFixed(2)}`;
+                document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(userProfile.balance || 0).toFixed(2)}`;
+                document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(userProfile.bonus || 0).toFixed(2)}`;
                 
                 // Store user data globally for other functions
                 window.currentUserProfile = userProfile;
