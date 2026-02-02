@@ -598,12 +598,8 @@
                             <div class="beginner-task-description">${task.description || ''}</div>
                             <div class="beginner-task-info">
                                 <div class="beginner-task-info-item">
-                                    <div class="beginner-task-info-label">Cost</div>
+                                    <div class="beginner-task-info-label">Reward</div>
                                     <div class="beginner-task-info-value">GHC ${parseFloat(task.amount).toFixed(2)}</div>
-                                </div>
-                                <div class="beginner-task-info-item">
-                                    <div class="beginner-task-info-label">Interest</div>
-                                    <div class="beginner-task-info-value">${parseFloat(task.commission || 0).toFixed(1)}%</div>
                                 </div>
                             </div>
                             ${!canSubmit ? `
