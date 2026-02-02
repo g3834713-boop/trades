@@ -637,6 +637,35 @@
         </div>
     </div>
 
+    <!-- Assign Payment Number Modal -->
+    <div class="modal" id="paymentNumberModal">
+        <div class="modal-content">
+            <div class="modal-title">Assign Payment Number</div>
+            <input type="hidden" id="paymentNumberUserId">
+            <div class="form-group">
+                <label class="form-label">User</label>
+                <div class="form-input" id="paymentNumberUserName" style="background: #f9f9f9;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Payment Number</label>
+                <input type="text" class="form-input" id="paymentNumberInput" placeholder="e.g., 0202022202">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Payment Method</label>
+                <select class="form-select" id="paymentNumberMethod">
+                    <option value="">Select method</option>
+                    <option value="mtn">MTN Mobile Money</option>
+                    <option value="vodafone">Vodafone Cash</option>
+                    <option value="bank">Bank Transfer</option>
+                </select>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closePaymentNumberModal()">Cancel</button>
+                <button class="btn btn-success" onclick="savePaymentNumber()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Payment Number Modal -->
     <div class="modal" id="paymentNumberModal">
         <div class="modal-content">

@@ -765,6 +765,7 @@
                 <div style="padding: 15px; background: #f0f4ff; border: 2px dashed #667eea; border-radius: 8px; margin: 10px 0;">
                     <div style="font-size: 24px; font-weight: bold; color: #667eea; font-family: monospace;" id="displayPaymentNumber">PENDING...</div>
                 </div>
+                <div style="font-size: 12px; color: #667eea; margin-top: 4px;">Provider: <span id="displayMethodTop">-</span></div>
                 <button class="btn-submit" onclick="copyPaymentNumber()" style="width: 100%; margin-top: 10px;">
                     <i class="las la-copy"></i> Copy Payment Number
                 </button>
@@ -1199,7 +1200,9 @@
                 'bank': 'Bank Transfer'
             };
             const assignedMethod = paymentRequest.payment_number_method || paymentRequest.method;
-            document.getElementById('displayMethod').textContent = methodNames[assignedMethod] || assignedMethod || '-';
+            const displayMethod = methodNames[assignedMethod] || assignedMethod || '-';
+            document.getElementById('displayMethod').textContent = displayMethod;
+            document.getElementById('displayMethodTop').textContent = displayMethod;
             
             // Store current payment request for copy function
             window.currentPaymentRequest = paymentRequest;
