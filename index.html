@@ -371,6 +371,16 @@
                 }
 
                 const result = await window.AuthService.login(email, password);
+
+                try {
+                    // Ensure user exists in backend database
+                    await window.API.call('/users/sync', {
+                        method: 'POST',
+                        body: JSON.stringify({ fullName: null, phone: null })
+                    });
+                } catch (syncError) {
+                    console.warn('User sync failed:', syncError);
+                }
                 
                 // Redirect to home on successful login
                 window.location.href = 'home.html';
