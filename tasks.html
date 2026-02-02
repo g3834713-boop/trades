@@ -437,59 +437,105 @@
         let tasksData = { pending: [], frozen: [], completed: [] };
 
         // Initialize page
-        function initializePage() {
-            loadUserTasks();
+        async function initializePage() {
+            await loadUserTasks();
             updateBalance();
             updateAward();
             displayTasks('pending');
         }
 
-        function loadUserTasks() {
-            const userData = localStorage.getItem('currentUser');
-            if (!userData) {
-                tasksData = { pending: [], frozen: [], completed: [] };
-                return;
-            }
+        async function loadUserTasks() {
+            try {
+                // Fetch tasks and products from backend
+                const [tasks, products] = await Promise.all([
+                    window.API.getMyTasks(),
+                    window.API.getMyProducts()
+                ]);
 
-            const user = JSON.parse(userData);
-            tasksData = DataManager.getUserTasks(user.userId) || { pending: [], frozen: [], completed: [] };
+                // Initialize empty structure
+                tasksData = { pending: [], frozen: [], completed: [] };
+
+                // Process tasks
+                tasks.forEach(task => {
+                    const status = task.status || 'pending';
+                    if (!tasksData[status]) {
+                        tasksData[status] = [];
+                    }
+                    tasksData[status].push({
+                        id: task.task_id || task.id,
+                        title: task.name || task.title,
+                        description: task.description,
+                        amount: parseFloat(task.commission || task.amount || 0),
+                        status: status,
+                        isProduct: false,
+                        assignedAt: task.assigned_at
+                    });
+                });
+
+                // Process products as tasks
+                products.forEach(product => {
+                    const status = product.status || 'pending';
+                    if (!tasksData[status]) {
+                        tasksData[status] = [];
+                    }
+                    tasksData[status].push({
+                        id: product.product_id || product.id,
+                        title: product.name || product.title,
+                        description: product.description,
+                        amount: parseFloat(product.price || 0),
+                        status: status,
+                        isProduct: true,
+                        productImage: product.image,
+                        quantity: 1,
+                        assignedAt: product.assigned_at
+                    });
+                });
+
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                tasksData = { pending: [], frozen: [], completed: [] };
+            }
         }
 
-        function updateBalance() {
-            // Get user data from DataManager
-            const userData = localStorage.getItem('currentUser');
-            if (!userData) return;
-            
-            const user = JSON.parse(userData);
-            DataManager.initializeUser(user.userId);
-            const finance = DataManager.getUserFinance(user.userId);
+        async function updateBalance() {
+            try {
+                // Get wallet data from backend
+                const wallet = await window.API.getWallet();
 
-            // Update balance display
-            document.querySelector('.balance-section').innerHTML = `
-                <div class="balance-title">My Tasks</div>
-                <div class="balance-grid">
-                    <div class="balance-item">
-                        <div class="balance-item-label">Bonus (GHC)</div>
-                        <div class="balance-item-value">${finance.bonus.toFixed(2)}</div>
+                // Count tasks
+                const totalTasks = Object.values(tasksData).flat().length;
+                const completedTasks = (tasksData.completed || []).length;
+                const totalEarnings = (tasksData.completed || []).reduce((sum, t) => sum + t.amount, 0);
+
+                // Update balance display
+                document.querySelector('.balance-section').innerHTML = `
+                    <div class="balance-title">My Tasks</div>
+                    <div class="balance-grid">
+                        <div class="balance-item">
+                            <div class="balance-item-label">Bonus (GHC)</div>
+                            <div class="balance-item-value">${parseFloat(wallet.bonus || 0).toFixed(2)}</div>
+                        </div>
+                        <div class="balance-item">
+                            <div class="balance-item-label">Return Principal (GHC)</div>
+                            <div class="balance-item-value">0</div>
+                        </div>
+                        <div class="balance-item">
+                            <div class="balance-item-label">Quantity of Tasks</div>
+                            <div class="balance-item-value">${completedTasks}/${totalTasks}</div>
+                        </div>
+                        <div class="balance-item">
+                            <div class="balance-item-label">Return Commission (GHC)</div>
+                            <div class="balance-item-value">${totalEarnings.toFixed(2)}</div>
+                        </div>
+                        <div class="balance-item balance-highlight">
+                            <div class="balance-item-label">My Balance</div>
+                            <div class="balance-item-value">GHC ${parseFloat(wallet.balance || 0).toFixed(2)}</div>
+                        </div>
                     </div>
-                    <div class="balance-item">
-                        <div class="balance-item-label">Return Principal (GHC)</div>
-                        <div class="balance-item-value">0</div>
-                    </div>
-                    <div class="balance-item">
-                        <div class="balance-item-label">Quantity of Tasks</div>
-                        <div class="balance-item-value">${finance.tasksCompleted}/10</div>
-                    </div>
-                    <div class="balance-item">
-                        <div class="balance-item-label">Return Commission (GHC)</div>
-                        <div class="balance-item-value">${finance.totalEarnings.toFixed(2)}</div>
-                    </div>
-                    <div class="balance-item balance-highlight">
-                        <div class="balance-item-label">My Balance</div>
-                        <div class="balance-item-value">GHC ${finance.balance.toFixed(2)}</div>
-                    </div>
-                </div>
-            `;
+                `;
+            } catch (error) {
+                console.error('Error updating balance:', error);
+            }
         }
 
         function updateAward() {
@@ -566,9 +612,6 @@
             // Update task display
             displayTasks(filter);
         }
-
-        // Initialize on page load
-        initializePage();
 
         function setActive(element) {
             document.querySelectorAll('.nav-item').forEach(item => {
@@ -714,6 +757,9 @@
                 if (balanceDisplay) {
                     balanceDisplay.textContent = `GHC ${parseFloat(wallet.balance || 0).toFixed(2)}`;
                 }
+
+                // Initialize tasks
+                await initializePage();
             } catch (error) {
                 console.error('Error loading tasks page:', error);
                 window.location.href = 'index.html';
