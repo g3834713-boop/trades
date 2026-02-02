@@ -1696,7 +1696,17 @@
 
         // Initialize on load
         window.addEventListener('DOMContentLoaded', async function() {
-            // Check if admin is authenticated via Supabase
+            // Allow access via admin-login local flag
+            const isLocalAdmin = sessionStorage.getItem('adminLoggedIn') === 'true'
+                || localStorage.getItem('adminLoggedIn') === 'true';
+
+            if (isLocalAdmin) {
+                initializeAdmin();
+                loadDashboard();
+                return;
+            }
+
+            // Otherwise, check if admin is authenticated via Supabase
             try {
                 if (typeof window.AuthService === 'undefined') {
                     window.location.href = 'admin-login.html';
