@@ -1330,17 +1330,6 @@
                 alert(error.message || 'Failed to assign task');
             }
         }
-                if (!task.assignedTo) task.assignedTo = [];
-                userIds.forEach(userId => {
-                    if (!task.assignedTo.includes(userId)) task.assignedTo.push(userId);
-                });
-                localStorage.setItem('adminData', JSON.stringify(adminData));
-            }
-
-            alert(`Assigned to ${result.assigned} user(s). ${result.skipped} skipped.`);
-            closeAssignTaskModal();
-            loadTasks();
-        }
 
         function openAddProductModal() {
             document.getElementById('productModal').classList.add('show');
