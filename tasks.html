@@ -452,6 +452,9 @@
                     window.API.getMyProducts()
                 ]);
 
+                console.log('Loaded tasks from backend:', tasks);
+                console.log('Loaded products from backend:', products);
+
                 // Initialize empty structure
                 tasksData = { pending: [], frozen: [], completed: [] };
 
@@ -462,7 +465,7 @@
                         tasksData[status] = [];
                     }
                     tasksData[status].push({
-                        id: task.task_id || task.id,
+                        id: task.id,
                         title: task.title,
                         description: task.description,
                         amount: parseFloat(task.amount || 0),
@@ -479,7 +482,7 @@
                         tasksData[status] = [];
                     }
                     tasksData[status].push({
-                        id: product.product_id || product.id,
+                        id: product.id,
                         title: product.name,
                         description: product.description,
                         amount: parseFloat(product.price || 0),
@@ -490,6 +493,8 @@
                         assignedAt: product.assigned_at
                     });
                 });
+
+                console.log('Processed tasksData:', tasksData);
 
             } catch (error) {
                 console.error('Error loading tasks:', error);
