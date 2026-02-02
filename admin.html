@@ -188,11 +188,16 @@
         .table-cell {
             font-size: 14px;
             color: #333;
+            word-break: break-word;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .table-action {
             display: flex;
             gap: 8px;
+            justify-content: center;
         }
 
         .btn {
