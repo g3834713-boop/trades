@@ -1696,39 +1696,39 @@
 
         // Initialize on load
         window.addEventListener('DOMContentLoaded', async function() {
-            // Allow access via admin-login local flag
             const isLocalAdmin = sessionStorage.getItem('adminLoggedIn') === 'true'
                 || localStorage.getItem('adminLoggedIn') === 'true';
 
-            if (isLocalAdmin) {
-                initializeAdmin();
-                loadDashboard();
-                return;
-            }
-
-            // Otherwise, check if admin is authenticated via Supabase
             try {
                 if (typeof window.AuthService === 'undefined') {
+                    if (isLocalAdmin) {
+                        initializeAdmin();
+                        loadDashboard();
+                        return;
+                    }
                     window.location.href = 'admin-login.html';
                     return;
                 }
 
                 const session = await window.AuthService.getSession();
                 if (!session) {
+                    sessionStorage.removeItem('adminLoggedIn');
+                    localStorage.removeItem('adminLoggedIn');
                     window.location.href = 'admin-login.html';
                     return;
                 }
 
                 const user = await window.AuthService.getUser();
                 // Check if user is admin (admin0@gmail.com)
-                if (user.email !== 'admin0@gmail.com') {
+                if (!user || user.email !== 'admin0@gmail.com') {
                     alert('Access denied. Admin only.');
                     await window.AuthService.logout();
+                    sessionStorage.removeItem('adminLoggedIn');
+                    localStorage.removeItem('adminLoggedIn');
                     window.location.href = 'index.html';
                     return;
                 }
 
-                // User is authenticated as admin, initialize the admin panel
                 initializeAdmin();
                 loadDashboard();
             } catch (error) {
