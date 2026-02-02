@@ -44,6 +44,7 @@ create table if not exists withdrawals (
   user_id uuid not null references app_users(id) on delete cascade,
   amount numeric(12,2) not null,
   method text,
+  account text,
   status text not null default 'pending',
   requested_at timestamptz default now(),
   processed_at timestamptz

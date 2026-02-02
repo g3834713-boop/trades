@@ -97,10 +97,10 @@ app.post('/withdrawals', requireAuth, async (req, res) => {
   }
 
   const { rows } = await query(
-    `insert into withdrawals (user_id, amount, method)
-     values ($1, $2, $3)
+    `insert into withdrawals (user_id, amount, method, account)
+     values ($1, $2, $3, $4)
      returning *`,
-    [id, numericAmount, method || null]
+    [id, numericAmount, method || null, account || null]
   );
 
   const reason = `Withdrawal request${method ? ` via ${method}` : ''}${account ? ` - ${account}` : ''}`;
@@ -256,6 +256,29 @@ app.post('/admin/deposits', requireAuth, requireAdmin, async (req, res) => {
 });
 
 const port = process.env.PORT || 8080;
-app.listen(port, () => {
-  console.log(`API running on :${port}`);
-});
+
+async function ensureSchema() {
+  await query(`
+    create table if not exists withdrawals (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      amount numeric(12,2) not null,
+      method text,
+      account text,
+      status text not null default 'pending',
+      requested_at timestamptz default now(),
+      processed_at timestamptz
+    )
+  `);
+  await query('alter table withdrawals add column if not exists account text');
+}
+
+ensureSchema()
+  .catch((error) => {
+    console.error('Schema init error:', error);
+  })
+  .finally(() => {
+    app.listen(port, () => {
+      console.log(`API running on :${port}`);
+    });
+  });
