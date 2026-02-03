@@ -1437,10 +1437,10 @@ async function ensureSchema() {
   `);
   await query('create unique index if not exists task_assignments_unique on task_assignments(task_id, user_id)');
 
-  await query('alter table app_users add column if not exists is_teller boolean not null default false');
+  // await query('alter table app_users add column if not exists is_teller boolean not null default false');
   
   // Add commission column to tasks if it doesn't exist
-  await query('alter table tasks add column if not exists commission numeric(5,2) not null default 0');
+  // await query('alter table tasks add column if not exists commission numeric(5,2) not null default 0');
   
   await query(`
     create table if not exists products (
