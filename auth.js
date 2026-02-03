@@ -325,5 +325,11 @@ window.API = {
     return this.call(`/admin/payment-numbers/${userId}`, {
       method: 'DELETE'
     });
+  },
+
+  async deletePayment(paymentId) {
+    return this.call(`/admin/payments/${paymentId}`, {
+      method: 'DELETE'
+    });
   }
 };

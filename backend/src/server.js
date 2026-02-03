@@ -398,6 +398,19 @@ app.post('/admin/payments/:id/complete', requireAuth, requireAdmin, async (req, 
   res.json({ ok: true });
 });
 
+// Admin: delete payment request
+app.delete('/admin/payments/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id: paymentId } = req.params;
+
+  const { rows } = await query(
+    'delete from payments where id = $1 returning *',
+    [paymentId]
+  );
+
+  if (rows.length === 0) return res.status(404).json({ error: 'Payment not found' });
+  res.json({ ok: true });
+});
+
 // Admin: add deposit/bonus
 app.post('/admin/deposits', requireAuth, requireAdmin, async (req, res) => {
   const { userId, amount = 0, bonus = 0, reason } = req.body;
