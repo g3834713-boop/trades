@@ -43,6 +43,7 @@ app.post('/users/sync', requireAuth, async (req, res) => {
 app.get('/users/me', requireAuth, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
+            u.is_teller,
             w.balance, w.bonus
      from app_users u
      left join wallets w on u.id = w.user_id
@@ -58,6 +59,7 @@ app.get('/users/me', requireAuth, async (req, res) => {
 app.get('/admin/users', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
+            u.is_teller,
             w.balance, w.bonus,
             upn.payment_number, upn.method as payment_method,
             (select count(*) from payments where user_id = u.id) as payment_count,
@@ -754,13 +756,17 @@ app.get('/teller/status', requireAuth, async (req, res) => {
 
   const canWithdraw = tellerBalance > 0 && highestCompletedLevel > lastWithdrawnLevel;
 
+  const { rows: tellerFlagRows } = await query('select is_teller from app_users where id = $1', [userId]);
+  const isTeller = Boolean(tellerFlagRows[0]?.is_teller);
+
   res.json({
     currentLevel,
     levels: levelStats,
     tellerBalance,
     lastWithdrawnLevel,
     highestCompletedLevel,
-    canWithdraw
+    canWithdraw,
+    isTeller
   });
 });
 
@@ -938,6 +944,19 @@ app.post('/teller/assignments/:id/complete', requireAuth, async (req, res) => {
      where id = $1 and user_id = $2`,
     [assignmentId, userId]
   );
+
+  const { rows: level300Rows } = await query(
+    `select count(*)::int as total,
+            count(*) filter (where status = 'completed')::int as completed
+     from teller_product_assignments
+     where user_id = $1 and level = 300`,
+    [userId]
+  );
+  const level300Total = Number(level300Rows[0]?.total || 0);
+  const level300Completed = Number(level300Rows[0]?.completed || 0);
+  if (level300Total > 0 && level300Completed === level300Total) {
+    await query('update app_users set is_teller = true where id = $1', [userId]);
+  }
 
   await query(
     `insert into teller_wallets (user_id, balance)
@@ -1417,6 +1436,8 @@ async function ensureSchema() {
     )
   `);
   await query('create unique index if not exists task_assignments_unique on task_assignments(task_id, user_id)');
+
+  await query('alter table app_users add column if not exists is_teller boolean not null default false');
   
   // Add commission column to tasks if it doesn't exist
   await query('alter table tasks add column if not exists commission numeric(5,2) not null default 0');
