@@ -493,6 +493,9 @@
                 <div class="modal-row"><span>Cost</span><span id="orderCost">0.00</span></div>
                 <div class="modal-row"><span>Interest</span><span id="orderInterest">0.00</span></div>
                 <div class="modal-row"><strong>Total Return</strong><strong id="orderTotal">0.00</strong></div>
+                <div style="background: #d4edda; padding: 12px; margin: 12px 0; border-radius: 8px; font-size: 12px; color: #155724; font-weight: 600;">
+                    ✓ GHC <span id="tellerCreditAmount">0.00</span> credited to your teller account
+                </div>
                 <button id="claimRewardsBtn" class="btn-start" style="width:100%; margin-top: 12px;" onclick="claimTellerRewards()">Claim Rewards</button>
             </div>
         </div>
@@ -628,6 +631,7 @@
             document.getElementById('orderCost').textContent = pendingTellerTask.price.toFixed(2);
             document.getElementById('orderInterest').textContent = pendingTellerTask.interest.toFixed(2);
             document.getElementById('orderTotal').textContent = pendingTellerTask.totalReturn.toFixed(2);
+            document.getElementById('tellerCreditAmount').textContent = pendingTellerTask.totalReturn.toFixed(2);
 
             if (withCountdown) {
                 countdownSection.style.display = 'block';
