@@ -808,7 +808,6 @@
                 console.error('Error loading work page:', error);
                 window.location.href = 'index.html';
             }
-        });
             applyTranslations();
             generateLeaderboard();
         });
@@ -820,7 +819,12 @@
                 const user = JSON.parse(userData);
                 updateBalanceDisplay(user.userId);
             }
-                document.getElementById('todayBalance').textContent = `GHC ${finance.balance.toFixed(2)}`;
+            const balanceValue = event?.detail?.balance;
+            if (typeof balanceValue === 'number') {
+                const todayBalance = document.getElementById('todayBalance');
+                if (todayBalance) {
+                    todayBalance.textContent = `GHC ${balanceValue.toFixed(2)}`;
+                }
             }
         });
     </script>
