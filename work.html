@@ -563,6 +563,22 @@
                 </div>
             </div>
         </div>
+
+        <!-- Become a Teller Card -->
+        <div class="order-details-section" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border-left: 4px solid #667eea;">
+            <div class="order-details-title">
+                <i class="las la-crown" style="color: #667eea;"></i>
+                Become a Teller
+            </div>
+            <div style="padding: 20px; text-align: center;">
+                <p style="color: #666; font-size: 14px; margin-bottom: 16px; line-height: 1.6;">
+                    Become a Teller and earn more! Your moderators will assist you throughout your training. Complete our qualifying tasks to start your journey as a trusted Teller.
+                </p>
+                <button class="btn-primary" onclick="navigateToTeller()" style="background: #667eea; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+                    <i class="las la-arrow-right"></i> Opt in Now
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Order Modal with Loading Animation -->
@@ -739,6 +755,10 @@
                 item.classList.remove('active');
             });
             element.classList.add('active');
+        }
+
+        function navigateToTeller() {
+            window.location.href = 'teller.html';
         }
 
         // Translation system

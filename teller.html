@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DailyTrade - Become a Teller</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script type="module" src="auth.js"></script>
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f5f5f5;
+            padding-bottom: 100px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-back {
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        /* Container */
+        .teller-container {
+            padding: 16px 12px;
+        }
+
+        /* Info Card */
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid #667eea;
+        }
+
+        .info-card-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .info-card-text {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* Qualification Tasks */
+        .tasks-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tasks-title i {
+            color: #667eea;
+            font-size: 20px;
+        }
+
+        /* Task Card */
+        .teller-task-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .task-check {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #e8f5e9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #4caf50;
+            font-size: 14px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .task-info {
+            flex: 1;
+        }
+
+        .task-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+
+        .task-reward {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4caf50;
+        }
+
+        .task-action {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-start {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-start:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-start:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Benefits Section */
+        .benefits-section {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #667eea30;
+        }
+
+        .benefits-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .benefits-title i {
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        .benefit-item {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .benefit-icon {
+            color: #667eea;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .benefit-text {
+            flex: 1;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-around;
+            padding-top: 8px;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 0 12px 0;
+            cursor: pointer;
+            color: #999;
+            text-decoration: none;
+            transition: color 0.3s;
+            min-width: 60px;
+            font-size: 12px;
+        }
+
+        .nav-item i {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-item:hover {
+            color: #667eea;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 16px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            color: #ddd;
+            margin-bottom: 16px;
+        }
+
+        .account-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .account-balance {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .account-subtext {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .level-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .level-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .level-status {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .task-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 16px;
+        }
+
+        .task-header {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .task-image {
+            width: 54px;
+            height: 54px;
+            border-radius: 10px;
+            object-fit: cover;
+            background: #f0f2f8;
+        }
+
+        .task-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 12px;
+            font-size: 12px;
+            color: #555;
+        }
+
+        .metric-box {
+            background: #f7f8ff;
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        #orderSuccessModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 999;
+        }
+
+        #orderSuccessModal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 340px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .modal-desc {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 12px;
+        }
+
+        .modal-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .modal-countdown {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="header-back" onclick="window.history.back()">
+                <i class="las la-arrow-left"></i>
+            </div>
+            <div class="header-title">Become a Teller</div>
+        </div>
+    </div>
+
+    <!-- Container -->
+    <div class="teller-container">
+        <!-- Info Card -->
+        <div class="info-card">
+            <div class="info-card-title">
+                <i class="las la-info-circle"></i> What is a Teller?
+            </div>
+            <div class="info-card-text">
+                A Teller is a trusted moderator who helps manage transactions and assists users. Become a Teller by completing our qualification tasks and unlock higher earning potential with exclusive features and support from our team.
+            </div>
+        </div>
+
+        <!-- Teller Account -->
+        <div class="account-card">
+            <div>
+                <div class="account-balance" id="tellerBalance">GHC 0.00</div>
+                <div class="account-subtext">Teller account balance (withdraw after completing a level)</div>
+            </div>
+            <button class="btn-start" id="withdrawBtn" onclick="withdrawTellerBalance()" disabled>Withdraw</button>
+        </div>
+
+        <!-- Current Level -->
+        <div class="level-card">
+            <div>
+                <div class="level-title">Current Level</div>
+                <div class="level-status" id="currentLevelStatus">Checking...</div>
+            </div>
+            <div class="level-title" id="currentLevelBadge">--</div>
+        </div>
+
+        <!-- Current Task -->
+        <div class="tasks-title">
+            <i class="las la-tasks"></i>
+            Current Task
+        </div>
+        <div id="tellerTaskContainer"></div>
+
+        <!-- Benefits -->
+        <div class="benefits-section">
+            <div class="benefits-title">
+                <i class="las la-star"></i>
+                Teller Benefits
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon">✓</div>
+                <div class="benefit-text">Higher earning potential with exclusive tasks</div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon">✓</div>
+                <div class="benefit-text">Direct support from moderators</div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon">✓</div>
+                <div class="benefit-text">Priority access to new opportunities</div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon">✓</div>
+                <div class="benefit-text">Teller badge on your profile</div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon">✓</div>
+                <div class="benefit-text">Special commission rates and bonuses</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div id="orderSuccessModal">
+        <div class="modal-content">
+            <div class="modal-title">Teller Task Processing</div>
+            <div class="modal-desc">Please wait while we verify your task completion.</div>
+            <div id="countdownSection">
+                <div class="modal-desc">Countdown</div>
+                <div class="modal-countdown" id="countdownTimer">10</div>
+            </div>
+            <div id="rewardSection" style="display:none;">
+                <div class="modal-row"><span>Cost</span><span id="orderCost">0.00</span></div>
+                <div class="modal-row"><span>Interest</span><span id="orderInterest">0.00</span></div>
+                <div class="modal-row"><strong>Total Return</strong><strong id="orderTotal">0.00</strong></div>
+                <button id="claimRewardsBtn" class="btn-start" style="width:100%; margin-top: 12px;" onclick="claimTellerRewards()">Claim Rewards</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="home.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="work.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-briefcase"></i>
+            <span>Work</span>
+        </a>
+        <a href="tasks.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-tasks"></i>
+            <span>Task</span>
+        </a>
+        <a href="mine.html" class="nav-item" onclick="setActive(this)">
+            <i class="las la-user-circle"></i>
+            <span>Mine</span>
+        </a>
+    </div>
+
+    <script>
+        function setActive(element) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+        }
+
+        let pendingTellerTask = null;
+
+        async function loadTellerStatus() {
+            try {
+                const status = await window.API.getTellerStatus();
+                const balance = parseFloat(status.tellerBalance || 0).toFixed(2);
+                document.getElementById('tellerBalance').textContent = `GHC ${balance}`;
+
+                const currentLevel = status.currentLevel;
+                document.getElementById('currentLevelBadge').textContent = currentLevel ? `Level ${currentLevel}` : '--';
+                document.getElementById('currentLevelStatus').textContent = currentLevel
+                    ? 'Complete tasks sequentially to unlock the next level.'
+                    : 'No active level yet. Wait for admin assignments.';
+
+                const withdrawBtn = document.getElementById('withdrawBtn');
+                withdrawBtn.disabled = !status.canWithdraw;
+            } catch (error) {
+                console.error('Failed to load teller status:', error);
+                document.getElementById('currentLevelStatus').textContent = 'Unable to load teller status.';
+            }
+        }
+
+        async function loadTellerTask() {
+            try {
+                const data = await window.API.getTellerTask();
+                const container = document.getElementById('tellerTaskContainer');
+
+                if (!data.task) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="las la-inbox"></i>
+                            <div class="empty-state-text">No task available right now.</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const task = data.task;
+                const price = parseFloat(task.price || 0);
+                const commission = parseFloat(task.commission || 0);
+                const interest = (price * commission) / 100;
+                const totalReturn = price + interest;
+                const actionLabel = task.status === 'in_progress' ? 'Claim Rewards' : 'Start Task';
+
+                container.innerHTML = `
+                    <div class="task-card">
+                        <div class="task-header">
+                            ${task.image ? `<img class="task-image" src="${task.image}" alt="${task.name}">` : `<div class="task-image"></div>`}
+                            <div>
+                                <div class="task-name">${task.name}</div>
+                                <div class="task-desc">${task.description || 'Complete this teller product task to earn rewards.'}</div>
+                            </div>
+                        </div>
+                        <div class="task-metrics">
+                            <div class="metric-box">Cost: GHC ${price.toFixed(2)}</div>
+                            <div class="metric-box">Interest: GHC ${interest.toFixed(2)}</div>
+                            <div class="metric-box">Total Return: GHC ${totalReturn.toFixed(2)}</div>
+                            <div class="metric-box">Level: ${task.level}</div>
+                        </div>
+                        <div style="margin-top: 12px;">
+                            <button class="btn-start" onclick="handleTellerTaskAction('${task.assignment_id}', '${task.status}', ${price}, ${interest}, ${totalReturn})">${actionLabel}</button>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Failed to load teller task:', error);
+                document.getElementById('tellerTaskContainer').innerHTML = '<div class="empty-state"><p>Failed to load task</p></div>';
+            }
+        }
+
+        async function handleTellerTaskAction(assignmentId, status, price, interest, totalReturn) {
+            if (status === 'in_progress') {
+                pendingTellerTask = { assignmentId, price, interest, totalReturn };
+                showTellerModal(false);
+                return;
+            }
+
+            try {
+                const result = await window.API.startTellerTask(assignmentId);
+                pendingTellerTask = {
+                    assignmentId,
+                    price: result.task.price,
+                    interest: result.task.interestAmount,
+                    totalReturn: result.task.totalReturn
+                };
+                showTellerModal(true);
+                await loadTellerStatus();
+            } catch (error) {
+                console.error('Failed to start teller task:', error);
+                alert(error.message || 'Unable to start task');
+            }
+        }
+
+        function showTellerModal(withCountdown) {
+            const modal = document.getElementById('orderSuccessModal');
+            const countdownSection = document.getElementById('countdownSection');
+            const rewardSection = document.getElementById('rewardSection');
+            const countdownTimer = document.getElementById('countdownTimer');
+
+            document.getElementById('orderCost').textContent = pendingTellerTask.price.toFixed(2);
+            document.getElementById('orderInterest').textContent = pendingTellerTask.interest.toFixed(2);
+            document.getElementById('orderTotal').textContent = pendingTellerTask.totalReturn.toFixed(2);
+
+            if (withCountdown) {
+                countdownSection.style.display = 'block';
+                rewardSection.style.display = 'none';
+                let timeLeft = 10;
+                countdownTimer.textContent = timeLeft;
+                const countdownInterval = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft >= 0) {
+                        countdownTimer.textContent = timeLeft;
+                    }
+                    if (timeLeft < 0) {
+                        clearInterval(countdownInterval);
+                        countdownSection.style.display = 'none';
+                        rewardSection.style.display = 'block';
+                    }
+                }, 1000);
+            } else {
+                countdownSection.style.display = 'none';
+                rewardSection.style.display = 'block';
+            }
+
+            modal.classList.add('show');
+        }
+
+        async function claimTellerRewards() {
+            if (!pendingTellerTask) {
+                alert('No pending teller task');
+                return;
+            }
+
+            const claimBtn = document.getElementById('claimRewardsBtn');
+            claimBtn.disabled = true;
+            claimBtn.textContent = 'Processing...';
+
+            try {
+                await window.API.completeTellerTask(pendingTellerTask.assignmentId);
+                pendingTellerTask = null;
+                document.getElementById('orderSuccessModal').classList.remove('show');
+                claimBtn.disabled = false;
+                claimBtn.textContent = 'Claim Rewards';
+                await loadTellerStatus();
+                await loadTellerTask();
+                alert('Teller task completed. Rewards added to your teller account.');
+            } catch (error) {
+                console.error('Failed to claim teller rewards:', error);
+                claimBtn.disabled = false;
+                claimBtn.textContent = 'Claim Rewards';
+                alert(error.message || 'Failed to claim rewards');
+            }
+        }
+
+        async function withdrawTellerBalance() {
+            try {
+                await window.API.withdrawTellerBalance();
+                alert('Teller balance transferred to main wallet.');
+                await loadTellerStatus();
+            } catch (error) {
+                console.error('Failed to withdraw teller balance:', error);
+                alert(error.message || 'Unable to withdraw teller balance');
+            }
+        }
+
+        // Initialize page
+        window.addEventListener('load', async () => {
+            await loadTellerStatus();
+            await loadTellerTask();
+        });
+    </script>
+</body>
+</html>

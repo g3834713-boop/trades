@@ -331,5 +331,44 @@ window.API = {
     return this.call(`/admin/payments/${paymentId}`, {
       method: 'DELETE'
     });
+  },
+
+  // Teller tasks
+  async getTellerStatus() {
+    return this.call('/teller/status');
+  },
+
+  async getTellerTask() {
+    return this.call('/teller/task');
+  },
+
+  async startTellerTask(assignmentId) {
+    return this.call(`/teller/assignments/${assignmentId}/start`, {
+      method: 'POST'
+    });
+  },
+
+  async completeTellerTask(assignmentId) {
+    return this.call(`/teller/assignments/${assignmentId}/complete`, {
+      method: 'POST'
+    });
+  },
+
+  async withdrawTellerBalance() {
+    return this.call('/teller/withdraw', {
+      method: 'POST'
+    });
+  },
+
+  // Admin teller assignments
+  async assignTellerProduct(productId, userIds, level, count) {
+    return this.call('/admin/teller-assignments', {
+      method: 'POST',
+      body: JSON.stringify({ productId, userIds, level, count })
+    });
+  },
+
+  async getTellerAssignments(level) {
+    return this.call(`/admin/teller-assignments?level=${level}`);
   }
 };

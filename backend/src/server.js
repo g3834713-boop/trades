@@ -31,6 +31,11 @@ app.post('/users/sync', requireAuth, async (req, res) => {
      on conflict (user_id) do nothing`,
     [id]
   );
+  await query(
+    `insert into teller_wallets (user_id) values ($1)
+     on conflict (user_id) do nothing`,
+    [id]
+  );
   res.json({ ok: true });
 });
 
@@ -621,6 +626,392 @@ app.post('/admin/products/:id/assign', requireAuth, requireAdmin, async (req, re
   res.json({ assigned, skipped });
 });
 
+// Admin: Assign teller product tasks (level 100/200/300)
+app.post('/admin/teller-assignments', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { productId, userIds, level, count } = req.body;
+    const numericLevel = Number(level);
+    const assignCount = Math.min(Math.max(Number(count || 1), 1), 3);
+
+    if (!productId || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'Product ID and user IDs are required' });
+    }
+
+    if (![100, 200, 300].includes(numericLevel)) {
+      return res.status(400).json({ error: 'Invalid level. Use 100, 200, or 300.' });
+    }
+
+    let assigned = 0;
+    let skipped = 0;
+    let reachedMax = 0;
+
+    for (const userId of userIds) {
+      try {
+        const { rows } = await query(
+          `select count(*)::int as total
+           from teller_product_assignments
+           where user_id = $1 and level = $2`,
+          [userId, numericLevel]
+        );
+        const existingCount = Number(rows[0]?.total || 0);
+
+        if (existingCount >= 3) {
+          reachedMax++;
+          continue;
+        }
+
+        const remaining = 3 - existingCount;
+        const toAssign = Math.min(assignCount, remaining);
+
+        for (let i = 0; i < toAssign; i++) {
+          await query(
+            `insert into teller_product_assignments (user_id, product_id, level, order_index)
+             values ($1, $2, $3, $4)`,
+            [userId, productId, numericLevel, existingCount + i + 1]
+          );
+          assigned++;
+        }
+      } catch (error) {
+        skipped++;
+      }
+    }
+
+    res.json({ assigned, skipped, reachedMax });
+  } catch (error) {
+    console.error('Error assigning teller tasks:', error);
+    res.status(500).json({ error: 'Failed to assign teller tasks: ' + error.message });
+  }
+});
+
+// Admin: Get teller assignments by level
+app.get('/admin/teller-assignments', requireAuth, requireAdmin, async (req, res) => {
+  const level = Number(req.query.level || 100);
+  if (![100, 200, 300].includes(level)) {
+    return res.status(400).json({ error: 'Invalid level. Use 100, 200, or 300.' });
+  }
+
+  const { rows } = await query(
+    `select tpa.id, tpa.level, tpa.status, tpa.order_index, tpa.assigned_at, tpa.completed_at,
+            u.id as user_id, u.email, u.full_name,
+            p.id as product_id, p.name, p.price, p.commission
+     from teller_product_assignments tpa
+     join app_users u on u.id = tpa.user_id
+     join products p on p.id = tpa.product_id
+     where tpa.level = $1
+     order by tpa.assigned_at desc`,
+    [level]
+  );
+  res.json(rows);
+});
+
+// Teller: Get status and current level
+app.get('/teller/status', requireAuth, async (req, res) => {
+  const { id: userId } = req.user;
+  await query(
+    `insert into teller_wallets (user_id) values ($1)
+     on conflict (user_id) do nothing`,
+    [userId]
+  );
+
+  const levels = [100, 200, 300];
+  const levelStats = {};
+
+  for (const level of levels) {
+    const { rows } = await query(
+      `select count(*)::int as total,
+              count(*) filter (where status = 'completed')::int as completed,
+              count(*) filter (where status != 'completed')::int as pending
+       from teller_product_assignments
+       where user_id = $1 and level = $2`,
+      [userId, level]
+    );
+    levelStats[level] = rows[0] || { total: 0, completed: 0, pending: 0 };
+  }
+
+  let currentLevel = null;
+  for (const level of levels) {
+    const stats = levelStats[level];
+    if ((stats.total || 0) > 0 && (stats.completed || 0) < (stats.total || 0)) {
+      currentLevel = level;
+      break;
+    }
+  }
+
+  const { rows: walletRows } = await query(
+    `select balance, last_withdrawn_level from teller_wallets where user_id = $1`,
+    [userId]
+  );
+  const tellerBalance = Number(walletRows[0]?.balance || 0);
+  const lastWithdrawnLevel = Number(walletRows[0]?.last_withdrawn_level || 0);
+
+  let highestCompletedLevel = 0;
+  for (const level of levels) {
+    const stats = levelStats[level];
+    if ((stats.total || 0) > 0 && (stats.completed || 0) === (stats.total || 0)) {
+      highestCompletedLevel = level;
+    }
+  }
+
+  const canWithdraw = tellerBalance > 0 && highestCompletedLevel > lastWithdrawnLevel;
+
+  res.json({
+    currentLevel,
+    levels: levelStats,
+    tellerBalance,
+    lastWithdrawnLevel,
+    highestCompletedLevel,
+    canWithdraw
+  });
+});
+
+// Teller: Get current task for active level
+app.get('/teller/task', requireAuth, async (req, res) => {
+  const { id: userId } = req.user;
+  const levels = [100, 200, 300];
+
+  let currentLevel = null;
+  for (const level of levels) {
+    const { rows } = await query(
+      `select count(*)::int as total,
+              count(*) filter (where status = 'completed')::int as completed
+       from teller_product_assignments
+       where user_id = $1 and level = $2`,
+      [userId, level]
+    );
+    const total = Number(rows[0]?.total || 0);
+    const completed = Number(rows[0]?.completed || 0);
+    if (total > 0 && completed < total) {
+      currentLevel = level;
+      break;
+    }
+  }
+
+  if (!currentLevel) {
+    return res.json({ level: null, task: null });
+  }
+
+  const { rows: taskRows } = await query(
+    `select tpa.id as assignment_id, tpa.level, tpa.status, tpa.order_index,
+            p.id as product_id, p.name, p.description, p.price, p.image, p.commission
+     from teller_product_assignments tpa
+     join products p on p.id = tpa.product_id
+     where tpa.user_id = $1 and tpa.level = $2 and tpa.status in ('pending', 'in_progress')
+     order by (case when tpa.status = 'in_progress' then 0 else 1 end), tpa.order_index asc, tpa.assigned_at asc
+     limit 1`,
+    [userId, currentLevel]
+  );
+
+  res.json({ level: currentLevel, task: taskRows[0] || null });
+});
+
+// Teller: Start task (deduct from main wallet)
+app.post('/teller/assignments/:id/start', requireAuth, async (req, res) => {
+  const { id: assignmentId } = req.params;
+  const { id: userId } = req.user;
+
+  const { rows } = await query(
+    `select tpa.id, tpa.level, tpa.status, tpa.order_index,
+            p.id as product_id, p.name, p.price, p.commission
+     from teller_product_assignments tpa
+     join products p on p.id = tpa.product_id
+     where tpa.id = $1 and tpa.user_id = $2`,
+    [assignmentId, userId]
+  );
+
+  if (rows.length === 0) {
+    return res.status(404).json({ error: 'Teller task not found' });
+  }
+
+  const task = rows[0];
+  if (task.status === 'completed') {
+    return res.status(400).json({ error: 'Task already completed' });
+  }
+  if (task.status === 'in_progress') {
+    return res.status(400).json({ error: 'Task already started' });
+  }
+
+  const levels = [100, 200, 300];
+  let currentLevel = null;
+  for (const level of levels) {
+    const { rows: levelRows } = await query(
+      `select count(*)::int as total,
+              count(*) filter (where status = 'completed')::int as completed
+       from teller_product_assignments
+       where user_id = $1 and level = $2`,
+      [userId, level]
+    );
+    const total = Number(levelRows[0]?.total || 0);
+    const completed = Number(levelRows[0]?.completed || 0);
+    if (total > 0 && completed < total) {
+      currentLevel = level;
+      break;
+    }
+  }
+
+  if (!currentLevel || currentLevel !== Number(task.level)) {
+    return res.status(400).json({ error: 'This level is not active yet' });
+  }
+
+  const { rows: inProgressRows } = await query(
+    `select id from teller_product_assignments
+     where user_id = $1 and level = $2 and status = 'in_progress'`,
+    [userId, currentLevel]
+  );
+  if (inProgressRows.length > 0 && inProgressRows[0].id !== assignmentId) {
+    return res.status(400).json({ error: 'Finish your current teller task before starting a new one' });
+  }
+
+  const { rows: walletRows } = await query('select balance from wallets where user_id = $1', [userId]);
+  const balance = Number(walletRows[0]?.balance || 0);
+  const price = Number(task.price || 0);
+
+  if (price <= 0) {
+    return res.status(400).json({ error: 'Invalid task price' });
+  }
+
+  if (balance < price) {
+    return res.status(400).json({ error: 'Insufficient balance' });
+  }
+
+  const interestAmount = (price * Number(task.commission || 0)) / 100;
+  const totalReturn = price + interestAmount;
+
+  await query(
+    'update wallets set balance = balance - $1, updated_at = now() where user_id = $2',
+    [price, userId]
+  );
+  await query(
+    'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
+    [userId, 'teller_task_cost', price, `Teller task started: ${task.name}`]
+  );
+
+  await query(
+    `update teller_product_assignments
+     set status = 'in_progress'
+     where id = $1 and user_id = $2`,
+    [assignmentId, userId]
+  );
+
+  res.json({
+    ok: true,
+    task: {
+      assignmentId: task.id,
+      name: task.name,
+      price,
+      commission: Number(task.commission || 0),
+      interestAmount,
+      totalReturn
+    }
+  });
+});
+
+// Teller: Complete task (credit teller wallet)
+app.post('/teller/assignments/:id/complete', requireAuth, async (req, res) => {
+  const { id: assignmentId } = req.params;
+  const { id: userId } = req.user;
+
+  const { rows } = await query(
+    `select tpa.id, tpa.status, tpa.level,
+            p.id as product_id, p.name, p.price, p.commission
+     from teller_product_assignments tpa
+     join products p on p.id = tpa.product_id
+     where tpa.id = $1 and tpa.user_id = $2`,
+    [assignmentId, userId]
+  );
+
+  if (rows.length === 0) {
+    return res.status(404).json({ error: 'Teller task not found' });
+  }
+
+  const task = rows[0];
+  if (task.status !== 'in_progress') {
+    return res.status(400).json({ error: 'Task must be started first' });
+  }
+
+  const price = Number(task.price || 0);
+  const interestAmount = (price * Number(task.commission || 0)) / 100;
+  const totalReturn = price + interestAmount;
+
+  await query(
+    `update teller_product_assignments
+     set status = 'completed', completed_at = now()
+     where id = $1 and user_id = $2`,
+    [assignmentId, userId]
+  );
+
+  await query(
+    `insert into teller_wallets (user_id, balance)
+     values ($1, $2)
+     on conflict (user_id) do update set balance = teller_wallets.balance + excluded.balance, updated_at = now()`,
+    [userId, totalReturn]
+  );
+
+  await query(
+    'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
+    [userId, 'teller_task_reward', totalReturn, `Teller task completed: ${task.name}`]
+  );
+
+  const { rows: walletRows } = await query('select balance from teller_wallets where user_id = $1', [userId]);
+  res.json({ ok: true, tellerBalance: Number(walletRows[0]?.balance || 0) });
+});
+
+// Teller: Withdraw teller balance to main balance
+app.post('/teller/withdraw', requireAuth, async (req, res) => {
+  const { id: userId } = req.user;
+  const levels = [100, 200, 300];
+
+  const levelStats = {};
+  for (const level of levels) {
+    const { rows } = await query(
+      `select count(*)::int as total,
+              count(*) filter (where status = 'completed')::int as completed
+       from teller_product_assignments
+       where user_id = $1 and level = $2`,
+      [userId, level]
+    );
+    levelStats[level] = rows[0] || { total: 0, completed: 0 };
+  }
+
+  let highestCompletedLevel = 0;
+  for (const level of levels) {
+    const stats = levelStats[level];
+    if ((stats.total || 0) > 0 && (stats.completed || 0) === (stats.total || 0)) {
+      highestCompletedLevel = level;
+    }
+  }
+
+  const { rows: walletRows } = await query(
+    'select balance, last_withdrawn_level from teller_wallets where user_id = $1',
+    [userId]
+  );
+  const tellerBalance = Number(walletRows[0]?.balance || 0);
+  const lastWithdrawnLevel = Number(walletRows[0]?.last_withdrawn_level || 0);
+
+  if (tellerBalance <= 0) {
+    return res.status(400).json({ error: 'No teller balance available' });
+  }
+
+  if (highestCompletedLevel <= lastWithdrawnLevel) {
+    return res.status(400).json({ error: 'Complete a level before withdrawing' });
+  }
+
+  await query(
+    'update wallets set balance = balance + $1, updated_at = now() where user_id = $2',
+    [tellerBalance, userId]
+  );
+  await query(
+    'update teller_wallets set balance = 0, last_withdrawn_level = $1, updated_at = now() where user_id = $2',
+    [highestCompletedLevel, userId]
+  );
+  await query(
+    'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
+    [userId, 'teller_withdraw', tellerBalance, 'Teller balance withdrawn to main wallet']
+  );
+
+  const { rows: finalWallet } = await query('select balance from wallets where user_id = $1', [userId]);
+  res.json({ ok: true, balance: Number(finalWallet[0]?.balance || 0) });
+});
+
 // Mark task as completed
 app.post('/tasks/:id/complete', requireAuth, async (req, res) => {
   try {
@@ -1056,6 +1447,29 @@ async function ensureSchema() {
     )
   `);
   await query('create unique index if not exists product_assignments_unique on product_assignments(product_id, user_id)');
+
+  await query(`
+    create table if not exists teller_wallets (
+      user_id uuid primary key references app_users(id) on delete cascade,
+      balance numeric(12,2) not null default 0,
+      last_withdrawn_level int not null default 0,
+      updated_at timestamptz default now()
+    )
+  `);
+
+  await query(`
+    create table if not exists teller_product_assignments (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      product_id uuid not null references products(id) on delete cascade,
+      level int not null,
+      status text not null default 'pending',
+      order_index int not null default 1,
+      assigned_at timestamptz default now(),
+      completed_at timestamptz
+    )
+  `);
+  await query('create index if not exists teller_assignments_user_level_idx on teller_product_assignments(user_id, level, status)');
 }
 
 ensureSchema()
