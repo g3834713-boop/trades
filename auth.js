@@ -361,10 +361,10 @@ window.API = {
   },
 
   // Admin teller assignments
-  async assignTellerProduct(productId, userIds, level, count) {
+  async assignTellerProduct(productIds, userIds, level) {
     return this.call('/admin/teller-assignments', {
       method: 'POST',
-      body: JSON.stringify({ productId, userIds, level, count })
+      body: JSON.stringify({ productIds, userIds, level })
     });
   },
 

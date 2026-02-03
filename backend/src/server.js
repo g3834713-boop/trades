@@ -631,12 +631,18 @@ app.post('/admin/products/:id/assign', requireAuth, requireAdmin, async (req, re
 // Admin: Assign teller product tasks (level 100/200/300)
 app.post('/admin/teller-assignments', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { productId, userIds, level, count } = req.body;
+    const { productIds, userIds, level } = req.body;
     const numericLevel = Number(level);
-    const assignCount = Math.min(Math.max(Number(count || 1), 1), 3);
+    const uniqueProductIds = Array.isArray(productIds)
+      ? Array.from(new Set(productIds)).filter(Boolean)
+      : [];
 
-    if (!productId || !Array.isArray(userIds) || userIds.length === 0) {
-      return res.status(400).json({ error: 'Product ID and user IDs are required' });
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'User IDs are required' });
+    }
+
+    if (uniqueProductIds.length === 0 || uniqueProductIds.length > 3) {
+      return res.status(400).json({ error: 'Select 1 to 3 product IDs' });
     }
 
     if (![100, 200, 300].includes(numericLevel)) {
@@ -663,13 +669,16 @@ app.post('/admin/teller-assignments', requireAuth, requireAdmin, async (req, res
         }
 
         const remaining = 3 - existingCount;
-        const toAssign = Math.min(assignCount, remaining);
+        const toAssign = uniqueProductIds.slice(0, remaining);
+        if (toAssign.length < uniqueProductIds.length) {
+          reachedMax++;
+        }
 
-        for (let i = 0; i < toAssign; i++) {
+        for (let i = 0; i < toAssign.length; i++) {
           await query(
             `insert into teller_product_assignments (user_id, product_id, level, order_index)
              values ($1, $2, $3, $4)`,
-            [userId, productId, numericLevel, existingCount + i + 1]
+            [userId, toAssign[i], numericLevel, existingCount + i + 1]
           );
           assigned++;
         }
