@@ -519,15 +519,23 @@
             <!-- Teller Products Section -->
             <div class="content-section" id="teller-products">
                 <h2 style="font-size: 20px; margin-bottom: 12px; color: #333;">Teller Product Tasks</h2>
-                <p style="color: #666; margin-bottom: 20px; font-size: 13px;">Select 1-3 product tasks per level (100, 200, 300). Users complete them sequentially.</p>
+                <p style="color: #666; margin-bottom: 20px; font-size: 13px;">Assign up to 3 teller tasks per level (100, 200, 300) per user. Users only see tasks sequentially.</p>
 
                 <div style="display: grid; gap: 20px;">
                     <div style="background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
                         <h3 style="margin-bottom: 12px; color: #333;">Level 100</h3>
                         <div style="display: grid; gap: 12px;">
                             <div style="display: grid; gap: 6px;">
-                                <label style="font-size: 12px; color: #666;">Products (select 1-3)</label>
-                                <select id="tellerProducts100" class="search-input" multiple style="height: 110px;"></select>
+                                <label style="font-size: 12px; color: #666;">Product</label>
+                                <select id="tellerProduct100" class="search-input"></select>
+                            </div>
+                            <div style="display: grid; gap: 6px;">
+                                <label style="font-size: 12px; color: #666;">Tasks to assign (1-3)</label>
+                                <select id="tellerCount100" class="search-input">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                </select>
                             </div>
                             <div style="display: flex; gap: 16px; align-items: center;">
                                 <label style="font-size: 12px; color: #666;"><input type="radio" name="tellerScope100" value="all" checked onchange="toggleTellerScope(100)"> All Users</label>
@@ -555,8 +563,16 @@
                         <h3 style="margin-bottom: 12px; color: #333;">Level 200</h3>
                         <div style="display: grid; gap: 12px;">
                             <div style="display: grid; gap: 6px;">
-                                <label style="font-size: 12px; color: #666;">Products (select 1-3)</label>
-                                <select id="tellerProducts200" class="search-input" multiple style="height: 110px;"></select>
+                                <label style="font-size: 12px; color: #666;">Product</label>
+                                <select id="tellerProduct200" class="search-input"></select>
+                            </div>
+                            <div style="display: grid; gap: 6px;">
+                                <label style="font-size: 12px; color: #666;">Tasks to assign (1-3)</label>
+                                <select id="tellerCount200" class="search-input">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                </select>
                             </div>
                             <div style="display: flex; gap: 16px; align-items: center;">
                                 <label style="font-size: 12px; color: #666;"><input type="radio" name="tellerScope200" value="all" checked onchange="toggleTellerScope(200)"> All Users</label>
@@ -584,8 +600,16 @@
                         <h3 style="margin-bottom: 12px; color: #333;">Level 300</h3>
                         <div style="display: grid; gap: 12px;">
                             <div style="display: grid; gap: 6px;">
-                                <label style="font-size: 12px; color: #666;">Products (select 1-3)</label>
-                                <select id="tellerProducts300" class="search-input" multiple style="height: 110px;"></select>
+                                <label style="font-size: 12px; color: #666;">Product</label>
+                                <select id="tellerProduct300" class="search-input"></select>
+                            </div>
+                            <div style="display: grid; gap: 6px;">
+                                <label style="font-size: 12px; color: #666;">Tasks to assign (1-3)</label>
+                                <select id="tellerCount300" class="search-input">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                </select>
                             </div>
                             <div style="display: flex; gap: 16px; align-items: center;">
                                 <label style="font-size: 12px; color: #666;"><input type="radio" name="tellerScope300" value="all" checked onchange="toggleTellerScope(300)"> All Users</label>
@@ -1353,7 +1377,7 @@
                 : '<option value="">No products available</option>';
 
             [100, 200, 300].forEach(level => {
-                const productSelect = document.getElementById(`tellerProducts${level}`);
+                const productSelect = document.getElementById(`tellerProduct${level}`);
                 if (productSelect) productSelect.innerHTML = productOptions;
 
                 const userSelect = document.getElementById(`tellerUsers${level}`);
@@ -1377,19 +1401,12 @@
 
         async function assignTellerTasks(level) {
             try {
-                const productSelect = document.getElementById(`tellerProducts${level}`);
-                const productIds = Array.from(productSelect?.selectedOptions || [])
-                    .map(option => option.value)
-                    .filter(Boolean);
+                const productId = document.getElementById(`tellerProduct${level}`).value;
+                const count = Number(document.getElementById(`tellerCount${level}`).value || 1);
                 const scope = document.querySelector(`input[name="tellerScope${level}"]:checked`).value;
 
-                if (!productIds.length) {
-                    alert('Please select 1-3 products');
-                    return;
-                }
-
-                if (productIds.length > 3) {
-                    alert('You can assign up to 3 products per level');
+                if (!productId) {
+                    alert('Please select a product');
                     return;
                 }
 
@@ -1406,7 +1423,7 @@
                     return;
                 }
 
-                const result = await window.API.assignTellerProduct(productIds, userIds, level);
+                const result = await window.API.assignTellerProduct(productId, userIds, level, count);
                 alert(`Assigned: ${result.assigned}. Skipped: ${result.skipped}. Maxed: ${result.reachedMax}.`);
                 await loadTellerAssignments(level);
             } catch (error) {
