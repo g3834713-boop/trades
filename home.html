@@ -1601,14 +1601,14 @@
 
                 // Fetch complete user profile from backend with retry
                 let userProfile = null;
-                let retries = 0;
-                while (!userProfile && retries < 3) {
+                let profileRetries = 0;
+                while (!userProfile && profileRetries < 3) {
                     try {
                         userProfile = await window.API.getUserProfile();
                     } catch (profileError) {
-                        console.warn(`Profile load attempt ${retries + 1} failed:`, profileError);
-                        retries++;
-                        if (retries < 3) {
+                        console.warn(`Profile load attempt ${profileRetries + 1} failed:`, profileError);
+                        profileRetries++;
+                        if (profileRetries < 3) {
                             await new Promise(resolve => setTimeout(resolve, 1000));
                         }
                     }

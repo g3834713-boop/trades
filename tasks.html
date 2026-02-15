@@ -1198,14 +1198,14 @@
                 
                 // Load user wallet with retry
                 let wallet = null;
-                let retries = 0;
-                while (!wallet && retries < 3) {
+                let walletRetries = 0;
+                while (!wallet && walletRetries < 3) {
                     try {
                         wallet = await window.API.getWallet();
                     } catch (walletError) {
-                        console.warn(`Wallet load attempt ${retries + 1} failed:`, walletError);
-                        retries++;
-                        if (retries < 3) {
+                        console.warn(`Wallet load attempt ${walletRetries + 1} failed:`, walletError);
+                        walletRetries++;
+                        if (walletRetries < 3) {
                             await new Promise(resolve => setTimeout(resolve, 1000));
                         }
                     }

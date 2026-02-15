@@ -1467,15 +1467,15 @@
                 console.log('Fetching user profile...'); // Debug log
                 // Fetch complete user profile from backend with retry
                 let userProfile = null;
-                let retries = 0;
-                while (!userProfile && retries < 3) {
+                let profileRetries = 0;
+                while (!userProfile && profileRetries < 3) {
                     try {
                         userProfile = await window.API.getUserProfile();
                         console.log('User profile:', userProfile); // Debug log
                     } catch (profileError) {
-                        console.warn(`Profile load attempt ${retries + 1} failed:`, profileError);
-                        retries++;
-                        if (retries < 3) {
+                        console.warn(`Profile load attempt ${profileRetries + 1} failed:`, profileError);
+                        profileRetries++;
+                        if (profileRetries < 3) {
                             await new Promise(resolve => setTimeout(resolve, 1000));
                         }
                     }
@@ -1624,11 +1624,6 @@
             alert('Language preference saved!');
             closeActionModal('languageModal');
         }
-
-        // Load language and user data on page load
-        window.addEventListener('DOMContentLoaded', function() {
-            applyTranslations();
-        });
     </script>
 </body>
 </html>
