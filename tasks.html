@@ -521,6 +521,70 @@
         .tab-content.active {
             display: block;
         }
+
+        /* Loading and Transition Styles */
+        .work-container {
+            padding: 16px 12px;
+        }
+
+        .page-loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+            padding: 60px 20px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Hide sections initially, show with animation */
+        .balance-section,
+        .award-section,
+        #beginnerTasksSection,
+        .filter-buttons,
+        .task-list {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .balance-section.loaded,
+        .award-section.loaded,
+        #beginnerTasksSection.loaded,
+        .filter-buttons.loaded,
+        .task-list.loaded {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Ensure sections maintain space while loading */
+        .balance-section:empty,
+        .award-section:empty {
+            min-height: 150px;
+        }
+
+        #beginnerTasksSection:empty {
+            min-height: 0;
+            opacity: 1;
+            transform: none;
+        }
+
+        /* Smooth content changes */
+        .task-list {
+            min-height: 100px;
+        }
     </style>
 </head>
 <body>
@@ -540,6 +604,11 @@
 
     <!-- New Task Container -->
     <div class="work-container">
+        <!-- Loading Spinner -->
+        <div class="page-loading" id="pageLoading">
+            <div class="loading-spinner"></div>
+        </div>
+
         <!-- Balance Section -->
         <div class="balance-section"></div>
 
@@ -566,11 +635,50 @@
 
         // Initialize page
         async function initializePage() {
-            await loadUserTasks();
-            await loadBeginnerTasks();
-            updateBalance();
-            updateAward();
-            displayTasks('pending');
+            try {
+                // Load tasks data first
+                await loadUserTasks();
+                
+                // Update balance section and show it
+                await updateBalance();
+                await new Promise(resolve => setTimeout(resolve, 100));
+                document.querySelector('.balance-section').classList.add('loaded');
+                
+                // Update award section and show it
+                updateAward();
+                await new Promise(resolve => setTimeout(resolve, 150));
+                document.querySelector('.award-section').classList.add('loaded');
+                
+                // Load beginner tasks and show them
+                await loadBeginnerTasks();
+                await new Promise(resolve => setTimeout(resolve, 100));
+                const beginnerSection = document.getElementById('beginnerTasksSection');
+                if (beginnerSection && beginnerSection.innerHTML.trim()) {
+                    beginnerSection.classList.add('loaded');
+                }
+                
+                // Show filter buttons
+                await new Promise(resolve => setTimeout(resolve, 100));
+                document.querySelector('.filter-buttons').classList.add('loaded');
+                
+                // Display tasks and show them
+                displayTasks('pending');
+                await new Promise(resolve => setTimeout(resolve, 100));
+                document.querySelector('.task-list').classList.add('loaded');
+                
+                // Hide loading spinner
+                const pageLoading = document.getElementById('pageLoading');
+                if (pageLoading) {
+                    pageLoading.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error initializing page:', error);
+                // Hide loading spinner even on error
+                const pageLoading = document.getElementById('pageLoading');
+                if (pageLoading) {
+                    pageLoading.style.display = 'none';
+                }
+            }
         }
 
         async function loadBeginnerTasks() {
