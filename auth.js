@@ -98,17 +98,38 @@ window.API = {
       ...options.headers
     };
 
-    const response = await fetch(`${CONFIG.API_URL}${endpoint}`, {
-      ...options,
-      headers
-    });
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }));
-      throw new Error(error.error || `API request failed: ${response.status}`);
+      const response = await fetch(`${CONFIG.API_URL}${endpoint}`, {
+        ...options,
+        headers,
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error(error.error || `API request failed: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      // Handle specific error types
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout. Please check your internet connection.');
+      }
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        throw new Error('Network error. Please check your internet connection.');
+      }
+      if (error.message.includes('CORS')) {
+        throw new Error('Server connection error. Please contact support.');
+      }
+      // Re-throw the original error
+      throw error;
     }
-
-    return response.json();
   },
 
   async getWallet() {

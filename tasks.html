@@ -1163,6 +1163,13 @@
         // Apply language on load
         window.addEventListener('DOMContentLoaded', async function() {
             try {
+                // Wait for AuthService to load (module might load async)
+                let retries = 0;
+                while (typeof window.AuthService === 'undefined' && retries < 10) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    retries++;
+                }
+                
                 // Check if user is authenticated
                 if (typeof window.AuthService === 'undefined') {
                     window.location.href = 'index.html';
@@ -1189,18 +1196,45 @@
                 // Apply language translations
                 applyLanguage();
                 
-                // Load user wallet
-                const wallet = await window.API.getWallet();
+                // Load user wallet with retry
+                let wallet = null;
+                let retries = 0;
+                while (!wallet && retries < 3) {
+                    try {
+                        wallet = await window.API.getWallet();
+                    } catch (walletError) {
+                        console.warn(`Wallet load attempt ${retries + 1} failed:`, walletError);
+                        retries++;
+                        if (retries < 3) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
+                }
+                
                 const balanceDisplay = document.getElementById('balanceDisplay');
                 if (balanceDisplay) {
-                    balanceDisplay.textContent = `GHC ${parseFloat(wallet.balance || 0).toFixed(2)}`;
+                    balanceDisplay.textContent = wallet ? `GHC ${parseFloat(wallet.balance || 0).toFixed(2)}` : 'GHC 0.00';
                 }
 
-                // Initialize tasks
-                await initializePage();
+                // Initialize tasks (non-blocking)
+                try {
+                    await initializePage();
+                } catch (taskError) {
+                    console.error('Error initializing tasks:', taskError);
+                }
             } catch (error) {
                 console.error('Error loading tasks page:', error);
-                window.location.href = 'index.html';
+                // Only redirect on authentication errors
+                if (error.message && (error.message.includes('No authentication token') || error.message.includes('Invalid token'))) {
+                    window.location.href = 'index.html';
+                } else {
+                    // Stay on page with default values
+                    const balanceDisplay = document.getElementById('balanceDisplay');
+                    if (balanceDisplay) {
+                        balanceDisplay.textContent = 'GHC 0.00';
+                    }
+                    console.error('Non-critical error, staying on page');
+                }
             }
         });
         

@@ -1571,6 +1571,13 @@
             applyTranslations();
             
             try {
+                // Wait for AuthService to load (module might load async)
+                let retries = 0;
+                while (typeof window.AuthService === 'undefined' && retries < 10) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    retries++;
+                }
+                
                 // Check if user is authenticated
                 if (typeof window.AuthService === 'undefined') {
                     console.error('AuthService not available');
@@ -1585,25 +1592,48 @@
                     return;
                 }
 
-                // Sync user to backend
-                await window.API.call('/users/sync', { method: 'POST' });
+                // Sync user to backend (non-blocking)
+                try {
+                    await window.API.call('/users/sync', { method: 'POST' });
+                } catch (syncError) {
+                    console.warn('User sync failed:', syncError);
+                }
 
-                // Fetch complete user profile from backend
-                const userProfile = await window.API.getUserProfile();
-                const totalBalance = parseFloat(userProfile.balance || 0) + parseFloat(userProfile.bonus || 0);
-                document.getElementById('commissionDisplay').textContent = `GHC ${totalBalance.toFixed(2)}`;
-                
-                // Store user profile globally
-                window.currentUserProfile = userProfile;
+                // Fetch complete user profile from backend with retry
+                let userProfile = null;
+                let retries = 0;
+                while (!userProfile && retries < 3) {
+                    try {
+                        userProfile = await window.API.getUserProfile();
+                    } catch (profileError) {
+                        console.warn(`Profile load attempt ${retries + 1} failed:`, profileError);
+                        retries++;
+                        if (retries < 3) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
+                }
+
+                if (userProfile) {
+                    const totalBalance = parseFloat(userProfile.balance || 0) + parseFloat(userProfile.bonus || 0);
+                    document.getElementById('commissionDisplay').textContent = `GHC ${totalBalance.toFixed(2)}`;
+                    window.currentUserProfile = userProfile;
+                } else {
+                    // Set default values if profile loading failed
+                    document.getElementById('commissionDisplay').textContent = 'GHC 0.00';
+                    console.error('Failed to load user profile after retries');
+                }
             } catch (error) {
-                console.error('Error loading wallet:', error);
-                // Show user-friendly error message
+                console.error('Error loading page:', error);
+                // Only redirect on authentication errors
                 if (error.message.includes('No authentication token') || error.message.includes('Invalid token')) {
                     alert('Your session has expired. Please login again.');
+                    window.location.href = 'index.html';
                 } else {
-                    alert('Failed to load balance. Please try again.');
+                    // For other errors, show message but stay on page
+                    document.getElementById('commissionDisplay').textContent = 'GHC 0.00';
+                    console.error('Non-critical error, staying on page');
                 }
-                window.location.href = 'index.html';
             }
         });
 

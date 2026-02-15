@@ -1442,6 +1442,13 @@
                 applyTranslations();
             
             try {
+                // Wait for AuthService to load (module might load async)
+                let retries = 0;
+                while (typeof window.AuthService === 'undefined' && retries < 10) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    retries++;
+                }
+                
                 // Check if user is authenticated
                 if (typeof window.AuthService === 'undefined') {
                     console.error('AuthService not available');
@@ -1458,29 +1465,62 @@
                 }
 
                 console.log('Fetching user profile...'); // Debug log
-                // Fetch complete user profile from backend
-                const userProfile = await window.API.getUserProfile();
-                console.log('User profile:', userProfile); // Debug log
+                // Fetch complete user profile from backend with retry
+                let userProfile = null;
+                let retries = 0;
+                while (!userProfile && retries < 3) {
+                    try {
+                        userProfile = await window.API.getUserProfile();
+                        console.log('User profile:', userProfile); // Debug log
+                    } catch (profileError) {
+                        console.warn(`Profile load attempt ${retries + 1} failed:`, profileError);
+                        retries++;
+                        if (retries < 3) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
+                }
                 
-                // Display user information
-                document.getElementById('profileName').textContent = userProfile.full_name || userProfile.email;
-                document.getElementById('profileId').textContent = 'ID-' + userProfile.id.substring(0, 8).toUpperCase();
-                document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(userProfile.balance || 0).toFixed(2)}`;
-                document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(userProfile.bonus || 0).toFixed(2)}`;
-                
-                // Store user data globally for other functions
-                window.currentUserProfile = userProfile;
-                console.log('Profile loaded successfully!'); // Debug log
+                if (userProfile) {
+                    // Display user information
+                    document.getElementById('profileName').textContent = userProfile.full_name || userProfile.email;
+                    document.getElementById('profileId').textContent = 'ID-' + userProfile.id.substring(0, 8).toUpperCase();
+                    document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(userProfile.balance || 0).toFixed(2)}`;
+                    document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(userProfile.bonus || 0).toFixed(2)}`;
+                    
+                    // Store user data globally for other functions
+                    window.currentUserProfile = userProfile;
+                    console.log('Profile loaded successfully!'); // Debug log
+                } else {
+                    // Set default values if profile loading failed
+                    const user = await window.AuthService.getUser();
+                    document.getElementById('profileName').textContent = user?.email || 'User';
+                    document.getElementById('profileId').textContent = 'ID-' + (user?.id.substring(0, 8).toUpperCase() || 'UNKNOWN');
+                    document.getElementById('balanceDisplay').textContent = 'GHC 0.00';
+                    document.getElementById('bonusDisplay').textContent = 'GHC 0.00';
+                    console.error('Failed to load profile after retries');
+                }
             } catch (error) {
                 console.error('Error loading profile:', error);
                 console.error('Error message:', error.message); // Debug log
-                // Show user-friendly error message
+                // Only redirect on authentication errors
                 if (error.message.includes('No authentication token') || error.message.includes('Invalid token')) {
                     alert('Your session has expired. Please login again.');
+                    window.location.href = 'index.html';
                 } else {
-                    alert('Failed to load profile: ' + error.message);
+                    // For other errors, show defaults but stay on page
+                    try {
+                        const user = await window.AuthService.getUser();
+                        document.getElementById('profileName').textContent = user?.email || 'User';
+                        document.getElementById('profileId').textContent = 'ID-' + (user?.id.substring(0, 8).toUpperCase() || 'UNKNOWN');
+                    } catch (userErr) {
+                        document.getElementById('profileName').textContent = 'User';
+                        document.getElementById('profileId').textContent = 'ID-UNKNOWN';
+                    }
+                    document.getElementById('balanceDisplay').textContent = 'GHC 0.00';
+                    document.getElementById('bonusDisplay').textContent = 'GHC 0.00';
+                    console.error('Non-critical error, staying on page');
                 }
-                window.location.href = 'index.html';
             }
         });
 
