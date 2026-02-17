@@ -38,11 +38,25 @@
         }
 
         .sidebar-logo {
-            font-size: 22px;
-            font-weight: bold;
             margin-bottom: 30px;
             padding-bottom: 20px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-logo img {
+            height: 40px;
+            width: auto;
+            background: white;
+            padding: 6px;
+            border-radius: 8px;
+        }
+
+        .sidebar-logo-text {
+            font-size: 22px;
+            font-weight: bold;
         }
 
         .sidebar-menu {
@@ -349,7 +363,8 @@
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="sidebar-logo">
-                <i class="las la-crown"></i> Admin
+                <img src="logo.png" alt="DailyTrade">
+                <span class="sidebar-logo-text">Admin</span>
             </div>
             <ul class="sidebar-menu">
                 <li><a href="#" class="menu-link active" onclick="switchSection('dashboard')">
