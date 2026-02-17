@@ -321,6 +321,59 @@
             display: block;
         }
 
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-message {
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .status-message.error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .status-message.success {
+            background: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+
+        .status-message.info {
+            background: #e8f4fd;
+            color: #0066cc;
+            border: 1px solid #b3d9f2;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         @media (max-width: 480px) {
             .register-card {
                 padding: 24px 16px;
@@ -354,6 +407,9 @@
             </div>
 
             <form id="registerForm">
+                <!-- Status Message -->
+                <div id="statusMessage" class="status-message"></div>
+
                 <!-- First Name & Last Name -->
                 <div class="input-row">
                     <div class="form-group">
@@ -472,7 +528,9 @@
                 </label>
 
                 <!-- Register Button -->
-                <button type="submit" class="register-button" id="submitBtn">Create Account</button>
+                <button type="submit" class="register-button" id="submitBtn">
+                    <span id="buttonText">Create Account</span>
+                </button>
             </form>
 
             <!-- Divider -->
@@ -503,6 +561,32 @@
     </div>
 
     <script>
+        // Show/hide status messages
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            statusEl.style.display = 'block';
+        }
+
+        function hideStatus() {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.style.display = 'none';
+        }
+
+        function setLoading(isLoading, text = 'Create Account') {
+            const button = document.getElementById('submitBtn');
+            const buttonText = document.getElementById('buttonText');
+            
+            button.disabled = isLoading;
+            
+            if (isLoading) {
+                buttonText.innerHTML = '<span class="loading-spinner"></span>' + text;
+            } else {
+                buttonText.textContent = text;
+            }
+        }
+
         // Password Strength Calculator
         function calculatePasswordStrength(password) {
             let strength = 0;
@@ -643,10 +727,12 @@
             }
 
             if (isValid) {
-                // Register with Supabase Auth
-                const submitBtn = document.getElementById('submitBtn');
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Creating Account...';
+                // Hide any previous messages
+                hideStatus();
+                
+                // Show loading state
+                setLoading(true, 'Creating Account...');
+                showStatus('Setting up your account...', 'info');
 
                 (async () => {
                     try {
@@ -658,18 +744,25 @@
                             throw new Error('Authentication service not loaded. Please refresh the page.');
                         }
 
+                        showStatus('Registering your account...', 'info');
                         const result = await window.AuthService.register(email, password, fullName, formattedPhone);
                         
                         // Check if email confirmation is required
                         if (result.requiresEmailConfirmation) {
-                            alert('Account created! Please check your email to confirm your account, then login.');
-                            window.location.href = 'index.html';
+                            hideStatus();
+                            showStatus('Account created! Please check your email to confirm your account.', 'success');
+                            setLoading(false, 'Account Created!');
+                            
+                            setTimeout(() => {
+                                window.location.href = 'index.html';
+                            }, 2500);
                             return;
                         }
                         
                         // Show success message
-                        document.getElementById('successMessage').classList.add('show');
-                        submitBtn.textContent = 'Account Created!';
+                        hideStatus();
+                        showStatus('Account created successfully! Redirecting...', 'success');
+                        setLoading(false, 'Account Created!');
 
                         // Redirect to login
                         setTimeout(() => {
@@ -677,6 +770,9 @@
                         }, 1500);
                     } catch (error) {
                         console.error('Registration error:', error);
+                        
+                        // Reset button state
+                        setLoading(false);
                         
                         // Handle rate limit error
                         let errorMessage = 'Registration failed. Please try again.';
@@ -688,9 +784,7 @@
                             errorMessage = error.message;
                         }
                         
-                        showError('email', errorMessage);
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = 'Create Account';
+                        showStatus(errorMessage, 'error');
                     }
                 })();
             }

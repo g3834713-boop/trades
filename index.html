@@ -248,6 +248,65 @@
             border-right: 1px solid #e0e0e0;
         }
 
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .login-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .status-message {
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .status-message.error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .status-message.success {
+            background: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+
+        .status-message.info {
+            background: #e8f4fd;
+            color: #0066cc;
+            border: 1px solid #b3d9f2;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         @media (max-width: 480px) {
             .login-card {
                 padding: 24px 16px;
@@ -274,6 +333,9 @@
             </div>
 
             <form id="loginForm">
+                <!-- Status Message -->
+                <div id="statusMessage" class="status-message"></div>
+
                 <!-- Email Input -->
                 <div class="form-group">
                     <label class="form-label">Email Address</label>
@@ -311,7 +373,9 @@
                 </div>
 
                 <!-- Login Button -->
-                <button type="submit" class="login-button">Log in</button>
+                <button type="submit" class="login-button" id="loginButton">
+                    <span id="buttonText">Log in</span>
+                </button>
             </form>
 
             <!-- Divider -->
@@ -356,19 +420,54 @@
             }
         }
 
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            statusEl.style.display = 'block';
+        }
+
+        function hideStatus() {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.style.display = 'none';
+        }
+
+        function setLoading(isLoading, text = 'Log in') {
+            const button = document.getElementById('loginButton');
+            const buttonText = document.getElementById('buttonText');
+            
+            button.disabled = isLoading;
+            
+            if (isLoading) {
+                buttonText.innerHTML = '<span class="loading-spinner"></span>' + text;
+            } else {
+                buttonText.textContent = text;
+            }
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const email = document.getElementById('emailInput').value.trim();
             const password = document.getElementById('passwordInput').value;
             
+            // Hide any previous messages
+            hideStatus();
+            
             try {
                 if (typeof window.AuthService === 'undefined') {
                     throw new Error('Authentication service not loaded. Please refresh the page.');
                 }
 
+                // Show logging in status
+                setLoading(true, 'Logging in...');
+                showStatus('Verifying your credentials...', 'info');
+
                 const result = await window.AuthService.login(email, password);
 
+                // Update status for sync
+                showStatus('Setting up your account...', 'info');
+                
                 try {
                     // Ensure user exists in backend database
                     await window.API.call('/users/sync', {
@@ -379,10 +478,19 @@
                     console.warn('User sync failed:', syncError);
                 }
                 
-                // Redirect to home on successful login
-                window.location.href = 'home.html';
+                // Show success message
+                showStatus('Login successful! Redirecting...', 'success');
+                
+                // Redirect after a brief moment
+                setTimeout(() => {
+                    window.location.href = 'home.html';
+                }, 500);
+                
             } catch (error) {
                 console.error('Login error:', error);
+                
+                // Reset button state
+                setLoading(false);
                 
                 // Handle different error types
                 let errorMessage = 'Invalid email or password';
@@ -394,7 +502,7 @@
                     errorMessage = error.message;
                 }
                 
-                alert(errorMessage);
+                showStatus(errorMessage, 'error');
             }
         });
     </script>
