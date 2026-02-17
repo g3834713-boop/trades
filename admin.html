@@ -29,7 +29,7 @@
         /* Sidebar */
         .sidebar {
             width: 250px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4361ee;
             color: white;
             padding: 20px;
             position: fixed;
@@ -132,7 +132,7 @@
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            border-top: 4px solid #667eea;
+            border-top: 4px solid #4361ee;
         }
 
         .stat-label {
@@ -144,7 +144,7 @@
         .stat-value {
             font-size: 28px;
             font-weight: bold;
-            color: #667eea;
+            color: #4361ee;
         }
 
         /* Table */
@@ -211,12 +211,12 @@
         }
 
         .btn-primary {
-            background: #667eea;
+            background: #4361ee;
             color: white;
         }
 
         .btn-primary:hover {
-            background: #5568d3;
+            background: #3451d4;
         }
 
         .btn-danger {
@@ -270,8 +270,8 @@
         .form-textarea:focus,
         .form-select:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #4361ee;
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
         }
 
         /* Modal */
@@ -1134,7 +1134,7 @@
                             <div class="table-cell">${user.full_name || user.email}</div>
                             <div class="table-cell">${user.email}</div>
                             <div class="table-cell">ID-${userId}</div>
-                            <div class="table-cell">GHC ${balance.toFixed(2)} <span style="color: #667eea;">(+${bonus.toFixed(2)} bonus)</span></div>
+                            <div class="table-cell">GHC ${balance.toFixed(2)} <span style="color: #4361ee;">(+${bonus.toFixed(2)} bonus)</span></div>
                             <div class="table-cell">${paymentNumber}${paymentMethod}</div>
                             <div class="table-action">
                                 <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${user.full_name || user.email}')">Add Funds</button>
@@ -2102,7 +2102,7 @@
                     tbody.innerHTML = submissions.map(sub => `
                         <div class="table-row">
                             <div>${sub.user_email}</div>
-                            <div><a href="${sub.url}" target="_blank" style="color: #667eea; text-decoration: underline;">${sub.url.substring(0, 40)}${sub.url.length > 40 ? '...' : ''}</a></div>
+                            <div><a href="${sub.url}" target="_blank" style="color: #4361ee; text-decoration: underline;">${sub.url.substring(0, 40)}${sub.url.length > 40 ? '...' : ''}</a></div>
                             <div>${new Date(sub.submitted_at).toLocaleString()}</div>
                             <div>
                                 <button class="btn-action btn-danger" onclick="deleteSubmission('${sub.id}', '${taskId}')"><i class="las la-trash"></i></button>

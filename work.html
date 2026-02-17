@@ -24,7 +24,7 @@
 
         /* Header */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4361ee;
             color: white;
             padding: 16px;
             display: flex;
@@ -53,7 +53,7 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            color: #667eea;
+            color: #4361ee;
             font-size: 20px;
         }
 
@@ -87,7 +87,7 @@
         .order-balance {
             font-size: 32px;
             font-weight: bold;
-            color: #667eea;
+            color: #4361ee;
             margin-bottom: 8px;
         }
 
@@ -109,7 +109,7 @@
 
         .loading-bar-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            background: #4361ee;
             width: 0%;
             animation: loadingAnimation 2s ease-in-out infinite;
             border-radius: 4px;
@@ -124,7 +124,7 @@
         .order-button {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4361ee;
             color: white;
             border: none;
             border-radius: 8px;
@@ -135,8 +135,9 @@
         }
 
         .order-button:hover {
+            background: #3451d4;
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.3);
         }
 
         .order-button:active {
@@ -203,8 +204,8 @@
             width: 100%;
             height: 100%;
             border: 4px solid #f0f0f0;
-            border-top-color: #667eea;
-            border-right-color: #764ba2;
+            border-top-color: #4361ee;
+            border-right-color: #4361ee;
             border-radius: 50%;
             animation: rotateSpinner 6s linear infinite;
         }
@@ -221,19 +222,19 @@
             transform: translate(-50%, -50%);
             font-size: 12px;
             font-weight: 600;
-            color: #667eea;
+            color: #4361ee;
             width: 100%;
             line-height: 1;
         }
 
         /* Bonus Transfer Card */
         .bonus-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4361ee;
             border-radius: 16px;
             padding: 20px;
             color: white;
             margin-bottom: 24px;
-            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 16px rgba(67, 97, 238, 0.3);
         }
 
         .bonus-card-label {
@@ -252,7 +253,7 @@
             width: 100%;
             padding: 12px;
             background: white;
-            color: #667eea;
+            color: #4361ee;
             border: none;
             border-radius: 8px;
             font-size: 14px;
@@ -307,7 +308,7 @@
             background: #f9f9f9;
             border-radius: 12px;
             transition: background 0.2s;
-            border-left: 3px solid #667eea;
+            border-left: 3px solid #4361ee;
         }
 
         .commission-item:hover {
@@ -318,7 +319,7 @@
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4361ee;
             color: white;
             display: flex;
             align-items: center;
@@ -329,11 +330,11 @@
         }
 
         .commission-rank.second {
-            background: linear-gradient(135deg, #c0c0c0 0%, #a0a0a0 100%);
+            background: #c0c0c0;
         }
 
         .commission-rank.third {
-            background: linear-gradient(135deg, #cd7f32 0%, #b8660e 100%);
+            background: #cd7f32;
         }
 
         .commission-info {
@@ -350,7 +351,7 @@
         .commission-amount {
             font-size: 16px;
             font-weight: bold;
-            color: #667eea;
+            color: #4361ee;
         }
 
         /* Order Details Section */
@@ -373,7 +374,7 @@
         }
 
         .order-details-title i {
-            color: #667eea;
+            color: #4361ee;
             font-size: 22px;
         }
 
@@ -392,7 +393,7 @@
             width: 40px;
             height: 40px;
             min-width: 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4361ee;
             color: white;
             border-radius: 50%;
             display: flex;
@@ -477,11 +478,11 @@
         }
 
         .nav-item.active {
-            color: #667eea;
+            color: #4361ee;
         }
 
         .nav-item:hover {
-            color: #667eea;
+            color: #4361ee;
         }
     </style>
 </head>
@@ -565,16 +566,16 @@
         </div>
 
         <!-- Become a Teller Card -->
-        <div class="order-details-section" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border-left: 4px solid #667eea;">
+        <div class="order-details-section" style="background: rgba(67, 97, 238, 0.08); border-left: 4px solid #4361ee;">
             <div class="order-details-title">
-                <i class="las la-crown" style="color: #667eea;"></i>
+                <i class="las la-crown" style="color: #4361ee;"></i>
                 Become a Teller
             </div>
             <div style="padding: 20px; text-align: center;">
                 <p style="color: #666; font-size: 14px; margin-bottom: 16px; line-height: 1.6;">
                     Become a Teller and earn more! Your moderators will assist you throughout your training. Complete our qualifying tasks to start your journey as a trusted Teller.
                 </p>
-                <button class="btn-primary" onclick="navigateToTeller()" style="background: #667eea; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+                <button class="btn-primary" onclick="navigateToTeller()" style="background: #4361ee; color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
                     <i class="las la-arrow-right"></i> Opt in Now
                 </button>
             </div>
