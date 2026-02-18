@@ -758,12 +758,12 @@
                         // Check if email confirmation is required
                         if (result.requiresEmailConfirmation) {
                             hideStatus();
-                            showStatus('Account created! Please check your email to confirm your account.', 'success');
+                            showStatus('Account created! <b>Please check your email and click the confirmation link before logging in.</b>', 'success');
                             setLoading(false, 'Account Created!');
-                            
-                            setTimeout(() => {
-                                window.location.href = 'index.html';
-                            }, 2500);
+                            // Optionally, do not redirect immediately so user can read the message
+                            // setTimeout(() => {
+                            //     window.location.href = 'index.html';
+                            // }, 5000);
                             return;
                         }
                         
