@@ -2372,7 +2372,6 @@
                     const activeLink = document.querySelector(`.menu-link[onclick*="${section}"]`);
                     if (activeLink) activeLink.classList.add('active');
                 }
-        }
 
         function editUserBalance(email) {
             const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
