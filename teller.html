@@ -675,7 +675,7 @@
                 claimBtn.textContent = 'Claim Rewards';
                 await loadTellerStatus();
                 await loadTellerTask();
-                alert('Teller task completed. Rewards added to your teller account.');
+                alert(`Teller task completed. GHC ${pendingTellerTask.totalReturn.toFixed(2)} added to teller account.`);
             } catch (error) {
                 console.error('Failed to claim teller rewards:', error);
                 claimBtn.disabled = false;
