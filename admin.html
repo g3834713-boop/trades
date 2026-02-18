@@ -1156,7 +1156,7 @@
                                 <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${user.full_name || user.email}')">Add Funds</button>
                                 <button class="btn btn-success" onclick="openPaymentNumberModal('${user.id}', '${user.full_name || user.email}', '${user.payment_number || ''}', '${user.payment_method || ''}')">Set Payment Number</button>
                                 ${user.payment_number ? `<button class="btn btn-danger" onclick="deletePaymentNumber('${user.id}', '${user.full_name || user.email}')">Remove</button>` : ''}
-                                ${!isAdmin ? `<button class="btn btn-danger" onclick="deleteUser('${user.id}')">Delete User</button>` : ''}
+                                
                             </div>
                         </div>`;
                     });
@@ -2351,7 +2351,7 @@
                     <div class="table-cell">GHC ${parseFloat(balance).toFixed(2)}</div>
                     <div class="table-action">
                         <button class="btn btn-primary" onclick="editUserBalance('${user.email}')">Edit</button>
-                        <button class="btn btn-danger" onclick="deleteUser('${user.email}')">Delete</button>
+                        
                     </div>
                 </div>`;
             });
@@ -2359,24 +2359,7 @@
             document.getElementById('usersTableBody').innerHTML = html;
         }
 
-        function deleteUser(email) {
-        async function deleteUser(email) {
-            if (confirm('Delete this user? This cannot be undone.')) {
-                try {
-                    const response = await window.API.deleteUser(email);
-                    console.log('Delete user response:', response);
-                    if (response.ok) {
-                        alert('User deleted successfully');
-                        loadUsers();
-                    } else {
-                        alert(response.error || JSON.stringify(response) || 'Failed to delete user');
-                    }
-                } catch (err) {
-                    alert('Error deleting user: ' + err.message);
-                    console.error('Delete user error:', err);
-                }
-            }
-        }
+        // ...existing code...
                 // Sidebar section switcher
                 function switchSection(section) {
                     // Hide all content sections

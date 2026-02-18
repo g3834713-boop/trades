@@ -32,112 +32,7 @@ const DataManager = {
         return (adminData.tasks || []).find(t => t.id === taskId) || null;
     },
 
-    assignTaskToUser: function(userId, taskId) {
-        const taskTemplate = this.getTaskTemplate(taskId);
-        if (!taskTemplate) return { success: false, reason: 'task_not_found' };
-
-        const tasks = this.getUserTasks(userId);
-        const alreadyAssigned = ['pending', 'frozen', 'completed']
-            .some(status => (tasks[status] || []).some(t => t.id === taskId));
-
-        if (alreadyAssigned) return { success: false, reason: 'already_assigned' };
-
-        const taskInstance = {
-            ...taskTemplate,
-            status: 'pending',
-            assignedAt: new Date().toISOString()
-        };
-
-        tasks.pending = tasks.pending || [];
-        tasks.pending.push(taskInstance);
-        this.saveUserTasks(userId, tasks);
-        return { success: true };
-    },
-
-    assignTaskToUsers: function(userIds, taskId) {
-        let assigned = 0;
-        let skipped = 0;
-        userIds.forEach(userId => {
-            const result = this.assignTaskToUser(userId, taskId);
-            if (result.success) assigned += 1;
-            else skipped += 1;
-        });
-        return { assigned, skipped };
-    },
-
-    // Product assignment helpers
-    getProductTemplate: function(productId) {
-        const adminData = this.getAdminData();
-        return (adminData.products || []).find(p => p.id === productId) || null;
-    },
-
-    getUserProducts: function(userId) {
-        const data = localStorage.getItem(`userProducts_${userId}`);
-        if (data) return JSON.parse(data);
-        return [];
-    },
-
-    saveUserProducts: function(userId, products) {
-        localStorage.setItem(`userProducts_${userId}`, JSON.stringify(products));
-        this.syncAllPages(userId);
-    },
-
-    assignProductToUser: function(userId, productId) {
-        const productTemplate = this.getProductTemplate(productId);
-        if (!productTemplate) return { success: false, reason: 'product_not_found' };
-
-        const userProducts = this.getUserProducts(userId);
-        const alreadyAssigned = userProducts.some(p => p.id === productId);
-
-        if (alreadyAssigned) return { success: false, reason: 'already_assigned' };
-
-        const productInstance = {
-            ...productTemplate,
-            assignedAt: new Date().toISOString()
-        };
-
-        userProducts.push(productInstance);
-        this.saveUserProducts(userId, userProducts);
-        return { success: true };
-    },
-
-    assignProductToUsers: function(userIds, productId) {
-        let assigned = 0;
-        let skipped = 0;
-        userIds.forEach(userId => {
-            const result = this.assignProductToUser(userId, productId);
-            if (result.success) assigned += 1;
-            else skipped += 1;
-        });
-        return { assigned, skipped };
-    },
-
-    completeUserTask: function(userId, taskId) {
-        const tasks = this.getUserTasks(userId);
-        const pendingIndex = (tasks.pending || []).findIndex(t => t.id === taskId);
-        if (pendingIndex === -1) return null;
-
-        const task = tasks.pending.splice(pendingIndex, 1)[0];
-        task.status = 'completed';
-        task.completedAt = new Date().toISOString();
-
-        tasks.completed = tasks.completed || [];
-        tasks.completed.push(task);
-        this.saveUserTasks(userId, tasks);
-        return task;
-    },
-
-    // Assign product as task
-    assignProductAsTask: function(userId, productId) {
-        const productTemplate = this.getProductTemplate(productId);
-        if (!productTemplate) return { success: false, reason: 'product_not_found' };
-
-        const tasks = this.getUserTasks(userId);
-        const alreadyAssigned = ['pending', 'frozen', 'completed']
-            .some(status => (tasks[status] || []).some(t => t.productId === productId));
-
-        if (alreadyAssigned) return { success: false, reason: 'already_assigned' };
-
+    // ...all localStorage-based task logic removed. Use backend APIs for teller tasks...
         const taskInstance = {
             id: productId,
             productId: productId,
@@ -443,11 +338,7 @@ const DataManager = {
         return finance ? finance.transactions : [];
     },
 
-    // Get task history
-    getUserTaskHistory: function(userId) {
-        const finance = this.getUserFinance(userId);
-        return finance ? finance.taskHistory : [];
-    },
+    // ...existing code...
 
     // Get pending withdrawals for admin
     getPendingWithdrawals: function() {
