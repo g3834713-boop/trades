@@ -2360,6 +2360,7 @@
         }
 
         function deleteUser(email) {
+        async function deleteUser(email) {
             if (confirm('Delete this user? This cannot be undone.')) {
                 // Find user ID from user list
                 const allUsers = await window.API.getAllUsers();
@@ -2380,6 +2381,19 @@
                     alert('Error deleting user');
                 }
             }
+        }
+                // Sidebar section switcher
+                function switchSection(section) {
+                    // Hide all content sections
+                    document.querySelectorAll('.content-section').forEach(sec => sec.style.display = 'none');
+                    // Show selected section
+                    const el = document.getElementById(section);
+                    if (el) el.style.display = 'block';
+                    // Update active menu
+                    document.querySelectorAll('.menu-link').forEach(link => link.classList.remove('active'));
+                    const activeLink = document.querySelector(`.menu-link[onclick*="${section}"]`);
+                    if (activeLink) activeLink.classList.add('active');
+                }
         }
 
         function editUserBalance(email) {
