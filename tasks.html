@@ -1141,7 +1141,7 @@
                 claimBtn.textContent = 'Processing...';
                 
                 try {
-                    const { taskId } = window.pendingBeginnerReward;
+                    const { taskId, rewardAmount } = window.pendingBeginnerReward;
 
                     // Claim beginner task reward
                     await window.API.claimBeginnerTaskReward(taskId);
@@ -1159,7 +1159,7 @@
                     claimBtn.removeAttribute('data-beginner-task');
                     
                     // Show success message
-                    alert('Reward claimed successfully!\nYou earned GHC 1.00');
+                    alert(`Reward claimed successfully!\nYou earned GHC ${parseFloat(rewardAmount || 0).toFixed(2)}`);
 
                 } catch (error) {
                     console.error('Error claiming reward:', error);
