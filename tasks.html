@@ -1276,6 +1276,22 @@
 
         // Apply language on load
         window.addEventListener('DOMContentLoaded', async function() {
+            applyLanguage();
+
+            // === Instantly show cached balance so it never flashes blank ===
+            const cachedProfile = localStorage.getItem('cachedUserProfile');
+            if (cachedProfile) {
+                try {
+                    const cached = JSON.parse(cachedProfile);
+                    const balanceDisplay = document.getElementById('balanceDisplay');
+                    if (balanceDisplay) {
+                        balanceDisplay.textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse cached profile:', e);
+                }
+            }
+
             try {
                 // Wait for AuthService to load (module might load async)
                 let retries = 0;
@@ -1300,15 +1316,8 @@
                     return;
                 }
 
-                // Sync user to backend (non-blocking)
-                try {
-                    await window.API.call('/users/sync', { method: 'POST' });
-                } catch (syncError) {
-                    console.warn('User sync failed:', syncError);
-                }
-
-                // Apply language translations
-                applyLanguage();
+                // Sync user to backend (fire and forget)
+                window.API.call('/users/sync', { method: 'POST' }).catch(e => console.warn('User sync failed:', e));
                 
                 // Load user wallet with retry
                 let wallet = null;
@@ -1327,7 +1336,7 @@
                 
                 const balanceDisplay = document.getElementById('balanceDisplay');
                 if (balanceDisplay) {
-                    balanceDisplay.textContent = wallet ? `GHC ${parseFloat(wallet.balance || 0).toFixed(2)}` : 'GHC 0.00';
+                    balanceDisplay.textContent = wallet ? `GHC ${parseFloat(wallet.balance || 0).toFixed(2)}` : (cachedProfile ? balanceDisplay.textContent : 'GHC 0.00');
                 }
 
                 // Initialize tasks (non-blocking)
@@ -1341,8 +1350,8 @@
                 // Only redirect on authentication errors
                 if (error.message && (error.message.includes('No authentication token') || error.message.includes('Invalid token'))) {
                     window.location.href = 'index.html';
-                } else {
-                    // Stay on page with default values
+                } else if (!cachedProfile) {
+                    // Stay on page with default values only if no cache
                     const balanceDisplay = document.getElementById('balanceDisplay');
                     if (balanceDisplay) {
                         balanceDisplay.textContent = 'GHC 0.00';

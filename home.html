@@ -970,6 +970,18 @@
             <div class="commission-amount" id="commissionDisplay">GHC 0.00</div>
             <div style="font-size: 12px; opacity: 0.8;">Total earnings this month</div>
         </div>
+        <script>
+            try {
+                const cachedProfile = localStorage.getItem('cachedUserProfile');
+                if (cachedProfile) {
+                    const cached = JSON.parse(cachedProfile);
+                    const cachedTotal = parseFloat(cached.balance || 0) + parseFloat(cached.bonus || 0);
+                    document.getElementById('commissionDisplay').textContent = `GHC ${cachedTotal.toFixed(2)}`;
+                }
+            } catch (error) {
+                console.warn('Failed to prefill cached commission:', error);
+            }
+        </script>
 
         <!-- Action Buttons -->
         <div class="action-buttons">
@@ -1418,22 +1430,35 @@
             }
         }
 
-        async function updateAccount() {
-            const newName = document.getElementById('accountName').value.trim();
-            const newPhone = document.getElementById('accountPhone').value.trim();
+        function updateAccount() {
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                const newName = document.getElementById('accountName').value;
+                const newEmail = document.getElementById('accountEmail').value;
+                const newPhone = document.getElementById('accountPhone').value;
 
-            if (!newName) {
-                alert('Please fill in your name');
-                return;
-            }
+                if (!newName || !newEmail || !newPhone) {
+                    alert('Please fill in all fields');
+                    return;
+                }
 
-            try {
-                await window.API.updateProfile(newName, newPhone);
+                user.fullName = newName;
+                user.email = newEmail;
+                user.phone = newPhone;
+
+                localStorage.setItem('currentUser', JSON.stringify(user));
+
+                // Update allUsers list as well
+                let allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+                const userIndex = allUsers.findIndex(u => u.userId === user.userId);
+                if (userIndex !== -1) {
+                    allUsers[userIndex] = user;
+                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                }
+
                 alert('Account information updated successfully!');
                 closeActionModal('accountModal');
-            } catch (error) {
-                console.error('Update account error:', error);
-                alert(error.message || 'Failed to update account');
             }
         }
 
@@ -1602,6 +1627,19 @@
         // Load user data and apply language on page load
         window.addEventListener('DOMContentLoaded', async function() {
             applyTranslations();
+
+            // === Instantly show cached data so values never flash blank ===
+            const cachedProfile = localStorage.getItem('cachedUserProfile');
+            if (cachedProfile) {
+                try {
+                    const cached = JSON.parse(cachedProfile);
+                    const cachedTotal = parseFloat(cached.balance || 0) + parseFloat(cached.bonus || 0);
+                    document.getElementById('commissionDisplay').textContent = `GHC ${cachedTotal.toFixed(2)}`;
+                    window.currentUserProfile = cached;
+                } catch (cacheError) {
+                    console.warn('Failed to parse cached profile:', cacheError);
+                }
+            }
             
             try {
                 // Wait for AuthService to load (module might load async)
@@ -1625,12 +1663,8 @@
                     return;
                 }
 
-                // Sync user to backend (non-blocking)
-                try {
-                    await window.API.call('/users/sync', { method: 'POST' });
-                } catch (syncError) {
-                    console.warn('User sync failed:', syncError);
-                }
+                // Sync user to backend (non-blocking, fire and forget)
+                window.API.call('/users/sync', { method: 'POST' }).catch(e => console.warn('User sync failed:', e));
 
                 // Fetch complete user profile from backend with retry
                 let userProfile = null;
@@ -1651,8 +1685,9 @@
                     const totalBalance = parseFloat(userProfile.balance || 0) + parseFloat(userProfile.bonus || 0);
                     document.getElementById('commissionDisplay').textContent = `GHC ${totalBalance.toFixed(2)}`;
                     window.currentUserProfile = userProfile;
-                } else {
-                    // Set default values if profile loading failed
+                    localStorage.setItem('cachedUserProfile', JSON.stringify(userProfile));
+                } else if (!cachedProfile) {
+                    // Only show zeros if we had no cache
                     document.getElementById('commissionDisplay').textContent = 'GHC 0.00';
                     console.error('Failed to load user profile after retries');
                 }
@@ -1662,8 +1697,8 @@
                 if (error.message.includes('No authentication token') || error.message.includes('Invalid token')) {
                     alert('Your session has expired. Please login again.');
                     window.location.href = 'index.html';
-                } else {
-                    // For other errors, show message but stay on page
+                } else if (!cachedProfile) {
+                    // For other errors, show zeros only if no cache
                     document.getElementById('commissionDisplay').textContent = 'GHC 0.00';
                     console.error('Non-critical error, staying on page');
                 }

@@ -472,6 +472,20 @@
             <div class="balance-value" id="bonusDisplay">GHC 0.00</div>
         </div>
     </div>
+    <script>
+        try {
+            const cachedProfile = localStorage.getItem('cachedUserProfile');
+            if (cachedProfile) {
+                const cached = JSON.parse(cachedProfile);
+                document.getElementById('profileName').textContent = cached.full_name || cached.email || 'User';
+                document.getElementById('profileId').textContent = cached.id ? 'ID-' + cached.id.substring(0, 8).toUpperCase() : 'ID-UNKNOWN';
+                document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
+                document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(cached.bonus || 0).toFixed(2)}`;
+            }
+        } catch (error) {
+            console.warn('Failed to prefill cached profile:', error);
+        }
+    </script>
 
     <!-- Action Buttons -->
     <div class="action-buttons-section">
@@ -1138,6 +1152,14 @@
         // Load account data into modal
         async function loadAccountData() {
             try {
+                const cachedProfile = localStorage.getItem('cachedUserProfile');
+                if (cachedProfile) {
+                    const cached = JSON.parse(cachedProfile);
+                    document.getElementById('profileName').textContent = cached.full_name || cached.email || 'User';
+                    document.getElementById('profileId').textContent = cached.id ? 'ID-' + cached.id.substring(0, 8).toUpperCase() : 'ID-UNKNOWN';
+                    document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
+                    document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(cached.bonus || 0).toFixed(2)}`;
+                }
                 const profile = window.currentUserProfile || await window.API.getUserProfile();
                 if (profile) {
                     document.getElementById('accountName').value = profile.full_name || profile.email || '';
@@ -1385,26 +1407,26 @@
         }
 
         // Update account
-        async function updateAccount() {
-            const newName = document.getElementById('accountName').value.trim();
-            const newPhone = document.getElementById('accountPhone').value.trim();
-
-            if (!newName) {
-                alert('Please fill in your name');
-                return;
-            }
-
-            try {
-                await window.API.updateProfile(newName, newPhone);
-                // Refresh displayed profile
-                const updatedProfile = await window.API.getUserProfile();
-                window.currentUserProfile = updatedProfile;
-                document.getElementById('profileName').textContent = updatedProfile.full_name || updatedProfile.email;
+        function updateAccount() {
+            const userData = localStorage.getItem('currentUser');
+            if (userData) {
+                const user = JSON.parse(userData);
+                user.fullName = document.getElementById('accountName').value;
+                user.email = document.getElementById('accountEmail').value;
+                user.phone = document.getElementById('accountPhone').value;
+                
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                
+                // Update allUsers list as well
+                let allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+                const userIndex = allUsers.findIndex(u => u.userId === user.userId);
+                if (userIndex !== -1) {
+                    allUsers[userIndex] = user;
+                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                }
+                
                 alert('Account information updated successfully!');
                 closeActionModal('accountModal');
-            } catch (error) {
-                console.error('Update account error:', error);
-                alert(error.message || 'Failed to update account');
             }
         }
 
@@ -1460,7 +1482,22 @@
             // Load user data on page load
             window.addEventListener('DOMContentLoaded', async function() {
                 applyTranslations();
-            
+
+                // === Instantly show cached data so values never flash blank ===
+                const cachedProfile = localStorage.getItem('cachedUserProfile');
+                if (cachedProfile) {
+                    try {
+                        const cached = JSON.parse(cachedProfile);
+                        document.getElementById('profileName').textContent = cached.full_name || cached.email || 'User';
+                        document.getElementById('profileId').textContent = cached.id ? 'ID-' + cached.id.substring(0, 8).toUpperCase() : 'ID-UNKNOWN';
+                        document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
+                        document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(cached.bonus || 0).toFixed(2)}`;
+                        window.currentUserProfile = cached;
+                    } catch (e) {
+                        console.warn('Failed to parse cached profile:', e);
+                    }
+                }
+
             try {
                 // Wait for AuthService to load (module might load async)
                 let retries = 0;
@@ -1477,21 +1514,18 @@
                 }
 
                 const session = await window.AuthService.getSession();
-                console.log('Session:', session); // Debug log
                 if (!session) {
                     console.error('No active session found');
                     window.location.href = 'index.html';
                     return;
                 }
 
-                console.log('Fetching user profile...'); // Debug log
                 // Fetch complete user profile from backend with retry
                 let userProfile = null;
                 let profileRetries = 0;
                 while (!userProfile && profileRetries < 3) {
                     try {
                         userProfile = await window.API.getUserProfile();
-                        console.log('User profile:', userProfile); // Debug log
                     } catch (profileError) {
                         console.warn(`Profile load attempt ${profileRetries + 1} failed:`, profileError);
                         profileRetries++;
@@ -1502,17 +1536,17 @@
                 }
                 
                 if (userProfile) {
-                    // Display user information
+                    // Display fresh user information
                     document.getElementById('profileName').textContent = userProfile.full_name || userProfile.email;
                     document.getElementById('profileId').textContent = 'ID-' + userProfile.id.substring(0, 8).toUpperCase();
                     document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(userProfile.balance || 0).toFixed(2)}`;
                     document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(userProfile.bonus || 0).toFixed(2)}`;
                     
-                    // Store user data globally for other functions
+                    // Store user data globally and cache for next page visit
                     window.currentUserProfile = userProfile;
-                    console.log('Profile loaded successfully!'); // Debug log
-                } else {
-                    // Set default values if profile loading failed
+                    localStorage.setItem('cachedUserProfile', JSON.stringify(userProfile));
+                } else if (!cachedProfile) {
+                    // Only fall back to defaults if we had no cache either
                     const user = await window.AuthService.getUser();
                     document.getElementById('profileName').textContent = user?.email || 'User';
                     document.getElementById('profileId').textContent = 'ID-' + (user?.id.substring(0, 8).toUpperCase() || 'UNKNOWN');
@@ -1522,13 +1556,12 @@
                 }
             } catch (error) {
                 console.error('Error loading profile:', error);
-                console.error('Error message:', error.message); // Debug log
                 // Only redirect on authentication errors
                 if (error.message.includes('No authentication token') || error.message.includes('Invalid token')) {
                     alert('Your session has expired. Please login again.');
                     window.location.href = 'index.html';
-                } else {
-                    // For other errors, show defaults but stay on page
+                } else if (!cachedProfile) {
+                    // For other errors, show defaults only if no cache
                     try {
                         const user = await window.AuthService.getUser();
                         document.getElementById('profileName').textContent = user?.email || 'User';
