@@ -1156,7 +1156,7 @@
                                 <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${user.full_name || user.email}')">Add Funds</button>
                                 <button class="btn btn-success" onclick="openPaymentNumberModal('${user.id}', '${user.full_name || user.email}', '${user.payment_number || ''}', '${user.payment_method || ''}')">Set Payment Number</button>
                                 ${user.payment_number ? `<button class="btn btn-danger" onclick="deletePaymentNumber('${user.id}', '${user.full_name || user.email}')">Remove</button>` : ''}
-                                ${!isAdmin ? `<button class="btn btn-danger" onclick="deleteUser('${user.id}', '${user.full_name || user.email}')">Delete User</button>` : ''}
+                                ${!isAdmin ? `<button class="btn btn-danger" onclick="deleteUser('${user.id}')">Delete User</button>` : ''}
                             </div>
                         </div>`;
                     });
