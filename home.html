@@ -279,22 +279,47 @@
 
         .gallery-item {
             position: relative;
-            height: 160px;
             border-radius: 12px;
             overflow: hidden;
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s;
+            padding: 20px 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            text-decoration: none;
+            color: inherit;
         }
 
         .gallery-item:hover {
-            transform: scale(1.05);
+            transform: scale(1.03);
         }
 
-        .gallery-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .gallery-item .opp-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-bottom: 10px;
+            color: white;
+        }
+
+        .gallery-item .opp-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .gallery-item .opp-desc {
+            font-size: 11px;
+            color: #888;
+            line-height: 1.4;
         }
 
         /* Hall of Fame Section */
@@ -984,18 +1009,26 @@
         <!-- Gallery Section -->
         <div class="section-title">Featured Opportunities</div>
         <div class="gallery-container">
-            <div class="gallery-item">
-                <img src="https://via.placeholder.com/200x160?text=Opportunity+1" alt="Opportunity 1">
-            </div>
-            <div class="gallery-item">
-                <img src="https://via.placeholder.com/200x160?text=Opportunity+2" alt="Opportunity 2">
-            </div>
-            <div class="gallery-item">
-                <img src="https://via.placeholder.com/200x160?text=Opportunity+3" alt="Opportunity 3">
-            </div>
-            <div class="gallery-item">
-                <img src="https://via.placeholder.com/200x160?text=Opportunity+4" alt="Opportunity 4">
-            </div>
+            <a class="gallery-item" style="background: linear-gradient(135deg, #e8f5e9, #f1f8e9);" href="tasks.html">
+                <div class="opp-icon" style="background: #27ae60;"><i class="las la-graduation-cap"></i></div>
+                <div class="opp-title">Beginner Tasks</div>
+                <div class="opp-desc">Start earning today with simple tasks</div>
+            </a>
+            <a class="gallery-item" style="background: linear-gradient(135deg, #e3f2fd, #e8eaf6);" href="teller.html">
+                <div class="opp-icon" style="background: #3498db;"><i class="las la-layer-group"></i></div>
+                <div class="opp-title">Teller Tasks</div>
+                <div class="opp-desc">Complete product orders & earn commission</div>
+            </a>
+            <a class="gallery-item" style="background: linear-gradient(135deg, #fff3e0, #fff8e1);" onclick="navigateTo('recharge')" href="#">
+                <div class="opp-icon" style="background: #f39c12;"><i class="las la-wallet"></i></div>
+                <div class="opp-title">Recharge & Earn</div>
+                <div class="opp-desc">Top up your balance to unlock premium tasks</div>
+            </a>
+            <a class="gallery-item" style="background: linear-gradient(135deg, #fce4ec, #f3e5f5);" href="mine.html">
+                <div class="opp-icon" style="background: #e74c3c;"><i class="las la-user-friends"></i></div>
+                <div class="opp-title">Invite & Earn</div>
+                <div class="opp-desc">Refer friends and earn bonus commissions</div>
+            </a>
         </div>
 
         <!-- Divider -->
