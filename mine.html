@@ -1146,10 +1146,22 @@
         async function loadWithdrawData() {
             try {
                 const wallet = await window.API.getWallet();
-                document.getElementById('availableBalance').textContent = `GHC ${wallet.balance.toFixed(2)}`;
+                const balance = parseFloat(wallet?.balance || 0);
+                if (Number.isFinite(balance)) {
+                    document.getElementById('availableBalance').textContent = `GHC ${balance.toFixed(2)}`;
+                    return;
+                }
+                throw new Error('Wallet balance missing');
             } catch (error) {
                 console.error('Error loading withdraw data:', error);
-                document.getElementById('availableBalance').textContent = 'GHC 0.00';
+                try {
+                    const profile = window.currentUserProfile || await window.API.getUserProfile();
+                    const balance = parseFloat(profile?.balance || 0);
+                    document.getElementById('availableBalance').textContent = `GHC ${balance.toFixed(2)}`;
+                } catch (profileError) {
+                    console.error('Error loading fallback balance:', profileError);
+                    document.getElementById('availableBalance').textContent = 'GHC 0.00';
+                }
             }
         }
 
