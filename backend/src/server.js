@@ -116,6 +116,17 @@ app.get('/users/me', requireAuth, async (req, res) => {
   res.json(rows[0]);
 });
 
+// Update user profile
+app.put('/users/me', requireAuth, async (req, res) => {
+  const { fullName, phone } = req.body;
+  if (!fullName) return res.status(400).json({ error: 'Name is required' });
+  await query(
+    'update app_users set full_name = $1, phone = $2 where id = $3',
+    [fullName, phone || null, req.user.id]
+  );
+  res.json({ ok: true });
+});
+
 // Get referral stats
 app.get('/users/me/referral-stats', requireAuth, async (req, res) => {
   try {

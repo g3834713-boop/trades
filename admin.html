@@ -990,55 +990,6 @@
     </div>
 
     <script>
-        // Initialize admin data storage
-        function initializeAdmin() {
-            if (!localStorage.getItem('adminData')) {
-                const adminData = {
-                    deposits: [],
-                    payouts: [],
-                    tasks: [
-                        {
-                            id: 1,
-                            title: 'Download Instagram App',
-                            description: 'Download and install Instagram app. Verify your account and follow our page',
-                            amount: 12.50,
-                            quantity: 1,
-                            assignedTo: [],
-                            status: 'active',
-                            createdAt: new Date().toISOString()
-                        },
-                        {
-                            id: 2,
-                            title: 'Twitter Engagement',
-                            description: 'Retweet 5 tweets and like 3 posts',
-                            amount: 8.90,
-                            quantity: 1,
-                            assignedTo: [],
-                            status: 'active',
-                            createdAt: new Date().toISOString()
-                        }
-                    ],
-                    products: [
-                        {
-                            id: 1,
-                            name: 'Decorative Wall Art Canvas',
-                            description: 'Beautiful canvas art print, perfect for home decoration. High-quality printed material with vibrant colors.',
-                            price: 20.00,
-                            assignedTo: [],
-                            status: 'active',
-                            createdAt: new Date().toISOString()
-                        }
-                    ],
-                    settings: {
-                        commissionRate: 20,
-                        minWithdrawal: 50,
-                        platformName: 'DailyTrade'
-                    }
-                };
-                localStorage.setItem('adminData', JSON.stringify(adminData));
-            }
-        }
-
         // Switch between sections
         function switchSection(sectionId) {
             // Remove active class from all sections and links
@@ -1200,30 +1151,35 @@
             }
         }
 
-        // Load Deposits
-        function loadDeposits() {
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            const deposits = adminData.deposits || [];
-            let html = '';
+        // Load Deposits - from API
+        async function loadDeposits() {
+            try {
+                const allUsers = await window.API.getAllUsers();
+                const transactions = await window.API.getTransactions();
+                const deposits = transactions.filter(t => t.type === 'deposit' || t.type === 'bonus' || t.type === 'credit');
+                let html = '';
 
-            if (deposits.length === 0) {
-                html = '<div class="empty-state"><p>No deposits</p></div>';
-            } else {
-                deposits.forEach((deposit, index) => {
-                    const date = new Date(deposit.createdAt).toLocaleDateString();
-                    html += `<div class="table-row">
-                        <div class="table-cell">${deposit.userName}</div>
-                        <div class="table-cell">GHC ${deposit.amount.toFixed(2)}</div>
-                        <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Completed</span></div>
-                        <div class="table-cell">${date}</div>
-                        <div class="table-action">
-                            <button class="btn btn-danger" onclick="deleteDeposit(${index})">Delete</button>
-                        </div>
-                    </div>`;
-                });
+                if (deposits.length === 0) {
+                    html = '<div class="empty-state"><p>No deposits</p></div>';
+                } else {
+                    deposits.forEach((deposit) => {
+                        const date = new Date(deposit.created_at).toLocaleDateString();
+                        const user = allUsers.find(u => u.id === deposit.user_id);
+                        html += `<div class="table-row">
+                            <div class="table-cell">${user ? (user.full_name || user.email) : deposit.user_id.substring(0, 8)}</div>
+                            <div class="table-cell">GHC ${parseFloat(deposit.amount).toFixed(2)}</div>
+                            <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Completed</span></div>
+                            <div class="table-cell">${date}</div>
+                            <div class="table-cell">${deposit.reason || deposit.type}</div>
+                        </div>`;
+                    });
+                }
+
+                document.getElementById('depositsTableBody').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load deposits:', error);
+                document.getElementById('depositsTableBody').innerHTML = '<div class="empty-state"><p>Failed to load deposits</p></div>';
             }
-
-            document.getElementById('depositsTableBody').innerHTML = html;
         }
 
         // Load Payments (Payment Requests)
@@ -1278,56 +1234,54 @@
             }
         }
 
-        // Filter Payments
-        function filterPayments() {
+        // Filter Payments - reloads from API with search term
+        async function filterPayments() {
             const searchTerm = document.getElementById('paymentSearch').value.toLowerCase();
-            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
-            const adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
-            
-            const filtered = pendingPayments.filter(payment =>
-                payment.userName.toLowerCase().includes(searchTerm) ||
-                payment.userEmail.toLowerCase().includes(searchTerm) ||
-                payment.id.toLowerCase().includes(searchTerm) ||
-                (payment.transactionId || '').toLowerCase().includes(searchTerm)
-            );
+            try {
+                const payments = await window.API.getPayments();
+                const filtered = payments.filter(p =>
+                    (p.user_email || '').toLowerCase().includes(searchTerm) ||
+                    (p.id || '').toLowerCase().includes(searchTerm) ||
+                    (p.transaction_id || '').toLowerCase().includes(searchTerm)
+                );
 
-            let html = '';
-            if (filtered.length === 0) {
-                html = '<div class="empty-state"><p>No matching payment requests</p></div>';
-            } else {
-                filtered.forEach((payment) => {
-                    const paymentNumber = adminPaymentNumbers[payment.id] || 'Not Assigned';
-                    const transactionId = payment.transactionId || 'Not Submitted';
-                    const statusColor = payment.status === 'pending' ? '#f39c12'
-                        : (payment.status === 'submitted' ? '#3498db'
-                        : (payment.status === 'completed' ? '#27ae60' : '#e74c3c'));
-                    const statusText = payment.status === 'pending' ? 'Pending'
-                        : (payment.status === 'submitted' ? 'Submitted'
-                        : (payment.status === 'completed' ? 'Completed' : 'Cancelled'));
-                    
-                    const methodNames = {
-                        'mtn': 'MTN',
-                        'vodafone': 'Vodafone',
-                        'bank': 'Bank'
-                    };
-                    
-                    html += `<div class="table-row">
-                        <div class="table-cell">${payment.userName}</div>
-                        <div class="table-cell">GHC ${payment.amount.toFixed(2)}</div>
-                        <div class="table-cell">${methodNames[payment.paymentMethod] || payment.paymentMethod}</div>
-                        <div class="table-cell"><span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${statusText}</span></div>
-                        <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${paymentNumber}</code></div>
-                        <div class="table-cell"><code style="background: #f9f9f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${transactionId}</code></div>
-                        <div class="table-action">
-                            ${payment.status === 'pending' || payment.status === 'submitted' ? `
-                                <button class="btn btn-primary" onclick="openAssignPaymentModal('${payment.id}')">Assign #</button>
-                                <button class="btn btn-success" onclick="completePayment('${payment.id}')">Complete</button>
-                                <button class="btn btn-danger" onclick="cancelPayment('${payment.id}')">Cancel</button>
-                            ` : `
-                                <button class="btn btn-secondary" onclick="viewPaymentDetails('${payment.id}')" style="opacity: 0.6;">View</button>
-                            `}
-                        </div>
-                    </div>`;
+                let html = '';
+                if (filtered.length === 0) {
+                    html = '<div class="empty-state"><p>No matching payment requests</p></div>';
+                } else {
+                    filtered.forEach((payment) => {
+                        const paymentNumber = payment.payment_number || 'Not Assigned';
+                        const transactionId = payment.transaction_id || 'Not Submitted';
+                        const statusColor = payment.status === 'pending' ? '#f39c12'
+                            : (payment.status === 'submitted' ? '#3498db'
+                            : (payment.status === 'completed' ? '#27ae60' : '#e74c3c'));
+                        const statusText = payment.status === 'pending' ? 'Pending'
+                            : (payment.status === 'submitted' ? 'Submitted'
+                            : (payment.status === 'completed' ? 'Completed' : 'Cancelled'));
+
+                        html += `<div class="table-row">
+                            <div class="table-cell">${payment.user_email || 'N/A'}</div>
+                            <div class="table-cell">GHC ${parseFloat(payment.amount || 0).toFixed(2)}</div>
+                            <div class="table-cell">${payment.method || 'N/A'}</div>
+                            <div class="table-cell"><span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${statusText}</span></div>
+                            <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${paymentNumber}</code></div>
+                            <div class="table-cell"><code style="background: #f9f9f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${transactionId}</code></div>
+                            <div class="table-action">
+                                ${payment.status === 'pending' || payment.status === 'submitted' ? `
+                                    <button class="btn btn-success" onclick="completePayment('${payment.id}')">Complete</button>
+                                    <button class="btn btn-danger" onclick="deletePaymentRequest('${payment.id}')">Delete</button>
+                                ` : `
+                                    <button class="btn btn-danger" onclick="deletePaymentRequest('${payment.id}')">Delete</button>
+                                `}
+                            </div>
+                        </div>`;
+                    });
+                }
+                document.getElementById('paymentsTableBody').innerHTML = html;
+            } catch (error) {
+                console.error('Error filtering payments:', error);
+            }
+        }
                 });
             }
 
@@ -1518,22 +1472,27 @@
             document.getElementById('payoutsTableBody').innerHTML = html;
         }
 
-        // Load Reports
-        function loadReports() {
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
+        // Load Reports - from API
+        async function loadReports() {
+            try {
+                const allUsers = await window.API.getAllUsers();
+                const transactions = await window.API.getTransactions();
 
-            document.getElementById('reportTotalUsers').textContent = allUsers.length;
-            document.getElementById('reportActiveUsers').textContent = allUsers.length;
+                document.getElementById('reportTotalUsers').textContent = allUsers.length;
+                document.getElementById('reportActiveUsers').textContent = allUsers.length;
 
-            let totalBalance = 0;
-            allUsers.forEach(user => {
-                totalBalance += user.balance || 0;
-            });
-            document.getElementById('reportTotalBalance').textContent = `GHC ${totalBalance.toFixed(2)}`;
+                let totalBalance = 0;
+                allUsers.forEach(user => {
+                    totalBalance += parseFloat(user.balance || 0);
+                });
+                document.getElementById('reportTotalBalance').textContent = `GHC ${totalBalance.toFixed(2)}`;
 
-            const commission = (adminData.deposits || []).reduce((sum, d) => sum + (d.amount * 0.05), 0);
-            document.getElementById('reportTotalCommission').textContent = `GHC ${commission.toFixed(2)}`;
+                const deposits = transactions.filter(t => t.type === 'deposit' || t.type === 'bonus' || t.type === 'credit');
+                const totalDeposited = deposits.reduce((sum, d) => sum + parseFloat(d.amount || 0), 0);
+                document.getElementById('reportTotalCommission').textContent = `GHC ${totalDeposited.toFixed(2)}`;
+            } catch (error) {
+                console.error('Failed to load reports:', error);
+            }
         }
 
         // Modal Functions
@@ -2153,43 +2112,7 @@
             }
         }
 
-        function deleteDeposit(index) {
-            if (confirm('Delete this deposit record?')) {
-                const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-                adminData.deposits.splice(index, 1);
-                localStorage.setItem('adminData', JSON.stringify(adminData));
-                loadDeposits();
-            }
-        }
-
         // Payment Management Functions
-        function openAssignPaymentModal(paymentId) {
-            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
-            const payment = pendingPayments.find(p => p.id === paymentId);
-            
-            if (!payment) {
-                alert('Payment not found');
-                return;
-            }
-            
-            // Generate a payment number (simulating admin assignment)
-            // Format: MTN123456789 or VOD123456789 or BANK123456789
-            const prefix = payment.paymentMethod === 'mtn' ? 'MTN' : (payment.paymentMethod === 'vodafone' ? 'VOD' : 'BANK');
-            const randomPart = Math.floor(100000000 + Math.random() * 900000000);
-            const paymentNumber = prefix + randomPart;
-            
-            // Store the payment number
-            let adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
-            adminPaymentNumbers[paymentId] = paymentNumber;
-            localStorage.setItem('adminPaymentNumbers', JSON.stringify(adminPaymentNumbers));
-            
-            // Show confirmation
-            alert(`Payment number assigned: ${paymentNumber}\n\nUser will see this number to make manual transfer.`);
-            
-            // Reload the table
-            loadPayments();
-        }
-
         async function completePayment(paymentId) {
             if (confirm(`Complete this payment?`)) {
                 try {
@@ -2214,65 +2137,6 @@
                     alert(error.message || 'Failed to delete payment');
                 }
             }
-        }
-
-        function cancelPayment(paymentId) {
-            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
-            const payment = pendingPayments.find(p => p.id === paymentId);
-            
-            if (!payment) {
-                alert('Payment not found');
-                return;
-            }
-            
-            if (confirm(`Cancel payment request from ${payment.userName}?`)) {
-                payment.status = 'cancelled';
-                payment.cancelledAt = new Date().toISOString();
-                
-                const index = pendingPayments.findIndex(p => p.id === paymentId);
-                if (index !== -1) {
-                    pendingPayments[index] = payment;
-                    localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
-                }
-                
-                alert('Payment request cancelled.');
-                loadPayments();
-            }
-        }
-
-        function viewPaymentDetails(paymentId) {
-            const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
-            const payment = pendingPayments.find(p => p.id === paymentId);
-            const adminPaymentNumbers = JSON.parse(localStorage.getItem('adminPaymentNumbers') || '{}');
-            
-            if (!payment) {
-                alert('Payment not found');
-                return;
-            }
-            
-            const paymentNumber = adminPaymentNumbers[payment.id] || 'Not Assigned';
-            const methodNames = {
-                'mtn': 'MTN Mobile Money',
-                'vodafone': 'Vodafone Cash',
-                'bank': 'Bank Transfer'
-            };
-            
-            let details = `Payment Details\n\n`;
-            details += `ID: ${payment.id}\n`;
-            details += `User: ${payment.userName}\n`;
-            details += `Email: ${payment.userEmail}\n`;
-            details += `Amount: GHC ${payment.amount.toFixed(2)}\n`;
-            details += `Method: ${methodNames[payment.paymentMethod] || payment.paymentMethod}\n`;
-            details += `Phone: ${payment.phone}\n`;
-            details += `Payment #: ${paymentNumber}\n`;
-            details += `Transaction ID: ${payment.transactionId || 'Not Submitted'}\n`;
-            if (payment.transactionSubmittedAt) {
-                details += `Transaction Submitted: ${new Date(payment.transactionSubmittedAt).toLocaleString()}\n`;
-            }
-            details += `Status: ${payment.status}\n`;
-            details += `Requested: ${new Date(payment.requestedAt).toLocaleString()}\n`;
-            
-            alert(details);
         }
 
         async function approveWithdrawal(withdrawalId) {
@@ -2302,83 +2166,50 @@
             }
         }
 
-        function approvePayout(index) {
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            adminData.payouts[index].status = 'approved';
-            localStorage.setItem('adminData', JSON.stringify(adminData));
-            alert('Payout approved!');
-            loadPayouts();
-        }
-
-        function rejectPayout(index) {
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            adminData.payouts[index].status = 'rejected';
-            localStorage.setItem('adminData', JSON.stringify(adminData));
-            alert('Payout rejected!');
-            loadPayouts();
-        }
-
         function saveSettings() {
-            const commissionRate = parseFloat(document.getElementById('commissionRate').value);
-            const minWithdrawal = parseFloat(document.getElementById('minWithdrawal').value);
+            const commissionRate = document.getElementById('commissionRate').value;
+            const minWithdrawal = document.getElementById('minWithdrawal').value;
             const platformName = document.getElementById('platformName').value;
-
-            const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
-            adminData.settings = {
-                commissionRate: commissionRate,
-                minWithdrawal: minWithdrawal,
-                platformName: platformName
-            };
-            localStorage.setItem('adminData', JSON.stringify(adminData));
-            alert('Settings saved!');
+            // Settings are display-only for now
+            alert('Settings noted. Server-side settings coming soon.');
         }
 
-        function filterUsers() {
+        async function filterUsers() {
             const searchTerm = document.getElementById('userSearch').value.toLowerCase();
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-            const filtered = allUsers.filter(user => 
-                user.fullName.toLowerCase().includes(searchTerm) || 
-                user.email.toLowerCase().includes(searchTerm)
-            );
+            try {
+                const allUsers = await window.API.getAllUsers();
+                const filtered = allUsers.filter(user =>
+                    (user.full_name || '').toLowerCase().includes(searchTerm) ||
+                    (user.email || '').toLowerCase().includes(searchTerm)
+                );
 
-            let html = '';
-            filtered.forEach(user => {
-                const userId = user.id || user.userId;
-                const balance = user.balance || 0;
-                html += `<div class="table-row">
-                    <div class="table-cell">${user.fullName}</div>
-                    <div class="table-cell">${user.email}</div>
-                    <div class="table-cell">${userId}</div>
-                    <div class="table-cell">GHC ${parseFloat(balance).toFixed(2)}</div>
-                    <div class="table-action">
-                        <button class="btn btn-primary" onclick="editUserBalance('${user.email}')">Edit</button>
-                        
-                    </div>
-                </div>`;
-            });
+                let html = '';
+                filtered.forEach(user => {
+                    const userId = user.id.substring(0, 8).toUpperCase();
+                    const balance = parseFloat(user.balance || 0);
+                    const bonus = parseFloat(user.bonus || 0);
+                    const paymentNumber = user.payment_number || 'Not set';
+                    const paymentMethod = user.payment_method ? ` (${user.payment_method})` : '';
+                    html += `<div class="table-row">
+                        <div class="table-cell">${user.full_name || user.email}</div>
+                        <div class="table-cell">${user.email}</div>
+                        <div class="table-cell">ID-${userId}</div>
+                        <div class="table-cell">GHC ${balance.toFixed(2)} <span style="color: #4361ee;">(+${bonus.toFixed(2)} bonus)</span></div>
+                        <div class="table-cell">${paymentNumber}${paymentMethod}</div>
+                        <div class="table-action">
+                            <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${(user.full_name || user.email).replace(/'/g, "\\'")}')" title="Add deposit">Deposit</button>
+                        </div>
+                    </div>`;
+                });
 
-            document.getElementById('usersTableBody').innerHTML = html;
-        }
-
-        function editUserBalance(email) {
-            const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-            const user = allUsers.find(u => u.email === email);
-            if (user) {
-                const newBalance = prompt(`Edit balance for ${user.fullName}\nCurrent: GHC ${user.balance.toFixed(2)}`, user.balance);
-                if (newBalance !== null && !isNaN(newBalance)) {
-                    user.balance = parseFloat(newBalance);
-                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
-                    loadUsers();
-                }
+                document.getElementById('usersTableBody').innerHTML = html;
+            } catch (error) {
+                console.error('Error filtering users:', error);
             }
         }
 
         function adminLogout() {
-            // Clear both session and local storage
             sessionStorage.removeItem('adminLoggedIn');
-            localStorage.removeItem('adminLoggedIn');
-            
-            // Redirect to login
             setTimeout(() => {
                 window.location.href = 'admin-login.html';
             }, 200);
@@ -2386,13 +2217,11 @@
 
         // Initialize on load
         window.addEventListener('DOMContentLoaded', async function() {
-            const isLocalAdmin = sessionStorage.getItem('adminLoggedIn') === 'true'
-                || localStorage.getItem('adminLoggedIn') === 'true';
+            const isLocalAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
 
             try {
                 if (typeof window.AuthService === 'undefined') {
                     if (isLocalAdmin) {
-                        initializeAdmin();
                         loadDashboard();
                         return;
                     }
@@ -2403,7 +2232,6 @@
                 const session = await window.AuthService.getSession();
                 if (!session) {
                     sessionStorage.removeItem('adminLoggedIn');
-                    localStorage.removeItem('adminLoggedIn');
                     window.location.href = 'admin-login.html';
                     return;
                 }
@@ -2414,12 +2242,10 @@
                     alert('Access denied. Admin only.');
                     await window.AuthService.logout();
                     sessionStorage.removeItem('adminLoggedIn');
-                    localStorage.removeItem('adminLoggedIn');
                     window.location.href = 'index.html';
                     return;
                 }
 
-                initializeAdmin();
                 loadDashboard();
             } catch (error) {
                 console.error('Error loading admin panel:', error);

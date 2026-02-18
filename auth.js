@@ -23,7 +23,7 @@ window.AuthService = {
     if (!data.session && data.user) {
       // Store referral code for later sync after email confirmation
       if (referralCode) {
-        localStorage.setItem('pendingReferralCode', referralCode);
+        sessionStorage.setItem('pendingReferralCode', referralCode);
       }
       // Email confirmation required - user created but not logged in yet
       return { 
@@ -45,12 +45,12 @@ window.AuthService = {
           body: JSON.stringify({
             fullName,
             phone,
-            referralCode: referralCode || localStorage.getItem('pendingReferralCode') || ''
+            referralCode: referralCode || sessionStorage.getItem('pendingReferralCode') || ''
           })
         });
         
         // Clear stored referral code after sync
-        localStorage.removeItem('pendingReferralCode');
+        sessionStorage.removeItem('pendingReferralCode');
         
         if (!response.ok) {
           console.error('Failed to sync user to backend');
@@ -75,7 +75,7 @@ window.AuthService = {
     // Sync user on login (handles email-confirmed users + pending referral codes)
     if (data.session) {
       try {
-        const pendingRef = localStorage.getItem('pendingReferralCode') || '';
+        const pendingRef = sessionStorage.getItem('pendingReferralCode') || '';
         const userMeta = data.user?.user_metadata || {};
         await fetch(`${CONFIG.API_URL}/users/sync`, {
           method: 'POST',
@@ -89,7 +89,7 @@ window.AuthService = {
             referralCode: pendingRef
           })
         });
-        localStorage.removeItem('pendingReferralCode');
+        sessionStorage.removeItem('pendingReferralCode');
       } catch (syncErr) {
         console.error('Login sync error:', syncErr);
       }
@@ -181,6 +181,13 @@ window.API = {
 
   async getUserProfile() {
     return this.call('/users/me');
+  },
+
+  async updateProfile(fullName, phone) {
+    return this.call('/users/me', {
+      method: 'PUT',
+      body: JSON.stringify({ fullName, phone })
+    });
   },
 
   async createPayment(amount, method, phone) {

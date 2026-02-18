@@ -472,20 +472,6 @@
             <div class="balance-value" id="bonusDisplay">GHC 0.00</div>
         </div>
     </div>
-    <script>
-        try {
-            const cachedProfile = localStorage.getItem('cachedUserProfile');
-            if (cachedProfile) {
-                const cached = JSON.parse(cachedProfile);
-                document.getElementById('profileName').textContent = cached.full_name || cached.email || 'User';
-                document.getElementById('profileId').textContent = cached.id ? 'ID-' + cached.id.substring(0, 8).toUpperCase() : 'ID-UNKNOWN';
-                document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
-                document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(cached.bonus || 0).toFixed(2)}`;
-            }
-        } catch (error) {
-            console.warn('Failed to prefill cached profile:', error);
-        }
-    </script>
 
     <!-- Action Buttons -->
     <div class="action-buttons-section">
@@ -1152,14 +1138,6 @@
         // Load account data into modal
         async function loadAccountData() {
             try {
-                const cachedProfile = localStorage.getItem('cachedUserProfile');
-                if (cachedProfile) {
-                    const cached = JSON.parse(cachedProfile);
-                    document.getElementById('profileName').textContent = cached.full_name || cached.email || 'User';
-                    document.getElementById('profileId').textContent = cached.id ? 'ID-' + cached.id.substring(0, 8).toUpperCase() : 'ID-UNKNOWN';
-                    document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
-                    document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(cached.bonus || 0).toFixed(2)}`;
-                }
                 const profile = window.currentUserProfile || await window.API.getUserProfile();
                 if (profile) {
                     document.getElementById('accountName').value = profile.full_name || profile.email || '';
@@ -1407,26 +1385,26 @@
         }
 
         // Update account
-        function updateAccount() {
-            const userData = localStorage.getItem('currentUser');
-            if (userData) {
-                const user = JSON.parse(userData);
-                user.fullName = document.getElementById('accountName').value;
-                user.email = document.getElementById('accountEmail').value;
-                user.phone = document.getElementById('accountPhone').value;
-                
-                localStorage.setItem('currentUser', JSON.stringify(user));
-                
-                // Update allUsers list as well
-                let allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-                const userIndex = allUsers.findIndex(u => u.userId === user.userId);
-                if (userIndex !== -1) {
-                    allUsers[userIndex] = user;
-                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
-                }
-                
+        async function updateAccount() {
+            const newName = document.getElementById('accountName').value.trim();
+            const newPhone = document.getElementById('accountPhone').value.trim();
+
+            if (!newName) {
+                alert('Please fill in your name');
+                return;
+            }
+
+            try {
+                await window.API.updateProfile(newName, newPhone);
+                // Refresh displayed profile
+                const updatedProfile = await window.API.getUserProfile();
+                window.currentUserProfile = updatedProfile;
+                document.getElementById('profileName').textContent = updatedProfile.full_name || updatedProfile.email;
                 alert('Account information updated successfully!');
                 closeActionModal('accountModal');
+            } catch (error) {
+                console.error('Update account error:', error);
+                alert(error.message || 'Failed to update account');
             }
         }
 
@@ -1532,7 +1510,6 @@
                     
                     // Store user data globally for other functions
                     window.currentUserProfile = userProfile;
-                    localStorage.setItem('cachedUserProfile', JSON.stringify(userProfile));
                     console.log('Profile loaded successfully!'); // Debug log
                 } else {
                     // Set default values if profile loading failed

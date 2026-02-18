@@ -619,80 +619,6 @@
     </div>
 
     <script>
-        // Product catalog
-        const allProducts = {
-            1: {
-                id: 1,
-                name: 'Decorative Wall Art Canvas',
-                description: 'Beautiful canvas art print, perfect for home decoration. High-quality printed material with vibrant colors.',
-                price: 20.00,
-                image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"%3E%3Crect fill="%23E8D4F1" width="300" height="200"/%3E%3Crect x="30" y="30" width="240" height="140" fill="%23D4B5E8" stroke="%23667eea" stroke-width="2"/%3E%3Ctext x="150" y="100" font-size="24" fill="%23667eea" text-anchor="middle" font-weight="bold"%3EWall Art%3C/text%3E%3Ctext x="150" y="130" font-size="14" fill="%23764ba2" text-anchor="middle"%3EDecorative Canvas%3C/text%3E%3C/svg%3E'
-            },
-            2: {
-                id: 2,
-                name: 'Premium Fishing Net Set',
-                description: 'Professional-grade fishing net with durable nylon mesh. Ideal for fishing enthusiasts and professionals.',
-                price: 20.00,
-                image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"%3E%3Crect fill="%23D4E8F1" width="300" height="200"/%3E%3Cg stroke="%23667eea" stroke-width="2"%3E%3Cpath d="M 50 50 L 250 50 L 200 150 L 100 150 Z" fill="%23B8D4E8"/%3E%3Cline x1="80" y1="70" x2="220" y2="140"/%3E%3Cline x1="120" y1="50" x2="120" y2="150"/%3E%3Cline x1="150" y1="50" x2="150" y2="150"/%3E%3Cline x1="180" y1="50" x2="180" y2="150"/%3E%3C/g%3E%3Ctext x="150" y="180" font-size="14" fill="%23667eea" text-anchor="middle" font-weight="bold"%3EFishing Net%3C/text%3E%3C/svg%3E'
-            },
-            3: {
-                id: 3,
-                name: 'Modern Home Decor Mirror',
-                description: 'Elegant mirror with modern frame design. Perfect for living room, bedroom, or bathroom decoration.',
-                price: 20.00,
-                image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"%3E%3Crect fill="%23F1E8D4" width="300" height="200"/%3E%3Crect x="40" y="30" width="220" height="140" fill="%23E8D4B8" stroke="%23764ba2" stroke-width="3"/%3E%3Ccircle cx="150" cy="100" r="80" fill="%23E0E8F8" opacity="0.8"/%3E%3Ctext x="150" y="105" font-size="14" fill="%23764ba2" text-anchor="middle" font-weight="bold"%3EMirror%3C/text%3E%3C/svg%3E'
-            },
-            4: {
-                id: 4,
-                name: 'Artistic Abstract Painting',
-                description: 'Hand-crafted abstract artwork with bold colors and unique patterns. Contemporary art piece for modern spaces.',
-                price: 20.00,
-                image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"%3E%3Crect fill="%23F5E8D4" width="300" height="200"/%3E%3Crect x="30" y="30" width="240" height="140" fill="%23E8D4C4" stroke="%23667eea" stroke-width="2"/%3E%3Ccircle cx="80" cy="70" r="25" fill="%23667eea" opacity="0.7"/%3E%3Crect x="130" y="80" width="50" height="50" fill="%23764ba2" opacity="0.7"/%3E%3Cpolygon points="220,120 240,70 260,120" fill="%23667eea" opacity="0.6"/%3E%3C/svg%3E'
-            }
-        };
-
-        let currentProduct = null;
-
-        function initializeProduct() {
-            const userData = localStorage.getItem('currentUser');
-            if (!userData) {
-                showNoProductState();
-                return;
-            }
-
-            const user = JSON.parse(userData);
-            const userProducts = DataManager.getUserProducts(user.userId);
-
-            if (userProducts.length === 0) {
-                showNoProductState();
-                return;
-            }
-
-            // Show the first assigned product
-            currentProduct = userProducts[0];
-            const fullProduct = allProducts[currentProduct.id];
-
-            if (fullProduct) {
-                document.getElementById('productImage').src = fullProduct.image;
-                document.getElementById('productName').textContent = fullProduct.name;
-                document.getElementById('productDesc').textContent = fullProduct.description;
-                document.getElementById('productPrice').textContent = `GHC ${fullProduct.price.toFixed(2)}`;
-            }
-        }
-
-        function showNoProductState() {
-            const productCard = document.querySelector('.order-card:first-of-type');
-            if (productCard) {
-                productCard.innerHTML = `
-                    <div style="text-align: center; padding: 40px 20px; color: #999;">
-                        <i class="las la-inbox" style="font-size: 48px; color: #ddd; margin-bottom: 16px; display: block;"></i>
-                        <div style="font-size: 16px; color: #333; margin-bottom: 8px;">No Products Available</div>
-                        <div style="font-size: 14px; color: #999;">New products will be available for you to order soon</div>
-                    </div>
-                `;
-            }
-        }
-
         const names = [
             'Kwame Adjei', 'Ama Mensah', 'Kwesi Boateng', 'Abena Asante', 'Yaw Owusu',
             'Akosua Anane', 'Kofi Larbi', 'Efua Darkwa', 'Nana Ampah', 'Adwoa Seidu',
@@ -850,22 +776,6 @@
             }
             applyTranslations();
             generateLeaderboard();
-        });
-
-        // Listen for finance updates
-        window.addEventListener('userFinanceUpdated', function(event) {
-            const userData = localStorage.getItem('currentUser');
-            if (userData) {
-                const user = JSON.parse(userData);
-                updateBalanceDisplay(user.userId);
-            }
-            const balanceValue = event?.detail?.balance;
-            if (typeof balanceValue === 'number') {
-                const todayBalance = document.getElementById('todayBalance');
-                if (todayBalance) {
-                    todayBalance.textContent = `GHC ${balanceValue.toFixed(2)}`;
-                }
-            }
         });
     </script>
 </body>
