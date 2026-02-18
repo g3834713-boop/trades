@@ -1044,6 +1044,7 @@
             // Remove active class from all sections and links
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.remove('active');
+                section.style.display = ''; // Clear any inline display styles
             });
             document.querySelectorAll('.menu-link').forEach(link => {
                 link.classList.remove('active');
@@ -2358,20 +2359,6 @@
 
             document.getElementById('usersTableBody').innerHTML = html;
         }
-
-        // ...existing code...
-                // Sidebar section switcher
-                function switchSection(section) {
-                    // Hide all content sections
-                    document.querySelectorAll('.content-section').forEach(sec => sec.style.display = 'none');
-                    // Show selected section
-                    const el = document.getElementById(section);
-                    if (el) el.style.display = 'block';
-                    // Update active menu
-                    document.querySelectorAll('.menu-link').forEach(link => link.classList.remove('active'));
-                    const activeLink = document.querySelector(`.menu-link[onclick*="${section}"]`);
-                    if (activeLink) activeLink.classList.add('active');
-                }
 
         function editUserBalance(email) {
             const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
