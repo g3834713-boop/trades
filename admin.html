@@ -2361,10 +2361,24 @@
 
         function deleteUser(email) {
             if (confirm('Delete this user? This cannot be undone.')) {
-                const allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-                const filtered = allUsers.filter(u => u.email !== email);
-                localStorage.setItem('allUsers', JSON.stringify(filtered));
-                loadUsers();
+                // Find user ID from user list
+                const allUsers = await window.API.getAllUsers();
+                const user = allUsers.find(u => u.email === email || u.id === email);
+                if (!user) {
+                    alert('User not found');
+                    return;
+                }
+                try {
+                    const response = await window.API.deleteUser(user.id);
+                    if (response.ok) {
+                        alert('User deleted successfully');
+                        loadUsers();
+                    } else {
+                        alert(response.error || 'Failed to delete user');
+                    }
+                } catch (err) {
+                    alert('Error deleting user');
+                }
             }
         }
 

@@ -55,6 +55,18 @@ app.get('/users/me', requireAuth, async (req, res) => {
 });
 
 // Admin: get all users
+// Admin: delete user by ID
+app.delete('/admin/users/:userId', requireAuth, requireAdmin, async (req, res) => {
+  const { userId } = req.params;
+  // Prevent admin deletion
+  const { rows: adminRows } = await query('select email from app_users where id = $1', [userId]);
+  if (adminRows.length && adminRows[0].email === 'admin0@gmail.com') {
+    return res.status(403).json({ error: 'Cannot delete admin user' });
+  }
+  // Delete user and cascade related data
+  await query('delete from app_users where id = $1', [userId]);
+  res.json({ ok: true });
+});
 app.get('/admin/users', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,

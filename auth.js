@@ -335,6 +335,12 @@ window.API = {
     return this.call('/admin/users');
   },
 
+  async deleteUser(userId) {
+    return this.call(`/admin/users/${userId}`, {
+      method: 'DELETE'
+    });
+  },
+
   async upsertPaymentNumber(userId, paymentNumber, method) {
     return this.call('/admin/payment-numbers', {
       method: 'POST',
