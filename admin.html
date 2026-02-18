@@ -1145,8 +1145,9 @@
                         const paymentNumber = user.payment_number || 'Not set';
                         const paymentMethod = user.payment_method ? ` (${user.payment_method})` : '';
                         const joinDate = new Date(user.created_at).toLocaleDateString();
+                        const isAdmin = user.email === 'admin0@gmail.com';
                         html += `<div class="table-row">
-                            <div class="table-cell">${user.full_name || user.email}</div>
+                            <div class="table-cell">${user.full_name || user.email} ${isAdmin ? '<span class="admin-badge" style="color: #fff; background: #4361ee; border-radius: 4px; padding: 2px 6px; margin-left: 6px; font-size: 12px;">Admin</span>' : ''}</div>
                             <div class="table-cell">${user.email}</div>
                             <div class="table-cell">ID-${userId}</div>
                             <div class="table-cell">GHC ${balance.toFixed(2)} <span style="color: #4361ee;">(+${bonus.toFixed(2)} bonus)</span></div>
@@ -1155,6 +1156,7 @@
                                 <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${user.full_name || user.email}')">Add Funds</button>
                                 <button class="btn btn-success" onclick="openPaymentNumberModal('${user.id}', '${user.full_name || user.email}', '${user.payment_number || ''}', '${user.payment_method || ''}')">Set Payment Number</button>
                                 ${user.payment_number ? `<button class="btn btn-danger" onclick="deletePaymentNumber('${user.id}', '${user.full_name || user.email}')">Remove</button>` : ''}
+                                ${!isAdmin ? `<button class="btn btn-danger" onclick="deleteUser('${user.id}', '${user.full_name || user.email}')">Delete User</button>` : ''}
                             </div>
                         </div>`;
                     });
