@@ -940,6 +940,18 @@
             <div class="commission-amount" id="commissionDisplay">GHC 0.00</div>
             <div style="font-size: 12px; opacity: 0.8;">Total earnings this month</div>
         </div>
+        <script>
+            try {
+                const cachedProfile = localStorage.getItem('cachedUserProfile');
+                if (cachedProfile) {
+                    const cached = JSON.parse(cachedProfile);
+                    const cachedTotal = parseFloat(cached.balance || 0) + parseFloat(cached.bonus || 0);
+                    document.getElementById('commissionDisplay').textContent = `GHC ${cachedTotal.toFixed(2)}`;
+                }
+            } catch (error) {
+                console.warn('Failed to prefill cached commission:', error);
+            }
+        </script>
 
         <!-- Action Buttons -->
         <div class="action-buttons">

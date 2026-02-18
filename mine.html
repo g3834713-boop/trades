@@ -467,6 +467,20 @@
             <div class="balance-value" id="bonusDisplay">GHC 0.00</div>
         </div>
     </div>
+    <script>
+        try {
+            const cachedProfile = localStorage.getItem('cachedUserProfile');
+            if (cachedProfile) {
+                const cached = JSON.parse(cachedProfile);
+                document.getElementById('profileName').textContent = cached.full_name || cached.email || 'User';
+                document.getElementById('profileId').textContent = cached.id ? 'ID-' + cached.id.substring(0, 8).toUpperCase() : 'ID-UNKNOWN';
+                document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
+                document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(cached.bonus || 0).toFixed(2)}`;
+            }
+        } catch (error) {
+            console.warn('Failed to prefill cached profile:', error);
+        }
+    </script>
 
     <!-- Action Buttons -->
     <div class="action-buttons-section">
