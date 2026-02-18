@@ -1130,6 +1130,14 @@
         // Load account data into modal
         async function loadAccountData() {
             try {
+                const cachedProfile = localStorage.getItem('cachedUserProfile');
+                if (cachedProfile) {
+                    const cached = JSON.parse(cachedProfile);
+                    document.getElementById('profileName').textContent = cached.full_name || cached.email || 'User';
+                    document.getElementById('profileId').textContent = cached.id ? 'ID-' + cached.id.substring(0, 8).toUpperCase() : 'ID-UNKNOWN';
+                    document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
+                    document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(cached.bonus || 0).toFixed(2)}`;
+                }
                 const profile = window.currentUserProfile || await window.API.getUserProfile();
                 if (profile) {
                     document.getElementById('accountName').value = profile.full_name || profile.email || '';
@@ -1502,6 +1510,7 @@
                     
                     // Store user data globally for other functions
                     window.currentUserProfile = userProfile;
+                    localStorage.setItem('cachedUserProfile', JSON.stringify(userProfile));
                     console.log('Profile loaded successfully!'); // Debug log
                 } else {
                     // Set default values if profile loading failed

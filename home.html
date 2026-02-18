@@ -1577,6 +1577,17 @@
         // Load user data and apply language on page load
         window.addEventListener('DOMContentLoaded', async function() {
             applyTranslations();
+            const cachedProfile = localStorage.getItem('cachedUserProfile');
+            if (cachedProfile) {
+                try {
+                    const cached = JSON.parse(cachedProfile);
+                    const cachedTotal = parseFloat(cached.balance || 0) + parseFloat(cached.bonus || 0);
+                    document.getElementById('commissionDisplay').textContent = `GHC ${cachedTotal.toFixed(2)}`;
+                    window.currentUserProfile = cached;
+                } catch (cacheError) {
+                    console.warn('Failed to parse cached profile:', cacheError);
+                }
+            }
             
             try {
                 // Wait for AuthService to load (module might load async)
@@ -1626,6 +1637,7 @@
                     const totalBalance = parseFloat(userProfile.balance || 0) + parseFloat(userProfile.bonus || 0);
                     document.getElementById('commissionDisplay').textContent = `GHC ${totalBalance.toFixed(2)}`;
                     window.currentUserProfile = userProfile;
+                    localStorage.setItem('cachedUserProfile', JSON.stringify(userProfile));
                 } else {
                     // Set default values if profile loading failed
                     document.getElementById('commissionDisplay').textContent = 'GHC 0.00';
