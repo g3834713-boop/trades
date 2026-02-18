@@ -2362,15 +2362,8 @@
         function deleteUser(email) {
         async function deleteUser(email) {
             if (confirm('Delete this user? This cannot be undone.')) {
-                // Find user ID from user list
-                const allUsers = await window.API.getAllUsers();
-                const user = allUsers.find(u => u.email === email || u.id === email);
-                if (!user) {
-                    alert('User not found');
-                    return;
-                }
                 try {
-                    const response = await window.API.deleteUser(user.id);
+                    const response = await window.API.deleteUser(email);
                     console.log('Delete user response:', response);
                     if (response.ok) {
                         alert('User deleted successfully');
