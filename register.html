@@ -531,6 +531,21 @@
                     <div class="error-message" id="confirmPasswordError"></div>
                 </div>
 
+                <!-- Referral Code (Optional) -->
+                <div class="form-group">
+                    <label class="form-label">Referral Code (Optional)</label>
+                    <div class="input-container">
+                        <i class="las la-gift input-icon"></i>
+                        <input 
+                            type="text" 
+                            class="input-box" 
+                            id="referralCode"
+                            placeholder="Enter referral code"
+                            style="text-transform: uppercase;"
+                        >
+                    </div>
+                </div>
+
                 <!-- Terms & Conditions -->
                 <label class="terms-checkbox">
                     <input type="checkbox" id="termsCheckbox" required>
@@ -758,7 +773,8 @@
                         }
 
                         showStatus('Registering your account...', 'info');
-                        const result = await window.AuthService.register(email, password, fullName, formattedPhone);
+                        const referralCode = document.getElementById('referralCode').value.trim();
+                        const result = await window.AuthService.register(email, password, fullName, formattedPhone, referralCode);
                         
                         // Check if email confirmation is required
                         if (result.requiresEmailConfirmation) {
@@ -802,6 +818,15 @@
         function socialLogin(provider) {
             alert(`${provider.charAt(0).toUpperCase() + provider.slice(1)} login would be implemented here`);
         }
+
+        // Auto-populate referral code from URL
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const ref = urlParams.get('ref');
+            if (ref) {
+                document.getElementById('referralCode').value = ref.toUpperCase();
+            }
+        })();
 
         // Real-time validation
         document.getElementById('firstName').addEventListener('blur', function() {

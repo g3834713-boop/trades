@@ -579,13 +579,20 @@
                 Invite Friends
             </div>
             <div class="info-box">
-                Share your referral code and earn commission from your friends' activities.
+                Share your referral code or link with friends. When they register, you earn <strong>GHC 2.00</strong> bonus!
             </div>
             <div style="margin-bottom: 16px;">
                 <label class="form-label">Your Referral Code</label>
                 <div style="display: flex; gap: 8px;">
-                    <input type="text" class="form-input" id="referralCode" readonly style="background: #f9f9f9; flex: 1;">
+                    <input type="text" class="form-input" id="referralCode" readonly style="background: #f9f9f9; flex: 1; font-weight: 700; letter-spacing: 2px; text-align: center;">
                     <button style="padding: 10px 16px; background: #4361ee; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="copyReferralCode()">Copy</button>
+                </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label class="form-label">Share Link</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" class="form-input" id="referralLink" readonly style="background: #f9f9f9; flex: 1; font-size: 12px;">
+                    <button style="padding: 10px 16px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="copyReferralLink()">Share</button>
                 </div>
             </div>
             <div style="margin-bottom: 16px;">
@@ -595,12 +602,8 @@
                         <span>Friends Invited:</span>
                         <strong id="friendsInvited">0</strong>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span>Commission Earned:</span>
-                        <strong id="referralCommission">GHC 0.00</strong>
-                    </div>
                     <div style="display: flex; justify-content: space-between;">
-                        <span>Total Referral Bonus:</span>
+                        <span>Total Bonus Earned:</span>
                         <strong id="referralBonus">GHC 0.00</strong>
                     </div>
                 </div>
@@ -1608,6 +1611,7 @@
                         'teller_task_cost':   { label: 'Teller Task Cost',     icon: 'la-layer-group',      color: '#e74c3c', sign: '-', bg: '#fdeaea' },
                         'teller_task_reward': { label: 'Teller Task Reward',   icon: 'la-trophy',           color: '#27ae60', sign: '+', bg: '#e8f8ef' },
                         'teller_withdraw':    { label: 'Teller Withdrawal',    icon: 'la-wallet',           color: '#27ae60', sign: '+', bg: '#e8f8ef' },
+                        'referral_bonus':     { label: 'Referral Bonus',       icon: 'la-user-friends',     color: '#27ae60', sign: '+', bg: '#e8f8ef' },
                         'adjustment':         { label: 'Adjustment',           icon: 'la-sliders-h',        color: '#8e44ad', sign: '',  bg: '#f3eaf8' },
                     };
                     return map[type] || { label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), icon: 'la-receipt', color: '#666', sign: '', bg: '#f0f0f0' };
@@ -1649,27 +1653,51 @@
         }
 
         // Invite Friends Functions
-        function loadInviteCode() {
-            const userData = localStorage.getItem('currentUser');
-            if (userData) {
-                const user = JSON.parse(userData);
-                const referralCode = 'DT' + user.userId.substring(0, 6).toUpperCase();
-                document.getElementById('referralCode').value = referralCode;
-                
-                // Load referral stats
-                const refStats = localStorage.getItem('referralStats_' + user.userId) || '{\"invited\":0,\"commission\":0,\"bonus\":0}';
-                const stats = JSON.parse(refStats);
-                document.getElementById('friendsInvited').textContent = stats.invited || 0;
-                document.getElementById('referralCommission').textContent = 'GHC ' + (stats.commission || 0).toFixed(2);
-                document.getElementById('referralBonus').textContent = 'GHC ' + (stats.bonus || 0).toFixed(2);
+        async function loadInviteCode() {
+            try {
+                const profile = await window.API.getUserProfile();
+                const code = profile.referral_code || '';
+                document.getElementById('referralCode').value = code;
+
+                // Build share link
+                const baseUrl = window.location.origin + window.location.pathname.replace('mine.html', '');
+                document.getElementById('referralLink').value = baseUrl + 'register.html?ref=' + code;
+
+                // Fetch referral stats from backend
+                try {
+                    const stats = await window.API.call('/users/me/referral-stats');
+                    document.getElementById('friendsInvited').textContent = stats.invited || 0;
+                    document.getElementById('referralBonus').textContent = 'GHC ' + (stats.totalBonus || 0).toFixed(2);
+                } catch (e) {
+                    console.error('Failed to load referral stats:', e);
+                }
+            } catch (err) {
+                console.error('Failed to load invite code:', err);
             }
         }
 
         function copyReferralCode() {
             const code = document.getElementById('referralCode').value;
             navigator.clipboard.writeText(code).then(() => {
-                alert('Referral code copied to clipboard!');
+                alert('Referral code copied!');
             });
+        }
+
+        function copyReferralLink() {
+            const link = document.getElementById('referralLink').value;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Join DailyTrade',
+                    text: 'Sign up on DailyTrade and start earning! Use my referral code to get started.',
+                    url: link
+                }).catch(() => {
+                    navigator.clipboard.writeText(link).then(() => alert('Link copied!'));
+                });
+            } else {
+                navigator.clipboard.writeText(link).then(() => {
+                    alert('Referral link copied!');
+                });
+            }
         }
 
         // Language Functions

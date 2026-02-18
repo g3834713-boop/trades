@@ -26,15 +26,26 @@ app.use(morgan('dev'));
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
+// Generate a unique 8-char referral code
+function generateReferralCode(userId) {
+  return 'DT' + userId.replace(/-/g, '').substring(0, 6).toUpperCase();
+}
+
 // Sync user profile (called after Supabase auth)
 app.post('/users/sync', requireAuth, async (req, res) => {
-  const { fullName, phone } = req.body;
+  const { fullName, phone, referralCode } = req.body;
   const { id, email } = req.user;
+  const myReferralCode = generateReferralCode(id);
+
+  // Check if user already exists (to avoid giving bonus on re-sync)
+  const { rows: existing } = await query('select id, referred_by from app_users where id = $1', [id]);
+  const isNewUser = existing.length === 0;
+
   await query(
-    `insert into app_users (id, email, full_name, phone)
-     values ($1, $2, $3, $4)
+    `insert into app_users (id, email, full_name, phone, referral_code)
+     values ($1, $2, $3, $4, $5)
      on conflict (id) do update set full_name = excluded.full_name, phone = excluded.phone`,
-    [id, email, fullName || null, phone || null]
+    [id, email, fullName || null, phone || null, myReferralCode]
   );
   await query(
     `insert into wallets (user_id) values ($1)
@@ -46,6 +57,47 @@ app.post('/users/sync', requireAuth, async (req, res) => {
      on conflict (user_id) do nothing`,
     [id]
   );
+
+  // Process referral bonus for new users only
+  if (isNewUser && referralCode && referralCode.trim()) {
+    try {
+      const code = referralCode.trim().toUpperCase();
+      // Don't allow self-referral
+      if (code !== myReferralCode) {
+        const { rows: referrers } = await query(
+          'select id from app_users where referral_code = $1',
+          [code]
+        );
+        if (referrers.length > 0) {
+          const referrerId = referrers[0].id;
+          // Mark who referred this user
+          await query('update app_users set referred_by = $1 where id = $2', [referrerId, id]);
+          // Record referral
+          await query(
+            `insert into referrals (referrer_id, referred_id, bonus_amount)
+             values ($1, $2, 2.00)
+             on conflict (referred_id) do nothing`,
+            [referrerId, id]
+          );
+          // Credit referrer 2 GHC bonus
+          await query(
+            'update wallets set bonus = bonus + 2.00, updated_at = now() where user_id = $1',
+            [referrerId]
+          );
+          // Record transaction for referrer
+          await query(
+            `insert into transactions (user_id, type, amount, reason)
+             values ($1, 'referral_bonus', 2.00, $2)`,
+            [referrerId, `Referral bonus for inviting ${email}`]
+          );
+        }
+      }
+    } catch (refErr) {
+      console.error('Referral processing error:', refErr);
+      // Don't fail user sync if referral fails
+    }
+  }
+
   res.json({ ok: true });
 });
 
@@ -53,7 +105,7 @@ app.post('/users/sync', requireAuth, async (req, res) => {
 app.get('/users/me', requireAuth, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
-            w.balance, w.bonus
+            u.referral_code, w.balance, w.bonus
      from app_users u
      left join wallets w on u.id = w.user_id
      where u.id = $1`,
@@ -62,6 +114,27 @@ app.get('/users/me', requireAuth, async (req, res) => {
   
   if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
   res.json(rows[0]);
+});
+
+// Get referral stats
+app.get('/users/me/referral-stats', requireAuth, async (req, res) => {
+  try {
+    const { rows: countRows } = await query(
+      'select count(*) as total from referrals where referrer_id = $1',
+      [req.user.id]
+    );
+    const { rows: bonusRows } = await query(
+      'select coalesce(sum(bonus_amount), 0) as total_bonus from referrals where referrer_id = $1',
+      [req.user.id]
+    );
+    res.json({
+      invited: parseInt(countRows[0].total),
+      totalBonus: parseFloat(bonusRows[0].total_bonus)
+    });
+  } catch (err) {
+    console.error('Referral stats error:', err);
+    res.json({ invited: 0, totalBonus: 0 });
+  }
 });
 
 // Admin: get all users
@@ -1481,6 +1554,29 @@ async function ensureSchema() {
     )
   `);
   await query('create index if not exists teller_assignments_user_level_idx on teller_product_assignments(user_id, level, status)');
+
+  // Referral system columns and table
+  await query('alter table app_users add column if not exists referral_code text');
+  await query('alter table app_users add column if not exists referred_by uuid');
+  await query('create unique index if not exists app_users_referral_code_idx on app_users(referral_code)');
+  await query(`
+    create table if not exists referrals (
+      id uuid primary key default gen_random_uuid(),
+      referrer_id uuid not null references app_users(id) on delete cascade,
+      referred_id uuid not null references app_users(id) on delete cascade,
+      bonus_amount numeric(12,2) not null default 2.00,
+      created_at timestamptz default now(),
+      unique(referred_id)
+    )
+  `);
+  await query('create index if not exists referrals_referrer_idx on referrals(referrer_id)');
+
+  // Backfill referral codes for existing users who don't have one
+  const { rows: usersWithoutCode } = await query("select id from app_users where referral_code is null or referral_code = ''");
+  for (const u of usersWithoutCode) {
+    const code = 'DT' + u.id.replace(/-/g, '').substring(0, 6).toUpperCase();
+    await query('update app_users set referral_code = $1 where id = $2', [code, u.id]);
+  }
 }
 
 ensureSchema()

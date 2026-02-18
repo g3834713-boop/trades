@@ -5,7 +5,7 @@ const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
 // Auth helpers
 window.AuthService = {
-  async register(email, password, fullName, phone) {
+  async register(email, password, fullName, phone, referralCode) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -21,6 +21,10 @@ window.AuthService = {
     
     // Check if email confirmation is required
     if (!data.session && data.user) {
+      // Store referral code for later sync after email confirmation
+      if (referralCode) {
+        localStorage.setItem('pendingReferralCode', referralCode);
+      }
       // Email confirmation required - user created but not logged in yet
       return { 
         user: data.user, 
@@ -40,9 +44,13 @@ window.AuthService = {
           },
           body: JSON.stringify({
             fullName,
-            phone
+            phone,
+            referralCode: referralCode || localStorage.getItem('pendingReferralCode') || ''
           })
         });
+        
+        // Clear stored referral code after sync
+        localStorage.removeItem('pendingReferralCode');
         
         if (!response.ok) {
           console.error('Failed to sync user to backend');
@@ -63,6 +71,30 @@ window.AuthService = {
     });
     
     if (error) throw error;
+
+    // Sync user on login (handles email-confirmed users + pending referral codes)
+    if (data.session) {
+      try {
+        const pendingRef = localStorage.getItem('pendingReferralCode') || '';
+        const userMeta = data.user?.user_metadata || {};
+        await fetch(`${CONFIG.API_URL}/users/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${data.session.access_token}`
+          },
+          body: JSON.stringify({
+            fullName: userMeta.full_name || '',
+            phone: userMeta.phone || '',
+            referralCode: pendingRef
+          })
+        });
+        localStorage.removeItem('pendingReferralCode');
+      } catch (syncErr) {
+        console.error('Login sync error:', syncErr);
+      }
+    }
+
     return data;
   },
 
