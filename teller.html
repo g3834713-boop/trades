@@ -541,7 +541,7 @@
                 document.getElementById('currentLevelBadge').textContent = currentLevel ? `Level ${currentLevel}` : '--';
                 document.getElementById('currentLevelStatus').textContent = currentLevel
                     ? 'Complete tasks sequentially to unlock the next level.'
-                    : 'No active level yet. Wait for admin assignments.';
+                    : 'No active level yet. New tasks will be assigned soon.';
 
                 const withdrawBtn = document.getElementById('withdrawBtn');
                 withdrawBtn.disabled = !status.canWithdraw;

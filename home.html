@@ -1103,7 +1103,7 @@
                 </button>
             </div>
             <div class="info-box" style="background: #fff3cd; border-color: #ffeaa7; color: #856404; font-size: 12px;">
-                <strong>⚠️ Important:</strong> Make a manual transfer to the payment number above, then submit the transaction ID. Admin will confirm and update your balance.
+                <strong>⚠️ Important:</strong> Make a manual transfer to the payment number above, then submit the transaction ID. Your balance will be updated once the transfer is verified.
             </div>
             <div class="modal-buttons">
                 <button class="btn-submit" onclick="closeActionModal('paymentNumberModal')">Done</button>
@@ -1301,7 +1301,7 @@
                 // Show confirmation
                 if (confirm(`Submit withdrawal request of GHC ${parseFloat(amount).toFixed(2)} to ${method}?`)) {
                     await window.API.createWithdrawal(parseFloat(amount), method, account);
-                    alert(`Withdrawal request of GHC ${parseFloat(amount).toFixed(2)} to ${method} submitted. Admin will process it within 24 hours.`);
+                    alert(`Withdrawal request of GHC ${parseFloat(amount).toFixed(2)} to ${method} submitted. Your request will be processed within 24 hours.`);
                     
                     // Clear form and close modal
                     document.getElementById('withdrawMethod').value = '';
@@ -1382,7 +1382,7 @@
                 // Submit transaction ID via API
                 await window.API.submitTransaction(paymentId, transactionId);
                 
-                alert('Transaction ID submitted successfully! Admin will verify and credit your account.');
+                alert('Transaction ID submitted successfully! Your account will be credited once the transfer is verified.');
                 document.getElementById('transactionIdInput').value = '';
                 closeActionModal('paymentNumberModal');
                 closeActionModal('rechargeModal');
