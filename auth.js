@@ -23,7 +23,7 @@ window.AuthService = {
     if (!data.session && data.user) {
       // Store referral code for later sync after email confirmation
       if (referralCode) {
-        sessionStorage.setItem('pendingReferralCode', referralCode);
+        localStorage.setItem('pendingReferralCode', referralCode);
       }
       // Email confirmation required - user created but not logged in yet
       return { 
@@ -45,12 +45,12 @@ window.AuthService = {
           body: JSON.stringify({
             fullName,
             phone,
-            referralCode: referralCode || sessionStorage.getItem('pendingReferralCode') || ''
+            referralCode: referralCode || localStorage.getItem('pendingReferralCode') || ''
           })
         });
         
         // Clear stored referral code after sync
-        sessionStorage.removeItem('pendingReferralCode');
+        localStorage.removeItem('pendingReferralCode');
         
         if (!response.ok) {
           console.error('Failed to sync user to backend');
@@ -75,7 +75,7 @@ window.AuthService = {
     // Sync user on login (handles email-confirmed users + pending referral codes)
     if (data.session) {
       try {
-        const pendingRef = sessionStorage.getItem('pendingReferralCode') || '';
+        const pendingRef = localStorage.getItem('pendingReferralCode') || '';
         const userMeta = data.user?.user_metadata || {};
         await fetch(`${CONFIG.API_URL}/users/sync`, {
           method: 'POST',
@@ -89,7 +89,7 @@ window.AuthService = {
             referralCode: pendingRef
           })
         });
-        sessionStorage.removeItem('pendingReferralCode');
+        localStorage.removeItem('pendingReferralCode');
       } catch (syncErr) {
         console.error('Login sync error:', syncErr);
       }

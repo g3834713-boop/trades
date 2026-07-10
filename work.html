@@ -653,30 +653,13 @@
 
         let currentProduct = null;
 
-        function initializeProduct() {
-            const userData = localStorage.getItem('currentUser');
-            if (!userData) {
-                showNoProductState();
-                return;
-            }
-
-            const user = JSON.parse(userData);
-            const userProducts = DataManager.getUserProducts(user.userId);
-
-            if (userProducts.length === 0) {
-                showNoProductState();
-                return;
-            }
-
-            // Show the first assigned product
-            currentProduct = userProducts[0];
-            const fullProduct = allProducts[currentProduct.id];
-
-            if (fullProduct) {
-                document.getElementById('productImage').src = fullProduct.image;
-                document.getElementById('productName').textContent = fullProduct.name;
-                document.getElementById('productDesc').textContent = fullProduct.description;
-                document.getElementById('productPrice').textContent = `GHC ${fullProduct.price.toFixed(2)}`;
+        async function initializeProduct() {
+            try {
+                const products = await window.API.getMyProducts();
+                currentProduct = (products || []).find(product => product.assignment_status !== 'completed') || null;
+            } catch (error) {
+                console.warn('Failed to load work products:', error);
+                currentProduct = null;
             }
         }
 
@@ -875,12 +858,7 @@
 
         // Listen for finance updates
         window.addEventListener('userFinanceUpdated', function(event) {
-            const userData = localStorage.getItem('currentUser');
-            if (userData) {
-                const user = JSON.parse(userData);
-                updateBalanceDisplay(user.userId);
-            }
-            const balanceValue = event?.detail?.balance;
+            const balanceValue = event?.detail?.finance?.balance ?? event?.detail?.balance;
             if (typeof balanceValue === 'number') {
                 const todayBalance = document.getElementById('todayBalance');
                 if (todayBalance) {

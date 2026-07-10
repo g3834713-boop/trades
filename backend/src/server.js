@@ -44,7 +44,11 @@ app.post('/users/sync', requireAuth, async (req, res) => {
   await query(
     `insert into app_users (id, email, full_name, phone, referral_code)
      values ($1, $2, $3, $4, $5)
-     on conflict (id) do update set full_name = excluded.full_name, phone = excluded.phone`,
+     on conflict (id) do update set
+       email = excluded.email,
+       full_name = coalesce(excluded.full_name, app_users.full_name),
+       phone = coalesce(excluded.phone, app_users.phone),
+       referral_code = coalesce(app_users.referral_code, excluded.referral_code)`,
     [id, email, fullName || null, phone || null, myReferralCode]
   );
   await query(
@@ -118,13 +122,26 @@ app.get('/users/me', requireAuth, async (req, res) => {
 
 // Update user profile
 app.put('/users/me', requireAuth, async (req, res) => {
-  const { fullName, phone } = req.body;
+  const fullName = typeof req.body.fullName === 'string' ? req.body.fullName.trim() : '';
+  const phone = typeof req.body.phone === 'string' ? req.body.phone.trim() : '';
+
   if (!fullName) return res.status(400).json({ error: 'Name is required' });
+
   await query(
     'update app_users set full_name = $1, phone = $2 where id = $3',
     [fullName, phone || null, req.user.id]
   );
-  res.json({ ok: true });
+
+  const { rows } = await query(
+    `select u.id, u.email, u.full_name, u.phone, u.created_at,
+            u.referral_code, w.balance, w.bonus
+     from app_users u
+     left join wallets w on u.id = w.user_id
+     where u.id = $1`,
+    [req.user.id]
+  );
+
+  res.json(rows[0]);
 });
 
 // Get referral stats

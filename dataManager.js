@@ -32,7 +32,24 @@ const DataManager = {
         return (adminData.tasks || []).find(t => t.id === taskId) || null;
     },
 
-    // ...all localStorage-based task logic removed. Use backend APIs for teller tasks...
+    assignProductAsTask: function(userId, productId) {
+        const adminData = this.getAdminData();
+        const productTemplate = (adminData.products || []).find(product => String(product.id) === String(productId));
+        if (!productTemplate) {
+            return { success: false, reason: 'product_not_found' };
+        }
+
+        const tasks = this.getUserTasks(userId);
+        const allTasks = [
+            ...(tasks.pending || []),
+            ...(tasks.frozen || []),
+            ...(tasks.completed || [])
+        ];
+        const alreadyAssigned = allTasks.some(task => String(task.productId || task.id) === String(productId));
+        if (alreadyAssigned) {
+            return { success: false, reason: 'already_assigned' };
+        }
+
         const taskInstance = {
             id: productId,
             productId: productId,
@@ -60,7 +77,8 @@ const DataManager = {
             else skipped += 1;
         });
         return { assigned, skipped };
-    }
+    },
+
     // Initialize user financial data
     initializeUser: function(userId) {
         const existingData = localStorage.getItem(`userFinance_${userId}`);

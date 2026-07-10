@@ -1430,35 +1430,42 @@
             }
         }
 
-        function updateAccount() {
-            const userData = localStorage.getItem('currentUser');
-            if (userData) {
-                const user = JSON.parse(userData);
-                const newName = document.getElementById('accountName').value;
-                const newEmail = document.getElementById('accountEmail').value;
-                const newPhone = document.getElementById('accountPhone').value;
+        async function updateAccount() {
+            const newName = document.getElementById('accountName').value.trim();
+            const newEmail = document.getElementById('accountEmail').value.trim();
+            const newPhone = document.getElementById('accountPhone').value.trim();
 
-                if (!newName || !newEmail || !newPhone) {
-                    alert('Please fill in all fields');
-                    return;
-                }
+            if (!newName || !newEmail || !newPhone) {
+                alert('Please fill in all fields');
+                return;
+            }
 
-                user.fullName = newName;
-                user.email = newEmail;
-                user.phone = newPhone;
+            try {
+                const profile = await window.API.updateProfile(newName, newPhone);
+                window.currentUserProfile = profile;
+                localStorage.setItem('cachedUserProfile', JSON.stringify(profile));
 
-                localStorage.setItem('currentUser', JSON.stringify(user));
+                const userData = localStorage.getItem('currentUser');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    user.fullName = profile.full_name || newName;
+                    user.email = profile.email || newEmail;
+                    user.phone = profile.phone || newPhone;
+                    localStorage.setItem('currentUser', JSON.stringify(user));
 
-                // Update allUsers list as well
-                let allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
-                const userIndex = allUsers.findIndex(u => u.userId === user.userId);
-                if (userIndex !== -1) {
-                    allUsers[userIndex] = user;
-                    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                    let allUsers = JSON.parse(localStorage.getItem('allUsers') || '[]');
+                    const userIndex = allUsers.findIndex(u => u.userId === user.userId);
+                    if (userIndex !== -1) {
+                        allUsers[userIndex] = user;
+                        localStorage.setItem('allUsers', JSON.stringify(allUsers));
+                    }
                 }
 
                 alert('Account information updated successfully!');
                 closeActionModal('accountModal');
+            } catch (error) {
+                console.error('Account update error:', error);
+                alert(error.message || 'Failed to update account information');
             }
         }
 
