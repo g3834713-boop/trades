@@ -1514,12 +1514,22 @@
 
                 // START ORDER FIRST (before deducting money)
                 // This prevents orphaned deductions if order creation fails
-                const orderResult = await window.API.startOrder(taskId, null, task.amount, interestAmount, totalReturn);
+                // For products, pass productId; for tasks, pass taskId
+                const orderResult = await window.API.startOrder(
+                    task.isProduct ? null : taskId,
+                    task.isProduct ? task.id : null,
+                    task.amount,
+                    interestAmount,
+                    totalReturn
+                );
                 
                 // NOW deduct cost from balance (only after order is confirmed)
                 await window.API.call('/wallet/deduct', {
                     method: 'POST',
-                    body: JSON.stringify({ amount: task.amount, reason: `Task: ${task.title}` })
+                    body: JSON.stringify({ 
+                        amount: task.amount, 
+                        reason: `${task.isProduct ? 'Product' : 'Task'}: ${task.title}` 
+                    })
                 });
 
                 // Update UI to show balance deduction
@@ -1529,7 +1539,7 @@
                 window.localStorage.setItem('pendingOrderId', orderResult.orderId);
                 
                 // Show processing modal with polling
-                showProcessingModal(task.title, orderResult.orderId, totalReturn, task, false);
+                showProcessingModal(task.title, orderResult.orderId, totalReturn, task, task.isProduct);
 
             } catch (error) {
                 console.error('Error completing task:', error);
