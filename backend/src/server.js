@@ -2584,11 +2584,17 @@ app.post('/easy-earns/:id/claim', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-
-    // Find latest submission by user for this task that is not yet claimed
+    // Try to find latest submission by user
     const { rows: subs } = await query('select id, status from easy_earn_submissions where task_id = $1 and user_id = $2 order by submitted_at desc limit 1', [id, userId]);
-    if (subs.length === 0) return res.status(400).json({ error: 'No submission found. Please submit proof first.' });
-    const sub = subs[0];
+
+    let sub = subs[0];
+
+    // If no submission exists, insert an auto-submission (user watched in-app)
+    if (!sub) {
+      const insertRes = await query('insert into easy_earn_submissions (task_id, user_id, notes, status, submitted_at) values ($1,$2,$3,$4, now()) returning id', [id, userId, 'Auto-submission: watched videos in-app', 'submitted']);
+      sub = { id: insertRes.rows[0].id, status: 'submitted' };
+    }
+
     if (sub.status === 'claimed') return res.status(400).json({ error: 'Already claimed' });
 
     // Get task amount

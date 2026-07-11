@@ -229,12 +229,78 @@
                             <p>${escapeHtml(task.description || '')}</p>
                             <div style="margin-top:8px; font-size:13px; color:#6b7280">Reward: GHC ${parseFloat(task.amount||0).toFixed(2)}</div>
                         </div>
-                        <div style="display:flex; flex-direction:column; gap:8px; min-width:160px; align-items:flex-end;">
-                            <button class="primary-btn" style="padding:8px 12px;" onclick="openEasyModal('${task.id}', '${escapeAttr(task.title)}', '${escapeAttr(task.description||'')}', ${parseFloat(task.amount||0)})">Start</button>
-                            <div style="font-size:12px; color:#9ca3af; text-align:right;">${task.can_submit ? '<span style="color:#16a34a">Ready to submit</span>' : 'Cooldown active'}</div>
+                        <div style="display:flex; flex-direction:column; gap:8px; min-width:260px; align-items:flex-end;">
+                            <div id="videoContainer_${task.id}" style="width:100%;"></div>
+                            <div id="videoProgress_${task.id}" style="font-size:12px; color:#9ca3af; text-align:right;">Loading videos...</div>
                         </div>
                     `;
                     listEl.appendChild(item);
+
+                    // Load videos for this easy-earn task and render players
+                    (async function(t) {
+                        try {
+                            const vids = await window.API.getEasyEarnVideos(t.id);
+                            const container = document.getElementById('videoContainer_' + t.id);
+                            const progress = document.getElementById('videoProgress_' + t.id);
+                            if (!vids || vids.length === 0) {
+                                container.innerHTML = '<div style="color:#6b7280">No videos configured for this task yet.</div>';
+                                progress.textContent = '';
+                                return;
+                            }
+
+                            // Track watched videos
+                            const watched = new Set();
+
+                            container.innerHTML = vids.map(v => `
+                                <div style="margin-bottom:10px; width:100%;">
+                                    <div style="font-weight:600; margin-bottom:6px;">${escapeHtml(v.title || ('Video ' + v.video_index))}</div>
+                                    <video id="video_${t.id}_${v.video_index}" width="100%" controls preload="metadata" style="border-radius:10px; background:#000;">
+                                        <source src="${escapeAttr(v.url || '')}" type="video/mp4">
+                                        Your browser does not support HTML5 video.
+                                    </video>
+                                </div>
+                            `).join('');
+
+                            progress.textContent = `0/${vids.length} watched`;
+
+                            vids.forEach(v => {
+                                const vidEl = document.getElementById('video_' + t.id + '_' + v.video_index);
+                                if (!vidEl) return;
+
+                                vidEl.addEventListener('ended', async () => {
+                                    watched.add(v.video_index);
+                                    progress.textContent = `${watched.size}/${vids.length} watched`;
+
+                                    // If all watched, auto-claim reward
+                                    if (watched.size === vids.length) {
+                                        progress.textContent = 'All videos watched — claiming reward...';
+                                        try {
+                                            const resp = await window.API.claimEasyEarn(t.id);
+                                            if (resp && resp.ok) {
+                                                alert(`Reward credited: GHC ${parseFloat(resp.earned||0).toFixed(2)}`);
+                                                // refresh wallet and list
+                                                await window.API.getWallet().catch(()=>{});
+                                                loadEasyEarns();
+                                                window.dispatchEvent(new Event('userFinanceUpdated'));
+                                            } else {
+                                                alert(resp.message || 'Claim response received');
+                                            }
+                                        } catch (err) {
+                                            console.error('Auto-claim failed:', err);
+                                            progress.textContent = 'Claim failed — try submitting proof manually.';
+                                        }
+                                    }
+                                });
+                            });
+
+                        } catch (err) {
+                            console.error('Failed to load videos for task', t.id, err);
+                            const container = document.getElementById('videoContainer_' + t.id);
+                            const progress = document.getElementById('videoProgress_' + t.id);
+                            if (container) container.innerHTML = '<div style="color:#ef4444">Failed to load videos</div>';
+                            if (progress) progress.textContent = '';
+                        }
+                    })(task);
                 });
             } catch (err) {
                 console.error('Failed to load Easy Earns tasks', err);
