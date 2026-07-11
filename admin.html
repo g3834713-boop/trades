@@ -1314,17 +1314,21 @@
                 const tasks = await window.API.getTasks();
                 let html = '';
 
-                if (tasks.length === 0) {
+                    if (tasks.length === 0) {
                     html = '<div class="empty-state"><p>No tasks created</p></div>';
                 } else {
                     tasks.forEach(task => {
+                        const statusLabel = task.status || 'active';
+                        const toggleLabel = statusLabel === 'active' ? 'Freeze' : 'Activate';
                         html += `<div class="table-row">
                             <div class="table-cell">${task.title}</div>
                             <div class="table-cell">GHC ${parseFloat(task.amount || 0).toFixed(2)}</div>
-                            <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${task.status || 'active'}</span></div>
+                            <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${statusLabel}</span></div>
                             <div class="table-cell">-</div>
                             <div class="table-action">
+                                <button class="btn btn-secondary" onclick="openEditTaskModal('${task.id}')">Edit</button>
                                 <button class="btn btn-primary" onclick="openAssignTaskModal('${task.id}')">Assign</button>
+                                <button class="btn btn-warning" onclick="toggleTaskStatus('${task.id}', '${statusLabel === 'active' ? 'frozen' : 'active'}')">${toggleLabel}</button>
                                 <button class="btn btn-danger" onclick="deleteTask('${task.id}')">Delete</button>
                             </div>
                         </div>`;
@@ -1895,6 +1899,73 @@
             } catch (error) {
                 console.error('Failed to create task:', error);
                 alert('Failed to create task: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        function openEditTaskModal(taskId) {
+            // Load task details
+            window.currentEditTaskId = taskId;
+            try {
+                window.API.getTasks().then(tasks => {
+                    const task = tasks.find(t => t.id === taskId);
+                    if (!task) return alert('Task not found');
+                    document.getElementById('taskTitle').value = task.title || '';
+                    document.getElementById('taskDescription').value = task.description || '';
+                    document.getElementById('taskAmount').value = parseFloat(task.amount || 0).toFixed(2);
+                    document.getElementById('taskCommission').value = parseFloat(task.commission || 0).toFixed(2);
+                    document.getElementById('taskQuantity').value = '1';
+                    document.querySelector('#taskModal .modal-title').textContent = 'Edit Task';
+                    // Change create button to update
+                    const btn = document.querySelector('#taskModal .btn.btn-primary');
+                    if (btn) {
+                        btn.textContent = 'Update Task';
+                        btn.onclick = updateTask;
+                    }
+                    document.getElementById('taskModal').classList.add('show');
+                });
+            } catch (err) {
+                console.error('Failed to load task for edit:', err);
+                alert('Failed to load task');
+            }
+        }
+
+        async function updateTask() {
+            const taskId = window.currentEditTaskId;
+            if (!taskId) return alert('No task selected');
+            const title = document.getElementById('taskTitle').value;
+            const description = document.getElementById('taskDescription').value;
+            const amount = parseFloat(document.getElementById('taskAmount').value);
+            const commission = parseFloat(document.getElementById('taskCommission').value) || 0;
+
+            if (!title || !amount) return alert('Please fill in required fields');
+
+            try {
+                await window.API.updateTask(taskId, { title, description, amount, commission });
+                alert('Task updated');
+                closeTaskModal();
+                // Restore create button behavior
+                const btn = document.querySelector('#taskModal .btn.btn-primary');
+                if (btn) {
+                    btn.textContent = 'Create Task';
+                    btn.onclick = createTask;
+                }
+                document.querySelector('#taskModal .modal-title').textContent = 'Create New Task';
+                window.currentEditTaskId = null;
+                loadTasks();
+            } catch (err) {
+                console.error('Failed to update task:', err);
+                alert('Failed to update task');
+            }
+        }
+
+        async function toggleTaskStatus(taskId, newStatus) {
+            try {
+                await window.API.setTaskStatus(taskId, newStatus);
+                alert('Task status updated');
+                loadTasks();
+            } catch (err) {
+                console.error('Failed to update status:', err);
+                alert('Failed to update task status');
             }
         }
 

@@ -366,6 +366,20 @@ window.API = {
     });
   },
 
+  async updateTask(taskId, data) {
+    return this.call(`/admin/tasks/${taskId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async setTaskStatus(taskId, status) {
+    return this.call(`/admin/tasks/${taskId}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status })
+    });
+  },
+
   async getTasks() {
     return this.call('/admin/tasks');
   },
