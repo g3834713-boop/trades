@@ -384,6 +384,10 @@ window.API = {
     return this.call('/admin/tasks');
   },
 
+  async getTaskAssignments(limit = 500) {
+    return this.call(`/admin/task-assignments?limit=${encodeURIComponent(limit)}`);
+  },
+
   async assignTask(taskId, userIds) {
     return this.call(`/admin/tasks/${taskId}/assign`, {
       method: 'POST',

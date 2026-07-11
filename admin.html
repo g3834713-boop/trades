@@ -587,6 +587,9 @@
                 <button class="btn btn-primary" style="margin-bottom: 20px;" onclick="openAddTaskModal()">
                     <i class="las la-plus"></i> Create New Task
                 </button>
+                <button class="btn" style="margin-left:8px; margin-bottom:20px; background:#eef2ff; color:#2b6df0;" onclick="exportTasksCsv()">
+                    <i class="las la-file-csv"></i> Export Tasks CSV
+                </button>
                 <div class="table-container">
                     <div class="table-header">
                         <div>Title</div>
@@ -1339,6 +1342,47 @@
             } catch (error) {
                 console.error('Failed to load tasks:', error);
                 document.getElementById('tasksTableBody').innerHTML = '<div class="empty-state"><p>Failed to load tasks</p></div>';
+            }
+        }
+
+        // Export tasks and assignments as CSV
+        async function exportTasksCsv() {
+            try {
+                const tasks = await window.API.getTasks();
+                const assignments = await window.API.getTaskAssignments(1000);
+
+                // Build CSV rows
+                const rows = [];
+                rows.push(['task_id','task_title','task_amount','assignment_id','user_id','user_name','user_email','assignment_status','assigned_at','completed_at']);
+
+                for (const a of assignments) {
+                    rows.push([
+                        a.task_id,
+                        a.task_title,
+                        a.task_amount,
+                        a.assignment_id,
+                        a.user_id,
+                        a.user_name,
+                        a.user_email,
+                        a.assignment_status,
+                        a.assigned_at,
+                        a.completed_at
+                    ]);
+                }
+
+                const csv = rows.map(r => r.map(field => '"' + String(field || '').replace(/"/g,'""') + '"').join(',')).join('\n');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `task-assignments-${new Date().toISOString().slice(0,10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                console.error('Export failed:', err);
+                alert('Failed to export CSV');
             }
         }
 

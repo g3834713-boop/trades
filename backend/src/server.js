@@ -1086,6 +1086,28 @@ app.post('/admin/tasks/:id/assign', requireAuth, requireAdmin, async (req, res) 
   res.json({ assigned, skipped });
 });
 
+// Admin: list recent task assignments (with user + task info)
+app.get('/admin/task-assignments', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '100', 10), 1), 1000);
+    const { rows } = await query(
+      `select ta.id as assignment_id, ta.task_id, ta.user_id, ta.status as assignment_status, ta.assigned_at, ta.completed_at,
+              t.title as task_title, t.amount as task_amount,
+              u.full_name as user_name, u.email as user_email
+       from task_assignments ta
+       join tasks t on t.id = ta.task_id
+       join app_users u on u.id = ta.user_id
+       order by ta.assigned_at desc
+       limit $1`,
+      [limit]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Failed to list task assignments:', err);
+    res.status(500).json({ error: 'Failed to list task assignments' });
+  }
+});
+
 // Admin: Create product
 app.post('/admin/products', requireAuth, requireAdmin, async (req, res) => {
   try {
