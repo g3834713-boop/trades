@@ -10,6 +10,76 @@ import { canWithdrawAmount } from './verificationLimits.js';
 
 const app = express();
 
+async function getAppSetting(key, defaultValue = null) {
+  const { rows } = await query('select value from app_settings where key = $1', [key]);
+  if (!rows.length) return defaultValue;
+  return rows[0].value;
+}
+
+async function getAllAppSettings() {
+  const { rows } = await query('select key, value from app_settings');
+  const settings = {
+    commissionRate: 20,
+    minWithdrawal: 50,
+    platformName: 'DailyTrade',
+    support: {
+      financeDepartmentName: 'Finance Department Customer Service',
+      financeTelegram: '@DailyTrader',
+      financeManagerTelegram: '@DailyTradee',
+      cfoTelegram: '@DailyTrader',
+      generalSupportTelegram: '@DailyTrader',
+      supportEmail: 'support@dailytrade.com',
+      supportPhone: '+233 XXX XXX XXX',
+      supportLiveChat: 'Telegram: @DailyTrader'
+    },
+    dailyCheckinAmount: 5
+  };
+
+  for (const row of rows) {
+    const key = row.key;
+    const value = row.value;
+    if (key === 'commission_rate') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.commissionRate = parsed;
+    } else if (key === 'min_withdrawal') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.minWithdrawal = parsed;
+    } else if (key === 'platform_name') {
+      if (value != null && value !== '') settings.platformName = value;
+    } else if (key === 'support_finance_department_name') {
+      if (value != null && value !== '') settings.support.financeDepartmentName = value;
+    } else if (key === 'support_finance_telegram') {
+      if (value != null && value !== '') settings.support.financeTelegram = value;
+    } else if (key === 'support_finance_manager_telegram') {
+      if (value != null && value !== '') settings.support.financeManagerTelegram = value;
+    } else if (key === 'support_cfo_telegram') {
+      if (value != null && value !== '') settings.support.cfoTelegram = value;
+    } else if (key === 'support_general_telegram') {
+      if (value != null && value !== '') settings.support.generalSupportTelegram = value;
+    } else if (key === 'support_email') {
+      if (value != null && value !== '') settings.support.supportEmail = value;
+    } else if (key === 'support_phone') {
+      if (value != null && value !== '') settings.support.supportPhone = value;
+    } else if (key === 'support_live_chat') {
+      if (value != null && value !== '') settings.support.supportLiveChat = value;
+    } else if (key === 'daily_checkin_amount') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.dailyCheckinAmount = parsed;
+    }
+  }
+
+  return settings;
+}
+
+async function upsertAppSetting(key, value) {
+  await query(
+    `insert into app_settings (key, value)
+     values ($1, $2)
+     on conflict (key) do update set value = excluded.value`,
+    [key, String(value)]
+  );
+}
+
 // Prevent caching for all API responses
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -412,6 +482,164 @@ app.post('/wallet/add-bonus', requireAuth, async (req, res) => {
   
   const { rows } = await query('select balance, bonus from wallets where user_id = $1', [id]);
   res.json(rows[0]);
+});
+
+// Daily check-in: get status
+app.get('/checkin', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  try {
+    const { rows } = await query('select checkin_date from daily_checkins where user_id = $1 order by checkin_date desc limit 1', [id]);
+    const last = rows[0]?.checkin_date || null;
+    const today = new Date().toISOString().slice(0, 10);
+    const checkedIn = last ? (new Date(last).toISOString().slice(0, 10) === today) : false;
+    const setting = await getAppSetting('daily_checkin_amount', 5);
+    const amount = Number(setting) || 0;
+    res.json({ checkedIn, lastCheckin: last, amount });
+  } catch (err) {
+    console.error('Failed to get checkin status:', err);
+    res.status(500).json({ error: 'Failed to get checkin status' });
+  }
+});
+
+// Daily check-in: perform check-in and credit bonus
+app.post('/checkin', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  try {
+    // Ensure user hasn't checked in today
+    const { rows: existing } = await query('select 1 from daily_checkins where user_id = $1 and checkin_date = current_date', [id]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Already checked in today' });
+    }
+
+    const setting = await getAppSetting('daily_checkin_amount', 5);
+    const amount = Number(setting) || 0;
+
+    // Record check-in
+    await query('insert into daily_checkins (user_id, checkin_date) values ($1, current_date)', [id]);
+
+    if (amount > 0) {
+      await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, id]);
+      await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [id, 'daily_checkin', amount, 'Daily check-in bonus']);
+    }
+
+    const { rows } = await query('select balance, bonus from wallets where user_id = $1', [id]);
+    res.json({ ok: true, amount, wallet: rows[0] });
+  } catch (err) {
+    console.error('Failed to perform checkin:', err);
+    // Handle unique constraint race (user checked in in parallel)
+    if (err && (err.code === '23505' || (err.message && err.message.includes('duplicate key')))) {
+      return res.status(400).json({ error: 'Already checked in today' });
+    }
+    res.status(500).json({ error: 'Failed to perform checkin' });
+  }
+});
+
+app.get('/settings', async (req, res) => {
+  const settings = await getAllAppSettings();
+  res.json(settings);
+});
+
+app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
+  const {
+    commissionRate,
+    minWithdrawal,
+    platformName,
+    support = {},
+    dailyCheckinAmount
+  } = req.body;
+
+  if (commissionRate !== undefined) {
+    await upsertAppSetting('commission_rate', commissionRate);
+  }
+  if (minWithdrawal !== undefined) {
+    await upsertAppSetting('min_withdrawal', minWithdrawal);
+  }
+  if (platformName !== undefined) {
+    await upsertAppSetting('platform_name', platformName);
+  }
+
+  if (support.financeDepartmentName !== undefined) {
+    await upsertAppSetting('support_finance_department_name', support.financeDepartmentName);
+  }
+  if (support.financeTelegram !== undefined) {
+    await upsertAppSetting('support_finance_telegram', support.financeTelegram);
+  }
+  if (support.financeManagerTelegram !== undefined) {
+    await upsertAppSetting('support_finance_manager_telegram', support.financeManagerTelegram);
+  }
+  if (support.cfoTelegram !== undefined) {
+    await upsertAppSetting('support_cfo_telegram', support.cfoTelegram);
+  }
+  if (support.generalSupportTelegram !== undefined) {
+    await upsertAppSetting('support_general_telegram', support.generalSupportTelegram);
+  }
+  if (support.supportEmail !== undefined) {
+    await upsertAppSetting('support_email', support.supportEmail);
+  }
+  if (support.supportPhone !== undefined) {
+    await upsertAppSetting('support_phone', support.supportPhone);
+  }
+  if (support.supportLiveChat !== undefined) {
+    await upsertAppSetting('support_live_chat', support.supportLiveChat);
+  }
+  if (dailyCheckinAmount !== undefined) {
+    await upsertAppSetting('daily_checkin_amount', dailyCheckinAmount);
+  }
+
+  res.json({ ok: true });
+});
+
+app.get('/users/me/checkin', requireAuth, async (req, res) => {
+  const { id: userId } = req.user;
+  const settings = await getAllAppSettings();
+  const { rows } = await query(
+    `select checkin_date from daily_checkins where user_id = $1 order by checkin_date desc limit 1`,
+    [userId]
+  );
+  const today = new Date().toISOString().slice(0, 10);
+  const lastCheckin = rows[0]?.checkin_date;
+  const lastCheckinDate = lastCheckin ? new Date(lastCheckin).toISOString().slice(0, 10) : null;
+
+  res.json({
+    lastCheckin: lastCheckinDate,
+    eligible: lastCheckinDate !== today,
+    amount: Number(settings.dailyCheckinAmount) || 5
+  });
+});
+
+app.post('/users/me/checkin', requireAuth, async (req, res) => {
+  const { id: userId } = req.user;
+  const settings = await getAllAppSettings();
+  const amount = Number(settings.dailyCheckinAmount) || 5;
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { rows } = await query(
+    `select checkin_date from daily_checkins where user_id = $1 order by checkin_date desc limit 1`,
+    [userId]
+  );
+  const lastCheckin = rows[0]?.checkin_date;
+  const lastCheckinDate = lastCheckin ? new Date(lastCheckin).toISOString().slice(0, 10) : null;
+
+  if (lastCheckinDate === today) {
+    return res.status(400).json({ error: 'You have already claimed today\'s check-in reward.' });
+  }
+
+  await query(
+    `insert into daily_checkins (user_id, checkin_date)
+     values ($1, $2)`,
+    [userId, today]
+  );
+  await query(
+    'update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2',
+    [amount, userId]
+  );
+  await query(
+    `insert into transactions (user_id, type, amount, reason)
+     values ($1, 'daily_checkin', $2, $3)`,
+    [userId, amount, 'Daily check-in reward']
+  );
+
+  res.json({ ok: true, amount, nextCheckin: today });
 });
 
 // Transactions
@@ -1765,6 +1993,23 @@ async function ensureSchema() {
     )
   `);
   await query('create index if not exists referrals_referrer_idx on referrals(referrer_id)');
+
+  await query(`
+    create table if not exists app_settings (
+      key text primary key,
+      value text
+    )
+  `);
+
+  await query(`
+    create table if not exists daily_checkins (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      checkin_date date not null,
+      created_at timestamptz default now(),
+      unique(user_id, checkin_date)
+    )
+  `);
 
   // Backfill referral codes for existing users who don't have one
   const { rows: usersWithoutCode } = await query("select id from app_users where referral_code is null or referral_code = ''");

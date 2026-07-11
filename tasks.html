@@ -737,9 +737,9 @@
 
         <!-- Filter Buttons -->
         <div class="filter-buttons">
-            <button class="filter-btn active" onclick="switchFilter('pending')">To Be Completed</button>
-            <button class="filter-btn" onclick="switchFilter('frozen')">Frozen</button>
-            <button class="filter-btn" onclick="switchFilter('completed')">Completed</button>
+            <button class="filter-btn active" onclick="switchFilter('pending', this)">To Be Completed</button>
+            <button class="filter-btn" onclick="switchFilter('frozen', this)">Frozen</button>
+            <button class="filter-btn" onclick="switchFilter('completed', this)">Completed</button>
         </div>
 
         <!-- Product Grid -->
@@ -1044,8 +1044,45 @@
                         </div>
                     </div>
                 `;
+
+                // Add daily check-in button/status below the balance
+                try {
+                    const checkin = await window.API.getDailyCheckin().catch(() => ({ checkedIn: false, amount: 0 }));
+                    const btnContainer = document.createElement('div');
+                    btnContainer.style.marginTop = '12px';
+                    if (checkin && checkin.checkedIn) {
+                        btnContainer.innerHTML = `<button class="task-action-btn" disabled style="background: #6c757d;">Checked in today (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`;
+                    } else {
+                        btnContainer.innerHTML = `<button class="task-action-btn" onclick="doDailyCheckin(this)">Daily Check-in (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`;
+                    }
+                    document.querySelector('.balance-section').appendChild(btnContainer);
+                } catch (err) {
+                    console.warn('Failed to load checkin status', err);
+                }
             } catch (error) {
                 console.error('Error updating balance:', error);
+            }
+        }
+
+        async function doDailyCheckin(btn) {
+            try {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Processing...';
+                }
+                const result = await window.API.doDailyCheckin();
+                await loadUserTasks();
+                await updateBalance();
+                updateAward();
+                window.dispatchEvent(new Event('userFinanceUpdated'));
+                alert(`Check-in successful! You received GHC ${parseFloat(result.amount || 0).toFixed(2)}`);
+            } catch (err) {
+                console.error('Check-in failed', err);
+                alert(err.message || 'Check-in failed');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Daily Check-in';
+                }
             }
         }
 
@@ -1154,10 +1191,10 @@
             `).join('');
         }
 
-        function switchFilter(filter) {
+        function switchFilter(filter, el) {
             // Update active button
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            if (el) el.classList.add('active');
 
             // Update task display
             displayTasks(filter);

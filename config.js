@@ -18,6 +18,8 @@ const DEFAULT_SETTINGS = {
     supportEmail: 'support@dailytrade.com',
     supportPhone: ''
   }
+  ,
+  dailyCheckinAmount: 5
 };
 
 const SETTINGS_STORAGE_KEY = 'dailytrade_settings';

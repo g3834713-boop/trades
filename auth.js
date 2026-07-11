@@ -476,6 +476,15 @@ window.API = {
     });
   },
 
+  // Daily check-in
+  async getDailyCheckin() {
+    return this.call('/checkin');
+  },
+
+  async doDailyCheckin() {
+    return this.call('/checkin', { method: 'POST' });
+  },
+
   async getAllUsers() {
     return this.call('/admin/users');
   },
