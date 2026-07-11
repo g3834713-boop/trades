@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quick Earn - Deploy Guide</title>
+    <title>DailyTrade Deployment Status</title>
     <style>
-        body { font-family: system-ui; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+        body { font-family: system-ui, sans-serif; max-width: 860px; margin: 40px auto; padding: 20px; line-height: 1.6; }
         h1 { color: #667eea; }
         h2 { color: #764ba2; margin-top: 30px; }
         code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
@@ -16,70 +16,51 @@
     </style>
 </head>
 <body>
-    <h1>✅ Backend Deployed Successfully!</h1>
-    
-    <p class="success">Your API is live at: https://trades-production.up.railway.app</p>
-    
-    <h2>What's Working Now</h2>
+    <h1>DailyTrade Deployment Status</h1>
+
+    <p class="success">Backend API is live at: <code>https://trades-production-de19.up.railway.app</code></p>
+
+    <h2>Current Stack</h2>
     <ul>
-        <li>✅ Backend API deployed on Railway</li>
-        <li>✅ PostgreSQL database on Supabase</li>
-        <li>✅ Authentication via Supabase Auth</li>
-        <li>✅ API endpoints configured</li>
+        <li>Frontend: Vercel</li>
+        <li>Backend API: Railway</li>
+        <li>Authentication: Supabase Auth</li>
+        <li>Database: Supabase Postgres</li>
     </ul>
 
-    <h2>Next: Deploy Frontend on Netlify</h2>
-    
+    <h2>Backend Check</h2>
+    <p>Open this URL to verify Railway:</p>
+    <pre>https://trades-production-de19.up.railway.app/health</pre>
+    <p>Expected response:</p>
+    <pre>{"ok":true}</pre>
+
+    <h2>Vercel Setup</h2>
     <div class="step">
-        <strong>Step 1:</strong> Go to <a href="https://netlify.com" target="_blank">Netlify</a> and sign in
+        <strong>Step 1:</strong> Import GitHub repo <code>g3834713-boop/trades</code> into Vercel.
     </div>
-    
     <div class="step">
-        <strong>Step 2:</strong> Click "Add new site" → "Import an existing project"
+        <strong>Step 2:</strong> Use framework preset <code>Other</code>.
     </div>
-    
     <div class="step">
-        <strong>Step 3:</strong> Connect to GitHub and select <code>g3834713-boop/trades</code>
+        <strong>Step 3:</strong> Leave build command blank and set output directory to <code>.</code>.
     </div>
-    
     <div class="step">
-        <strong>Step 4:</strong> Configure build settings:
-        <ul>
-            <li><strong>Base directory:</strong> (leave empty)</li>
-            <li><strong>Build command:</strong> (leave empty)</li>
-            <li><strong>Publish directory:</strong> <code>.</code></li>
-        </ul>
-    </div>
-    
-    <div class="step">
-        <strong>Step 5:</strong> Deploy!
+        <strong>Step 4:</strong> Deploy, then copy the Vercel production URL.
     </div>
 
-    <h2>Test Your Deployment</h2>
-    <p>Once Netlify deploys, you can test:</p>
+    <h2>Supabase Setup</h2>
+    <p>After Vercel deploys, set Supabase Auth URLs:</p>
+    <pre>Site URL: https://your-vercel-domain.vercel.app
+Redirect URLs: https://your-vercel-domain.vercel.app/**</pre>
+
+    <h2>Important Note</h2>
+    <p class="warning">Do not open pages like <code>/register.html</code> on Railway. Railway only serves the API, so those requests correctly return 404. Open frontend pages on Vercel.</p>
+
+    <h2>Docs</h2>
     <ul>
-        <li>Register a new account (Supabase Auth)</li>
-        <li>Login and see your balance (from Postgres)</li>
-        <li>Submit a payment request</li>
-        <li>Admin can confirm payments</li>
+        <li><code>QUICK_START.md</code> - short deployment checklist</li>
+        <li><code>VERCEL_DEPLOY.md</code> - detailed deployment setup</li>
+        <li><code>FINAL_STATUS.md</code> - current system status</li>
     </ul>
-
-    <h2>Files Created</h2>
-    <ul>
-        <li><code>config.js</code> - API configuration</li>
-        <li><code>api.js</code> - API client for backend calls</li>
-        <li><code>backend/</code> - Full backend deployed to Railway</li>
-    </ul>
-
-    <p class="warning"><strong>Note:</strong> The frontend still uses localStorage for now. I can integrate it with the API if you want full backend functionality.</p>
-
-    <h2>Want Full Integration?</h2>
-    <p>I can connect the frontend to use:</p>
-    <ul>
-        <li>Supabase Auth for login/register</li>
-        <li>Backend API for balances, payments, transactions</li>
-        <li>Real-time data sync across pages</li>
-    </ul>
-    <p>Say the word and I'll wire it all up!</p>
 </body>
 </html>

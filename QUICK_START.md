@@ -1,204 +1,80 @@
-# 🚀 Quick Deployment Guide
+# Quick Deployment Guide
 
-## Your Site is Ready to Go Live! 🎉
+DailyTrade is deployed as three separate pieces:
 
-### ✅ What's Already Done
-1. ✅ Backend API deployed to Railway
-2. ✅ Database set up in Supabase (PostgreSQL)
-3. ✅ Authentication system ready (Supabase Auth)
-4. ✅ All frontend pages integrated with backend
-5. ✅ Code pushed to GitHub
+- **Vercel** hosts the static frontend pages.
+- **Railway** hosts the Node/Express backend API.
+- **Supabase** hosts authentication and PostgreSQL.
 
----
-
-## 📋 Next Steps (Just 3 Simple Steps!)
-
-### Step 1: Deploy to Netlify (5 minutes)
-
-1. Go to **https://netlify.com** and sign up with GitHub
-2. Click **"Add new site"** → **"Import an existing project"**
-3. Select **"Deploy with GitHub"**
-4. Choose repository: **g3834713-boop/trades**
-5. Settings:
-   - Branch: `main`
-   - Build command: (leave empty)
-   - Publish directory: `.` (just a dot)
-6. Click **"Deploy site"**
-
-**Done!** Netlify will give you a URL like: `https://your-site-name.netlify.app`
-
----
-
-### Step 2: Register Admin Account (1 minute)
-
-1. Go to your new Netlify URL
-2. Click **"Register"**
-3. Create account with:
-   - Email: **admin0@gmail.com**
-   - Password: (choose a strong password)
-   - Fill other fields
-4. Click "Create Account"
-5. Login with your admin credentials
-
-**Done!** You're now the admin.
-
----
-
-### Step 3: Test Everything (3 minutes)
-
-#### Test as User:
-1. Logout from admin
-2. Register a new test user
-3. Login with test user
-4. Click "Recharge"
-5. Enter amount (min GHC 10) and phone
-6. Submit payment request
-7. Note the payment number shown
-
-#### Test as Admin:
-1. Logout from test user
-2. Go to: `your-netlify-url.com/admin-login.html`
-3. Login as admin (admin0@gmail.com)
-4. You'll see the payment request
-5. Click "Complete" to approve it
-6. Confirm the payment
-
-#### Verify:
-1. Logout from admin
-2. Login as test user again
-3. Check balance - should show GHC 10.00!
-
-**Done!** 🎉 Your site is fully working!
-
----
-
-## 🔗 Important URLs
+## Current Production URLs
 
 | Service | URL |
-|---------|-----|
-| **Backend API** | https://trades-production.up.railway.app |
-| **Supabase Dashboard** | https://supabase.com/dashboard |
-| **Railway Dashboard** | https://railway.app/dashboard |
-| **GitHub Repo** | https://github.com/g3834713-boop/trades |
-| **Frontend** | (Your Netlify URL after deployment) |
+| --- | --- |
+| Backend API | `https://trades-production-de19.up.railway.app` |
+| Backend health check | `https://trades-production-de19.up.railway.app/health` |
+| Supabase project | `https://rogddhzsdfgvajyepnqp.supabase.co` |
+| GitHub repo | `https://github.com/g3834713-boop/trades` |
+| Frontend | Your Vercel production URL |
 
----
+## Deploy Frontend on Vercel
 
-## 🔐 Your Credentials
+1. Go to `https://vercel.com`.
+2. Import GitHub repo `g3834713-boop/trades`.
+3. Use these settings:
+   - Framework preset: `Other`
+   - Root directory: repo root
+   - Build command: leave empty
+   - Output directory: `.`
+4. Deploy.
+5. Copy the Vercel production URL.
 
-### Supabase
-- **Project URL**: https://rogddhzsdfgvajyepnqp.supabase.co
-- **Email**: (your Supabase login)
-- **Admin Email**: admin0@gmail.com
+The frontend reads its backend/Supabase config from `config.js`.
 
-### Railway
-- **Project**: trades-production
-- **Backend URL**: https://trades-production.up.railway.app
+## Configure Supabase
 
-### GitHub
-- **Repo**: g3834713-boop/trades
-- **Branch**: main
+In Supabase Dashboard:
 
----
+1. Go to **Authentication** -> **URL Configuration**.
+2. Set **Site URL** to your Vercel URL.
+3. Add redirect URL: `https://your-vercel-domain.vercel.app/**`.
+4. Run `backend/schema.sql` once in the SQL Editor if the base tables are missing.
 
-## 📱 How Users Will Use Your Site
+## Configure Railway
 
-1. **Register**: Create account with email/password
-2. **Login**: Access their dashboard
-3. **Recharge**: Request to add money
-   - Select payment method (MTN/Vodafone/Bank)
-   - Enter amount and phone number
-   - Get payment number
-   - Make manual transfer to that number
-   - Submit transaction ID
-4. **Wait**: Admin approves payment
-5. **Balance Updated**: Money appears in account
-6. **Use Balance**: Complete tasks, trade, withdraw
+Railway should deploy only the backend:
 
----
+- Root directory: `backend`
+- Start command: `npm start`
+- Health endpoint: `/health`
 
-## 👨‍💼 How You (Admin) Will Manage
+Required Railway variables:
 
-1. **Login**: Use admin-login.html page
-2. **View Payments**: See all payment requests
-3. **Approve**: Click "Complete" on verified payments
-4. **User Gets Money**: Balance automatically credited
+```text
+DATABASE_URL=postgresql://...supabase-pooler-or-session-url...
+SUPABASE_URL=https://rogddhzsdfgvajyepnqp.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key
+ADMIN_EMAILS=admin0@gmail.com
+DB_POOL_MAX=3
+```
 
----
+Use the Supabase pooler/session connection string for `DATABASE_URL`, especially on IPv4-only hosts.
 
-## ⚡ Quick Troubleshooting
+## Test Flow
 
-**Problem**: Can't login after registration  
-**Solution**: Make sure you're using the same email and password
+1. Open the Vercel URL.
+2. Register the admin email from `ADMIN_EMAILS`.
+3. Login as admin at `admin-login.html`.
+4. Register a normal user.
+5. Create a recharge request.
+6. Submit a transaction ID.
+7. Approve the payment in admin.
+8. Confirm the user balance updates.
 
-**Problem**: Payment not showing for admin  
-**Solution**: Refresh the admin panel page
+## Troubleshooting
 
-**Problem**: Balance not updating  
-**Solution**: Check Railway logs - backend might be sleeping (free tier)
+- If Railway shows `GET /register.html 404`, that is expected. Frontend pages live on Vercel.
+- If login/register fails, check Supabase Site URL and redirect URLs.
+- If frontend API calls fail, confirm `config.js` points to the Railway API URL.
+- If database calls timeout, confirm Railway uses the Supabase pooler/session connection string and `DB_POOL_MAX=3`.
 
-**Problem**: "Authentication service not loaded"  
-**Solution**: Refresh the page, wait 2-3 seconds for scripts to load
-
----
-
-## 📞 Need Help?
-
-1. Check **NETLIFY_DEPLOY.md** for detailed deployment steps
-2. Check **INTEGRATION_SUMMARY.md** for technical details
-3. Check **DEPLOY_STATUS.html** for setup status
-
----
-
-## 🎯 Success Checklist
-
-After deployment, verify these work:
-
-- [ ] Register new user
-- [ ] Login with registered user
-- [ ] See balance (GHC 0.00)
-- [ ] Create payment request
-- [ ] Get payment number
-- [ ] Submit transaction ID
-- [ ] Login as admin
-- [ ] See payment in admin panel
-- [ ] Complete payment as admin
-- [ ] Login as user again
-- [ ] Balance updated!
-
----
-
-## 🌟 Your Site Features
-
-✨ **User Features**:
-- Account registration/login
-- View balance and bonus
-- Request money deposits
-- Submit transaction proof
-- View transaction history
-- Complete tasks
-- Withdraw money
-
-✨ **Admin Features**:
-- View all payment requests
-- Approve/reject payments
-- Add bonus to users
-- Manage deposits
-- View all users
-
----
-
-## 🚨 Important Notes
-
-- **Admin Email**: Only admin0@gmail.com has admin access
-- **Minimum Deposit**: GHC 10.00
-- **Minimum Withdrawal**: GHC 50.00
-- **Free Tier**: Railway backend may sleep after 30 min (upgrade for 24/7)
-- **Security**: All passwords encrypted, all data in secure database
-
----
-
-**You're all set! Deploy and go live! 🚀**
-
-Last Updated: Ready to deploy  
-Version: 1.0.0
+Last updated: July 10, 2026.

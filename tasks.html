@@ -591,6 +591,117 @@
         .task-list {
             min-height: 100px;
         }
+
+        /* Product Grid */
+        .product-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .product-card-image {
+            width: 100%;
+            height: 120px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-bottom: 10px;
+            background: #f5f5f5;
+        }
+
+        .product-card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+            line-height: 1.3;
+            min-height: 26px;
+        }
+
+        .product-card-description {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 8px;
+            line-height: 1.3;
+            min-height: 22px;
+        }
+
+        .product-card-price {
+            font-size: 13px;
+            font-weight: 600;
+            color: #4361ee;
+            margin-bottom: 6px;
+        }
+
+        .product-card-commission {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+
+        .product-card-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: inline-block;
+            width: fit-content;
+        }
+
+        .product-card-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .product-card-status.frozen {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .product-card-status.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .product-card-button {
+            margin-top: auto;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            background: #4361ee;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .product-card-button:hover {
+            background: #3451d4;
+        }
+
+        .product-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin: 20px 0 12px 0;
+        }
     </style>
 </head>
 <body>
@@ -631,7 +742,12 @@
             <button class="filter-btn" onclick="switchFilter('completed')">Completed</button>
         </div>
 
+        <!-- Product Grid -->
+        <div class="product-section-title" style="display: none;" id="productSectionTitle">Products</div>
+        <div class="product-grid"></div>
+
         <!-- Task List -->
+        <div class="product-section-title" style="display: none;" id="tasksSectionTitle">Tasks</div>
         <div class="task-list"></div>
     </div>
 
@@ -954,8 +1070,42 @@
         function displayTasks(filter) {
             const tasks = tasksData[filter] || [];
             const taskList = document.querySelector('.task-list');
-
-            if (tasks.length === 0) {
+            const productGrid = document.querySelector('.product-grid');
+            const productSectionTitle = document.getElementById('productSectionTitle');
+            const tasksSectionTitle = document.getElementById('tasksSectionTitle');
+            
+            // Separate products and regular tasks
+            const products = tasks.filter(t => t.isProduct);
+            const regularTasks = tasks.filter(t => !t.isProduct);
+            
+            // Display products in grid
+            if (products.length > 0) {
+                productSectionTitle.style.display = 'block';
+                productGrid.innerHTML = products.map(product => `
+                    <div class="product-card">
+                        ${product.productImage ? `
+                            <img src="${product.productImage}" alt="${product.title}" class="product-card-image" onerror="this.src='https://via.placeholder.com/150'">
+                        ` : `<div class="product-card-image" style="background: #e0e0e0;"></div>`}
+                        <div class="product-card-status ${product.status}">${product.status.charAt(0).toUpperCase() + product.status.slice(1)}</div>
+                        <div class="product-card-title">${product.title}</div>
+                        <div class="product-card-description">${product.description}</div>
+                        <div class="product-card-price">GHC ${product.amount.toFixed(2)}</div>
+                        ${product.commission > 0 ? `<div class="product-card-commission">Interest: ${product.commission}%</div>` : ''}
+                        ${product.status === 'pending' ? `
+                            <button class="product-card-button" onclick="completeTask('${product.id}', 'true')">Place Order</button>
+                        ` : `<button class="product-card-button" disabled style="opacity: 0.6; cursor: not-allowed;">${product.status === 'completed' ? 'Completed' : 'Frozen'}</button>`}
+                    </div>
+                `).join('');
+                productGrid.style.display = 'grid';
+            } else {
+                productSectionTitle.style.display = 'none';
+                productGrid.innerHTML = '';
+                productGrid.style.display = 'none';
+            }
+            
+            // Display regular tasks in list
+            if (regularTasks.length === 0 && products.length === 0) {
+                tasksSectionTitle.style.display = 'none';
                 taskList.innerHTML = `
                     <div class="empty-state">
                         <i class="las la-inbox"></i>
@@ -964,18 +1114,19 @@
                 `;
                 return;
             }
+            
+            if (regularTasks.length > 0) {
+                tasksSectionTitle.style.display = 'block';
+            } else {
+                tasksSectionTitle.style.display = 'none';
+            }
 
-            taskList.innerHTML = tasks.map(task => `
+            taskList.innerHTML = regularTasks.map(task => `
                 <div class="task-item">
                     <div class="task-item-header">
                         <div class="task-item-title">${task.title}</div>
                         <div class="task-item-status ${task.status}">${task.status.charAt(0).toUpperCase() + task.status.slice(1)}</div>
                     </div>
-                    ${task.isProduct && task.productImage ? `
-                        <div style="margin-bottom: 12px; text-align: center;">
-                            <img src="${task.productImage}" alt="${task.title}" style="max-width: 100%; max-height: 120px; border-radius: 8px; object-fit: cover;">
-                        </div>
-                    ` : ''}
                     <div class="task-item-description" style="font-size: 13px; color: #666; margin-bottom: 12px;">
                         ${task.description}
                     </div>
@@ -997,7 +1148,7 @@
                         ${task.isBeginnerTask ? `Reward: GHC ${task.amount.toFixed(2)}` : (task.commission > 0 ? `Earn: GHC ${(task.amount * task.commission / 100).toFixed(2)} interest` : '')}
                     </div>
                     ${task.status === 'pending' ? `
-                        <button class="task-action-btn" onclick="completeTask('${task.id}', '${task.isProduct}')">${task.isProduct ? 'Place Order' : 'Start Task'}</button>
+                        <button class="task-action-btn" onclick="completeTask('${task.id}', 'false')">Start Task</button>
                     ` : ''}
                 </div>
             `).join('');
