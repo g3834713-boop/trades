@@ -754,6 +754,8 @@
     <script>
         // Task data
         let tasksData = { pending: [], frozen: [], completed: [] };
+        let processingTimer = null;
+        let processingStepIndex = 0;
 
         // Initialize page
         async function initializePage() {
@@ -946,6 +948,91 @@
                     rewardSection.style.display = 'block';
                 }
             }, 1000);
+        }
+
+        function showProcessingModal(taskTitle) {
+            const modal = document.getElementById('orderSuccessModal');
+            const processingSection = document.getElementById('processingSection');
+            const rewardSection = document.getElementById('rewardSection');
+            const processingStatus = document.getElementById('processingStatus');
+            const processingSteps = document.getElementById('processingSteps');
+            const claimBtn = document.getElementById('claimRewardsBtn');
+            const modalTitle = document.getElementById('modalTitle');
+
+            if (processingTimer) {
+                clearInterval(processingTimer);
+            }
+            processingStepIndex = 0;
+
+            processingSection.style.display = 'block';
+            rewardSection.style.display = 'none';
+            if (claimBtn) {
+                claimBtn.disabled = true;
+                claimBtn.textContent = 'Processing...';
+                claimBtn.removeAttribute('data-beginner-task');
+            }
+            if (modalTitle) {
+                modalTitle.textContent = 'Order Pending';
+            }
+            document.getElementById('costSection').style.display = 'flex';
+            document.getElementById('interestSection').style.display = 'flex';
+            document.getElementById('profitSection').style.display = 'none';
+            document.getElementById('processingNote').textContent = `Please wait while we process your reward for “${taskTitle}”.`;
+
+            const steps = [
+                'Order placed',
+                'Searching for supplier',
+                'Locating investor',
+                'Locating exchanger',
+                'Finding source',
+                'Approving sale',
+                'Transacting order',
+                'Funding wallet',
+                'Exchanging currency',
+                'Order successful',
+                'Returning gains',
+                'Returning profit',
+                'Funding broker',
+                'Funding investor',
+                'Congratulations'
+            ];
+
+            const renderStep = () => {
+                if (processingStepIndex < steps.length) {
+                    processingStatus.textContent = steps[processingStepIndex];
+                    processingSteps.innerHTML = steps.slice(0, processingStepIndex + 1).map((step, index) => `
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; ${index <= processingStepIndex ? 'color:#2d3436;' : 'color:#b2bec3;'}">
+                            <span style="font-size:12px; ${index <= processingStepIndex ? 'color:#00b894;' : 'color:#b2bec3;'}">${index <= processingStepIndex ? '●' : '○'}</span>
+                            <span>${step}</span>
+                        </div>
+                    `).join('');
+                    processingStepIndex += 1;
+                }
+            };
+
+            renderStep();
+            processingTimer = setInterval(() => {
+                if (processingStepIndex >= steps.length) {
+                    clearInterval(processingTimer);
+                    processingTimer = null;
+                    processingStatus.textContent = 'Congratulations';
+                    processingSteps.innerHTML = steps.map((step, index) => `
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; color:#2d3436;">
+                            <span style="font-size:12px; color:#00b894;">●</span>
+                            <span>${step}</span>
+                        </div>
+                    `).join('');
+                    setTimeout(() => {
+                        claimRewards();
+                    }, 600);
+                    return;
+                }
+                renderStep();
+            }, 1800);
+
+            setTimeout(() => {
+                modal.classList.add('show');
+            }, 100);
         }
 
         async function loadUserTasks() {
@@ -1262,53 +1349,11 @@
                 // Update UI to show balance deduction
                 updateBalance();
 
-                // Show order successful modal with countdown
-                const modal = document.getElementById('orderSuccessModal');
-                const countdownSection = document.getElementById('countdownSection');
-                const rewardSection = document.getElementById('rewardSection');
-                const countdownTimer = document.getElementById('countdownTimer');
-                const claimBtn = document.getElementById('claimRewardsBtn');
-                
-                // Reset modal state
-                countdownSection.style.display = 'block';
-                rewardSection.style.display = 'none';
-                claimBtn.disabled = false;
-                
-                // Show cost/interest, hide profit for regular task
-                document.getElementById('costSection').style.display = 'flex';
-                document.getElementById('interestSection').style.display = 'flex';
-                document.getElementById('profitSection').style.display = 'none';
-                
-                // Update reward amounts display
+                // Show pending processing modal for regular task/product
                 document.getElementById('orderCost').textContent = task.amount.toFixed(2);
                 document.getElementById('orderInterest').textContent = interestAmount.toFixed(2);
                 document.getElementById('orderTotal').textContent = totalReturn.toFixed(2);
-                
-                // Remove data attribute - this is a regular task, not beginner
-                claimBtn.removeAttribute('data-beginner-task');
-                
-                // Display modal
-                setTimeout(() => {
-                    modal.classList.add('show');
-                }, 100);
-
-                // Countdown timer
-                let timeLeft = 10;
-                countdownTimer.textContent = timeLeft;
-                
-                const countdownInterval = setInterval(() => {
-                    timeLeft--;
-                    if (timeLeft >= 0) {
-                        countdownTimer.textContent = timeLeft;
-                    }
-                    
-                    if (timeLeft < 0) {
-                        clearInterval(countdownInterval);
-                        // Show claim rewards button
-                        countdownSection.style.display = 'none';
-                        rewardSection.style.display = 'block';
-                    }
-                }, 1000);
+                showProcessingModal(task.title);
 
             } catch (error) {
                 console.error('Error completing task:', error);
@@ -1320,8 +1365,13 @@
             const claimBtn = document.getElementById('claimRewardsBtn');
             const modal = document.getElementById('orderSuccessModal');
             
+            if (claimBtn) {
+                claimBtn.disabled = true;
+                claimBtn.textContent = 'Processing...';
+            }
+            
             // Check if this is a beginner task claim
-            const isBeginnerTask = claimBtn.getAttribute('data-beginner-task') === 'true';
+            const isBeginnerTask = claimBtn?.getAttribute('data-beginner-task') === 'true';
             
             if (isBeginnerTask) {
                 if (!window.pendingBeginnerReward) {
@@ -1349,15 +1399,19 @@
                     
                     // Clear pending reward
                     window.pendingBeginnerReward = null;
-                    claimBtn.removeAttribute('data-beginner-task');
+                    if (claimBtn) {
+                        claimBtn.removeAttribute('data-beginner-task');
+                    }
                     
                     // Show success message
                     alert(`Reward claimed successfully!\nYou earned GHC ${parseFloat(rewardAmount || 0).toFixed(2)}`);
 
                 } catch (error) {
                     console.error('Error claiming reward:', error);
-                    claimBtn.disabled = false;
-                    claimBtn.textContent = 'Claim Rewards';
+                    if (claimBtn) {
+                        claimBtn.disabled = false;
+                        claimBtn.textContent = 'Claim Rewards';
+                    }
                     alert('Error claiming reward: ' + (error.message || 'Unknown error'));
                 }
             } else {
@@ -1409,8 +1463,10 @@
 
                 } catch (error) {
                     console.error('Error claiming reward:', error);
-                    claimBtn.disabled = false;
-                    claimBtn.textContent = 'Claim Rewards';
+                    if (claimBtn) {
+                        claimBtn.disabled = false;
+                        claimBtn.textContent = 'Claim Rewards';
+                    }
                     alert('Error claiming reward: ' + (error.message || 'Unknown error'));
                 }
             }
@@ -1559,13 +1615,15 @@
     <!-- Order Success Modal -->
     <div id="orderSuccessModal">
         <div style="background: white; border-radius: 12px; padding: 30px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);">
-            <div style="font-size: 28px; font-weight: bold; color: #2d3436; margin-bottom: 20px;">Order Successful!</div>
+            <div id="modalTitle" style="font-size: 28px; font-weight: bold; color: #2d3436; margin-bottom: 20px;">Order Pending</div>
             
-            <div id="countdownSection" style="display: block;">
-                <div style="font-size: 48px; font-weight: bold; color: #00b894; margin: 30px 0;">
-                    <span id="countdownTimer">10</span>
+            <div id="processingSection" style="display: block;">
+                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin: 20px 0;">
+                    <div style="width: 24px; height: 24px; border: 3px solid #e0e0e0; border-top-color: #00b894; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <div id="processingStatus" style="font-size: 16px; font-weight: bold; color: #00b894;">Order placed</div>
                 </div>
-                <p style="color: #636e72; margin: 0;">Processing your reward...</p>
+                <div id="processingNote" style="color: #636e72; margin-bottom: 14px; font-size: 14px; line-height: 1.5;">Please wait while we process your reward.</div>
+                <div id="processingSteps" style="text-align: left; font-size: 13px; color: #636e72; line-height: 1.6;"></div>
             </div>
             
             <div id="rewardSection" style="display: none;">
