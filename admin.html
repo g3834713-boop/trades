@@ -170,6 +170,109 @@
             margin-bottom: 30px;
         }
 
+        .user-card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            border: 1px solid #e8ebf0;
+            border-radius: 12px;
+            background: #fff;
+            margin-bottom: 12px;
+        }
+
+        .user-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .user-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .user-card-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .user-card-email {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .user-card-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .user-badge.admin {
+            background: #e8f0ff;
+            color: #3451d4;
+        }
+
+        .user-badge.success {
+            background: #e8f8ef;
+            color: #1f8f4f;
+        }
+
+        .user-badge.warning {
+            background: #fff4e5;
+            color: #b86b00;
+        }
+
+        .user-badge.info {
+            background: #f3f4f6;
+            color: #475569;
+        }
+
+        .user-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .user-card-stat {
+            background: #f8fafc;
+            border: 1px solid #eef2f7;
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        .user-card-stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .user-card-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .user-card-actions .btn {
+            white-space: nowrap;
+        }
+
         .table-header {
             display: grid;
             grid-template-columns: 1.2fr 1fr 1fr 0.8fr 1.2fr 1.5fr 0.8fr;
@@ -1140,16 +1243,38 @@
                         const joinDate = new Date(user.created_at).toLocaleDateString();
                         const isAdmin = user.email === 'admin0@gmail.com';
                         const safeName = (user.full_name || user.email || '').replace(/'/g, "\\'");
-                        html += `<div class="table-row">
-                            <div class="table-cell">${user.full_name || user.email} ${isAdmin ? '<span class="admin-badge" style="color: #fff; background: #4361ee; border-radius: 4px; padding: 2px 6px; margin-left: 6px; font-size: 12px;">Admin</span>' : ''}</div>
-                            <div class="table-cell">${user.email}</div>
-                            <div class="table-cell">ID-${userId}</div>
-                            <div class="table-cell">GHC ${balance.toFixed(2)} <span style="color: #4361ee;">(+${bonus.toFixed(2)} bonus)</span></div>
-                            <div class="table-cell">${paymentNumber}${paymentMethod}</div>
-                            <div class="table-action">
-                                <div style="margin-bottom: 10px; font-size: 12px; color: #444;">
-                                    Verify: <strong>${user.verification_status || 'none'}</strong>${user.verification_required ? ' (required)' : ''}
+                        const verificationBadgeClass = user.verification_required ? 'warning' : (user.verification_status === 'approved' ? 'success' : 'info');
+                        html += `<div class="user-card">
+                            <div class="user-card-top">
+                                <div class="user-card-title">
+                                    <div style="font-weight: 700; color: #111827;">${user.full_name || user.email}</div>
+                                    <div class="user-card-email">${user.email}</div>
                                 </div>
+                                <div class="user-card-badges">
+                                    ${isAdmin ? '<span class="user-badge admin"><i class="las la-shield-alt"></i> Admin</span>' : ''}
+                                    <span class="user-badge ${verificationBadgeClass}">${user.verification_status || 'none'}${user.verification_required ? ' • required' : ''}</span>
+                                    <span class="user-badge info">ID-${userId}</span>
+                                </div>
+                            </div>
+                            <div class="user-card-grid">
+                                <div class="user-card-stat">
+                                    <div class="user-card-stat-label">Balance</div>
+                                    <div style="font-weight: 700; color: #111827;">GHC ${balance.toFixed(2)}</div>
+                                </div>
+                                <div class="user-card-stat">
+                                    <div class="user-card-stat-label">Bonus</div>
+                                    <div style="font-weight: 700; color: #27ae60;">+${bonus.toFixed(2)}</div>
+                                </div>
+                                <div class="user-card-stat">
+                                    <div class="user-card-stat-label">Payment</div>
+                                    <div style="font-size: 13px; color: #334155;">${paymentNumber}${paymentMethod}</div>
+                                </div>
+                                <div class="user-card-stat">
+                                    <div class="user-card-stat-label">Joined</div>
+                                    <div style="font-size: 13px; color: #334155;">${joinDate}</div>
+                                </div>
+                            </div>
+                            <div class="user-card-actions">
                                 <button class="btn btn-secondary" onclick="openUserVerificationModal('${user.id}', '${safeName}')">Review</button>
                                 <button class="btn btn-warning" onclick="toggleUserVerificationRequirement('${user.id}', ${!user.verification_required})">${user.verification_required ? 'Release Verify' : 'Require Verify'}</button>
                                 <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${safeName}')">Add Funds</button>
