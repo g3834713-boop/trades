@@ -516,13 +516,16 @@
                 document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(cached.bonus || 0).toFixed(2)}`;
                 if (cached.avatar_url) {
                     updateAvatarUI(cached.avatar_url);
+                } else {
+                    resetAvatarUI();
                 }
                 const verificationStatus = cached.verification_status || 'none';
                 const requiredFlag = !!cached.verification_required;
+                const verifiedFlag = verificationStatus === 'approved' || verificationStatus === 'verified';
                 const displayStatus = requiredFlag && verificationStatus === 'none'
                     ? 'Verification required'
-                    : (verificationStatus === 'pending' ? 'Pending review' : verificationStatus.replace(/_/g, ' '));
-                setVerificationBadge(displayStatus, requiredFlag);
+                    : (verifiedFlag ? 'Verified' : (verificationStatus === 'pending' ? 'Pending review' : verificationStatus.replace(/_/g, ' ')));
+                setVerificationBadge(displayStatus, requiredFlag, verifiedFlag);
             }
         } catch (error) {
             console.warn('Failed to prefill cached profile:', error);
@@ -1699,13 +1702,16 @@
                     document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(userProfile.bonus || 0).toFixed(2)}`;
                     if (userProfile.avatar_url) {
                         updateAvatarUI(userProfile.avatar_url);
+                    } else {
+                        resetAvatarUI();
                     }
                     const verificationStatus = userProfile.verification_status || 'none';
                     const requiredFlag = !!userProfile.verification_required;
+                    const verifiedFlag = verificationStatus === 'approved' || verificationStatus === 'verified';
                     const displayStatus = requiredFlag && verificationStatus === 'none'
                         ? 'Verification required'
-                        : (verificationStatus === 'pending' ? 'Pending review' : verificationStatus.replace(/_/g, ' '));
-                    setVerificationBadge(displayStatus, requiredFlag);
+                        : (verifiedFlag ? 'Verified' : (verificationStatus === 'pending' ? 'Pending review' : verificationStatus.replace(/_/g, ' ')));
+                    setVerificationBadge(displayStatus, requiredFlag, verifiedFlag);
                     
                     // Store user data globally and cache for next page visit
                     window.currentUserProfile = userProfile;
@@ -1950,21 +1956,41 @@
             }
         }
 
+        function resetAvatarUI() {
+            const avatarImage = document.getElementById('profileAvatarImage');
+            const avatarIcon = document.getElementById('profileAvatarIcon');
+            avatarImage.src = '';
+            avatarImage.style.display = 'none';
+            avatarIcon.style.display = 'block';
+        }
+
         function updateAvatarUI(avatarUrl) {
             const avatarImage = document.getElementById('profileAvatarImage');
             const avatarIcon = document.getElementById('profileAvatarIcon');
             avatarImage.src = avatarUrl;
             avatarImage.style.display = 'block';
+            avatarImage.style.opacity = '1';
+            avatarImage.style.transition = 'opacity 0.2s ease';
             avatarIcon.style.display = 'none';
         }
 
-        function setVerificationBadge(statusText, required = false) {
+        function setVerificationBadge(statusText, required = false, verified = false) {
             const badge = document.getElementById('verificationBadge');
-            const statusSpan = document.getElementById('verificationStatusText');
-            statusSpan.textContent = statusText;
-            badge.style.background = required ? '#fff5f5' : '#eef4ff';
-            badge.style.borderColor = required ? '#f5c6cb' : '#dce7ff';
-            statusSpan.style.color = required ? '#c0392b' : '#2740d4';
+            if (!badge) return;
+
+            const icon = verified
+                ? '<i class="las la-check-circle" style="color:#2369c9;font-size:16px"></i>'
+                : required
+                    ? '<i class="las la-exclamation-circle" style="color:#c0392b;font-size:16px"></i>'
+                    : '<i class="las la-clock" style="color:#2740d4;font-size:16px"></i>';
+
+            badge.innerHTML = `${icon}<span id="verificationStatusText">${statusText}</span>`;
+            badge.style.background = verified ? '#eef6ff' : required ? '#fff5f5' : '#eef4ff';
+            badge.style.borderColor = verified ? '#cce2ff' : required ? '#f5c6cb' : '#dce7ff';
+            badge.style.color = verified ? '#1f4db0' : required ? '#c0392b' : '#2740d4';
+            badge.style.fontWeight = verified ? '700' : '600';
+            badge.style.padding = '8px 12px';
+            badge.style.borderRadius = '12px';
         }
 
         // Language Functions
