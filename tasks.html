@@ -768,35 +768,27 @@
         // Initialize page
         async function initializePage() {
             try {
-                // Load tasks data first
-                await loadUserTasks();
-                
-                // Update balance section and show it
+                // PRIORITY 1: Load and show balance immediately (users care most about this)
                 await updateBalance();
-                await new Promise(resolve => setTimeout(resolve, 100));
-                document.querySelector('.balance-section').classList.add('loaded');
-                
-                // Update award section and show it
                 updateAward();
-                await new Promise(resolve => setTimeout(resolve, 150));
+                document.querySelector('.balance-section').classList.add('loaded');
                 document.querySelector('.award-section').classList.add('loaded');
+                document.querySelector('.filter-buttons').classList.add('loaded');
                 
-                // Load beginner tasks and show them
-                await loadBeginnerTasks();
-                await new Promise(resolve => setTimeout(resolve, 100));
+                // PRIORITY 2: Load tasks and beginner tasks in PARALLEL (not sequential)
+                const [tasksLoaded, beginnerLoaded] = await Promise.allSettled([
+                    loadUserTasks(),
+                    loadBeginnerTasks()
+                ]);
+                
+                // Display tasks once loaded
+                displayTasks('pending');
+                document.querySelector('.task-list').classList.add('loaded');
+                
                 const beginnerSection = document.getElementById('beginnerTasksSection');
                 if (beginnerSection && beginnerSection.innerHTML.trim()) {
                     beginnerSection.classList.add('loaded');
                 }
-                
-                // Show filter buttons
-                await new Promise(resolve => setTimeout(resolve, 100));
-                document.querySelector('.filter-buttons').classList.add('loaded');
-                
-                // Display tasks and show them
-                displayTasks('pending');
-                await new Promise(resolve => setTimeout(resolve, 100));
-                document.querySelector('.task-list').classList.add('loaded');
                 
                 // Hide loading spinner
                 const pageLoading = document.getElementById('pageLoading');
@@ -1520,7 +1512,11 @@
                 document.getElementById('orderInterest').textContent = interestAmount.toFixed(2);
                 document.getElementById('orderTotal').textContent = totalReturn.toFixed(2);
 
-                // Deduct cost from balance
+                // START ORDER FIRST (before deducting money)
+                // This prevents orphaned deductions if order creation fails
+                const orderResult = await window.API.startOrder(taskId, null, task.amount, interestAmount, totalReturn);
+                
+                // NOW deduct cost from balance (only after order is confirmed)
                 await window.API.call('/wallet/deduct', {
                     method: 'POST',
                     body: JSON.stringify({ amount: task.amount, reason: `Task: ${task.title}` })
@@ -1528,9 +1524,6 @@
 
                 // Update UI to show balance deduction
                 updateBalance();
-
-                // Start background order processing on server
-                const orderResult = await window.API.startOrder(taskId, null, task.amount, interestAmount, totalReturn);
                 
                 // Store order ID in local storage so we can resume if page refreshes
                 window.localStorage.setItem('pendingOrderId', orderResult.orderId);
