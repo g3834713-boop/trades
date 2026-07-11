@@ -2699,6 +2699,20 @@ async function ensureInitialTasks() {
 
 ensureSchema()
   .then(() => ensureInitialTasks())
+  .then(async () => {
+    // Remove old seeded task-ideas that should not appear in the main UI
+    try {
+      const titlesToRemove = [
+        'Follow + Like Campaign', 'Share & Tag Friends', 'Mobile App Signup', 'Website Feedback Form', 'Product Description', 'Data Copying', 'Referral Signup'
+      ];
+      const { rowCount } = await query(`delete from tasks where title = any($1::text[]) and coalesce(is_easy_earn,false) = false`, [titlesToRemove]);
+      if (rowCount && rowCount > 0) {
+        console.log(`Cleanup: removed ${rowCount} seeded task-ideas`);
+      }
+    } catch (cleanupErr) {
+      console.error('Startup cleanup error:', cleanupErr);
+    }
+  })
   .catch((error) => {
     console.error('Schema init error:', error);
   })
