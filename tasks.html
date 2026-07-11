@@ -743,6 +743,9 @@
         </div>
 
         <!-- Product Grid -->
+        <div class="product-section-title">Easy Earns Catalog</div>
+        <div id="catalogGrid" class="product-grid"></div>
+
         <div class="product-section-title" style="display: none;" id="productSectionTitle">Products</div>
         <div class="product-grid"></div>
 
@@ -776,9 +779,10 @@
                 document.querySelector('.filter-buttons').classList.add('loaded');
                 
                 // PRIORITY 2: Load tasks and beginner tasks in PARALLEL (not sequential)
-                const [tasksLoaded, beginnerLoaded] = await Promise.allSettled([
+                const [tasksLoaded, beginnerLoaded, catalogLoaded] = await Promise.allSettled([
                     loadUserTasks(),
-                    loadBeginnerTasks()
+                    loadBeginnerTasks(),
+                    loadCatalog()
                 ]);
                 
                 // Display tasks once loaded
@@ -971,6 +975,53 @@
                 }).join('');
             } catch (error) {
                 console.error('Failed to load beginner tasks:', error);
+            }
+        }
+
+        // Load public Easy Earns catalog
+        async function loadCatalog() {
+            try {
+                const catalog = await window.API.getTasksCatalog();
+                const grid = document.getElementById('catalogGrid');
+                if (!catalog || catalog.length === 0) {
+                    grid.innerHTML = '<div class="empty-state-text">No catalog tasks available</div>';
+                    return;
+                }
+
+                grid.innerHTML = catalog.map(task => `
+                    <div class="product-card">
+                        <div style="height:120px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#9ca3af;">Task</div>
+                        <div class="product-card-status ${task.status}">${task.status.charAt(0).toUpperCase() + task.status.slice(1)}</div>
+                        <div class="product-card-title">${escapeHtml(task.title)}</div>
+                        <div class="product-card-description">${escapeHtml(task.description || '')}</div>
+                        <div class="product-card-price">GHC ${parseFloat(task.amount || 0).toFixed(2)}</div>
+                        <button class="product-card-button" onclick="claimCatalogTask('${task.id}')">Start</button>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load catalog:', err);
+                const grid = document.getElementById('catalogGrid');
+                grid.innerHTML = '<div style="color:#ef4444">Failed to load catalog</div>';
+            }
+        }
+
+        async function claimCatalogTask(taskId) {
+            try {
+                const res = await window.API.claimTask(taskId);
+                if (res && res.ok) {
+                    alert(res.message || 'Task assigned to you');
+                } else if (res && res.message) {
+                    alert(res.message);
+                } else {
+                    alert('Task claimed');
+                }
+                // Refresh user's tasks and catalog
+                await loadUserTasks();
+                await loadCatalog();
+                updateBalance();
+            } catch (err) {
+                console.error('Claim failed:', err);
+                alert(err.message || 'Failed to claim task');
             }
         }
 

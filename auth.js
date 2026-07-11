@@ -467,6 +467,16 @@ window.API = {
     return this.call('/easy-earns');
   },
 
+  async getTasksCatalog() {
+    return this.call('/tasks');
+  },
+
+  async claimTask(taskId) {
+    return this.call(`/tasks/${taskId}/claim`, {
+      method: 'POST'
+    });
+  },
+
   async submitBeginnerTask(taskId, url) {
     return this.call(`/beginner-tasks/${taskId}/submit`, {
       method: 'POST',

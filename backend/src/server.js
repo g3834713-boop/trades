@@ -1603,6 +1603,39 @@ app.post('/products/:id/complete', requireAuth, async (req, res) => {
   }
 });
 
+// User: claim a public task from the catalog (assign to self)
+app.post('/tasks/:id/claim', requireAuth, async (req, res) => {
+  try {
+    const { id: taskId } = req.params;
+    const { id: userId } = req.user;
+
+    // Verify task exists and is active
+    const { rows: taskRows } = await query('select id, status from tasks where id = $1', [taskId]);
+    if (taskRows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    if (taskRows[0].status !== 'active') return res.status(400).json({ error: 'Task is not active' });
+
+    // Try to assign to user (idempotent)
+    const { rows } = await query(
+      `insert into task_assignments (task_id, user_id, status, assigned_at)
+       values ($1, $2, 'pending', now())
+       on conflict (task_id, user_id) do nothing
+       returning *`,
+      [taskId, userId]
+    );
+
+    if (rows.length === 0) {
+      // Already assigned - return current assignment row
+      const { rows: existing } = await query('select * from task_assignments where task_id = $1 and user_id = $2', [taskId, userId]);
+      return res.json({ ok: true, message: 'Already assigned', assignment: existing[0] });
+    }
+
+    res.json({ ok: true, message: 'Task assigned', assignment: rows[0] });
+  } catch (error) {
+    console.error('Error claiming task:', error);
+    res.status(500).json({ error: 'Failed to claim task' });
+  }
+});
+
 // Admin: Create beginner task
 app.post('/admin/beginner-tasks', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -2370,7 +2403,92 @@ async function ensureSchema() {
   }
 }
 
+// --- Task catalog endpoints ---
+// Public: list active tasks
+app.get('/tasks', async (req, res) => {
+  try {
+    const { rows } = await query("select id, title, description, amount, commission, status, created_at from tasks where status = 'active' order by created_at desc");
+    res.json(rows);
+  } catch (err) {
+    console.error('List tasks error:', err);
+    res.status(500).json({ error: 'Failed to list tasks' });
+  }
+});
+
+// Public: get a single task
+app.get('/tasks/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query('select id, title, description, amount, commission, status, created_at from tasks where id = $1', [id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Get task error:', err);
+    res.status(500).json({ error: 'Failed to get task' });
+  }
+});
+
+// Admin: update a task
+app.put('/admin/tasks/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, amount, commission, status } = req.body;
+    const { rows } = await query(
+      `update tasks set title = coalesce($1, title), description = coalesce($2, description), amount = coalesce($3, amount), commission = coalesce($4, commission), status = coalesce($5, status)
+       where id = $6 returning id, title, description, amount, commission, status, created_at`,
+      [title || null, description || null, typeof amount === 'undefined' ? null : Number(amount), typeof commission === 'undefined' ? null : Number(commission), status || null, id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Update task error:', err);
+    res.status(500).json({ error: 'Failed to update task' });
+  }
+});
+
+// Admin: change task status (freeze/activate)
+app.post('/admin/tasks/:id/status', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: 'Missing status' });
+    await query('update tasks set status = $1 where id = $2', [status, id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Change task status error:', err);
+    res.status(500).json({ error: 'Failed to change task status' });
+  }
+});
+
+// Seed recommended initial tasks if table is empty
+async function ensureInitialTasks() {
+  try {
+    const { rows } = await query('select count(*) as c from tasks');
+    const count = parseInt(rows[0].c || 0);
+    if (count === 0) {
+      const recommended = [
+        { title: 'Follow + Like Campaign', description: 'Follow and like specified social posts. Submit screenshot proof.', amount: 2.00 },
+        { title: 'Share & Tag Friends', description: 'Share post and tag friends, submit screenshot proof.', amount: 2.50 },
+        { title: 'Mobile App Signup', description: 'Sign up for a mobile app and verify account. Submit dashboard screenshot.', amount: 3.00 },
+        { title: 'Website Feedback Form', description: 'Complete a short website feedback form and submit confirmation.', amount: 1.50 },
+        { title: 'Product Description', description: 'Write a 100-150 word product description. Submit for review.', amount: 6.00 },
+        { title: 'Video Watch Task', description: 'Watch a short video for at least 2 minutes and submit proof.', amount: 1.50 },
+        { title: 'Data Copying', description: 'Copy data from provided image or PDF into spreadsheet entries.', amount: 5.00 },
+        { title: 'Referral Signup', description: 'Refer a friend who completes a task; earn referral reward.', amount: 4.00 }
+      ];
+
+      for (const t of recommended) {
+        await query('insert into tasks (title, description, amount, commission, status) values ($1, $2, $3, $4, $5)', [t.title, t.description, t.amount, 50.00, 'active']);
+      }
+      console.log('Seeded initial tasks');
+    }
+  } catch (err) {
+    console.error('Initial tasks seed error:', err);
+  }
+}
+
 ensureSchema()
+  .then(() => ensureInitialTasks())
   .catch((error) => {
     console.error('Schema init error:', error);
   })
