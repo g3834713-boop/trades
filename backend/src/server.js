@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { query } from './db.js';
+import { pool, query } from './db.js';
 import { requireAuth, requireAdmin } from './middleware/auth.js';
 import { canWithdrawAmount } from './verificationLimits.js';
 
@@ -333,6 +333,64 @@ app.get('/admin/users', requireAuth, requireAdmin, async (req, res) => {
   );
   
   res.json(rows);
+});
+
+app.post('/admin/users/:userId/reset-data', requireAuth, requireAdmin, async (req, res) => {
+  const { userId } = req.params;
+
+  if (userId === req.user.id) {
+    return res.status(400).json({ error: 'You cannot reset your own account.' });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    const existingUser = await client.query('select id from app_users where id = $1', [userId]);
+    if (existingUser.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await client.query('BEGIN');
+
+    await client.query('delete from task_completions where user_id = $1', [userId]);
+    await client.query('delete from task_assignments where user_id = $1', [userId]);
+    await client.query('delete from product_assignments where user_id = $1', [userId]);
+    await client.query('delete from daily_checkins where user_id = $1', [userId]);
+    await client.query('delete from transactions where user_id = $1', [userId]);
+    await client.query('delete from withdrawals where user_id = $1', [userId]);
+    await client.query('delete from deposits where user_id = $1', [userId]);
+    await client.query('delete from payments where user_id = $1', [userId]);
+    await client.query('delete from identity_verifications where user_id = $1', [userId]);
+    await client.query('delete from referrals where referrer_id = $1 or referred_id = $1', [userId]);
+    await client.query('delete from user_payment_numbers where user_id = $1', [userId]);
+
+    await client.query(
+      `insert into wallets (user_id, balance, bonus, updated_at)
+       values ($1, 0, 0, now())
+       on conflict (user_id) do update set balance = 0, bonus = 0, updated_at = now()` ,
+      [userId]
+    );
+
+    await client.query(
+      `update app_users
+       set avatar_url = null,
+           verification_required = false,
+           verification_status = 'none',
+           verification_requested_at = null,
+           referred_by = null
+       where id = $1`,
+      [userId]
+    );
+
+    await client.query('COMMIT');
+    res.json({ ok: true, message: 'User data reset successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Reset user data error:', error);
+    res.status(500).json({ error: 'Failed to reset user data' });
+  } finally {
+    client.release();
+  }
 });
 
 app.get('/admin/users/:userId/verification', requireAuth, requireAdmin, async (req, res) => {

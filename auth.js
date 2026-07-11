@@ -489,6 +489,12 @@ window.API = {
     return this.call('/admin/users');
   },
 
+  async resetUserData(userId) {
+    return this.call(`/admin/users/${userId}/reset-data`, {
+      method: 'POST'
+    });
+  },
+
   // ...existing code...
 
   async upsertPaymentNumber(userId, paymentNumber, method) {
