@@ -153,41 +153,18 @@
 <body>
     <div class="page">
         <div class="topbar">
-            <a href="tasks.html" class="back-btn"><i class="las la-arrow-left"></i> Back to tasks</a>
-            <a href="tasks.html" class="primary-btn"><i class="las la-rocket"></i> Start implementing</a>
+            <a href="tasks.html" class="back-btn"><i class="las la-arrow-left"></i> Back</a>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <span style="font-weight:700; color:#374151;">Easy Earns</span>
+            </div>
         </div>
 
-        <section class="hero">
-            <span class="pill">Planning workspace</span>
-            <h1>Easy Earns Implementation Plan</h1>
-            <p>This page is the dedicated home for the Easy Earns feature rollout, including the task ideas, implementation priorities, and the step-by-step plan for turning those tasks into live earning opportunities.</p>
+        <section class="hero" style="padding:18px; border-radius:12px; margin-bottom:18px;">
+            <h1 style="margin:0 0 8px; font-size:22px;">Easy Earns</h1>
+            <p style="margin:0; color:#6b7280;">Complete short video tasks to earn rewards. Watch all listed videos in a task — rewards are credited automatically when you finish watching.</p>
         </section>
 
-        <div class="grid">
-            <div class="card">
-                <h3>Priority ideas</h3>
-                <ul>
-                    <li>Smart task reminders and nudges for pending orders.</li>
-                    <li>Improved admin oversight for completed and frozen tasks.</li>
-                    <li>Notification center for payment, credit, and task updates.</li>
-                </ul>
-            </div>
-
-            <div class="card">
-                <h3>Suggested rollout</h3>
-                <ol>
-                    <li>Validate the idea with the product goals and user impact.</li>
-                    <li>Break the feature into an MVP and a later enhancement phase.</li>
-                    <li>Implement, test, and ship in small, measurable increments.</li>
-                </ol>
-            </div>
-        </div>
-        
-        <div class="card" id="easyEarnsCard" style="margin-top:18px;">
-            <h3>Easy Earns - Live Tasks</h3>
-            <p style="color:#6b7280; margin-top:6px;">These are active Easy Earns tasks you can complete for quick rewards. Click "Start" for instructions and to submit proof.</p>
-            <div id="easyEarnsList" style="margin-top:12px; display:flex; flex-direction:column; gap:12px;"></div>
-        </div>
+        <div id="easyEarnsList" style="display:flex; flex-direction:column; gap:12px; margin-top:6px;"></div>
     </div>
 
     <!-- Modal -->
@@ -248,50 +225,128 @@
                                 return;
                             }
 
+                            // Helper to detect YouTube URLs
+                            function isYouTubeUrl(u) {
+                                return /youtube\.com|youtu\.be/.test(u || '');
+                            }
+
+                            function extractYouTubeId(u) {
+                                try {
+                                    const m = u.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+                                    if (m && m[1]) return m[1];
+                                    const short = u.match(/youtu\.be\/(.+)$/);
+                                    return short ? short[1].split('?')[0] : null;
+                                } catch (e) { return null; }
+                            }
+
                             // Track watched videos
                             const watched = new Set();
+                            // Keep YouTube players to prevent GC
+                            const ytPlayers = [];
 
-                            container.innerHTML = vids.map(v => `
-                                <div style="margin-bottom:10px; width:100%;">
-                                    <div style="font-weight:600; margin-bottom:6px;">${escapeHtml(v.title || ('Video ' + v.video_index))}</div>
-                                    <video id="video_${t.id}_${v.video_index}" width="100%" controls preload="metadata" style="border-radius:10px; background:#000;">
-                                        <source src="${escapeAttr(v.url || '')}" type="video/mp4">
-                                        Your browser does not support HTML5 video.
-                                    </video>
-                                </div>
-                            `).join('');
+                            // Build placeholders
+                            container.innerHTML = vids.map(v => {
+                                const title = escapeHtml(v.title || ('Video ' + v.video_index));
+                                if (isYouTubeUrl(v.url)) {
+                                    const vid = extractYouTubeId(v.url);
+                                    return `\n                                <div style="margin-bottom:10px; width:100%;">\n                                    <div style="font-weight:600; margin-bottom:6px;">${title}</div>\n                                    <div id="yt_player_${t.id}_${v.video_index}" data-yt-id="${vid || ''}" style="width:100%; height:240px; background:#000; border-radius:10px; overflow:hidden;"></div>\n                                </div>\n                            `;
+                                }
+                                // fallback to HTML5 video
+                                return `\n                                <div style="margin-bottom:10px; width:100%;">\n                                    <div style="font-weight:600; margin-bottom:6px;">${title}</div>\n                                    <video id="video_${t.id}_${v.video_index}" width="100%" controls preload="metadata" style="border-radius:10px; background:#000;">\n                                        <source src="${escapeAttr(v.url || '')}" type="video/mp4">\n                                        Your browser does not support HTML5 video.\n                                    </video>\n                                </div>\n                            `;
+                            }).join('');
 
                             progress.textContent = `0/${vids.length} watched`;
 
+                            // Attach HTML5 video listeners
                             vids.forEach(v => {
-                                const vidEl = document.getElementById('video_' + t.id + '_' + v.video_index);
-                                if (!vidEl) return;
-
-                                vidEl.addEventListener('ended', async () => {
-                                    watched.add(v.video_index);
-                                    progress.textContent = `${watched.size}/${vids.length} watched`;
-
-                                    // If all watched, auto-claim reward
-                                    if (watched.size === vids.length) {
-                                        progress.textContent = 'All videos watched — claiming reward...';
-                                        try {
-                                            const resp = await window.API.claimEasyEarn(t.id);
-                                            if (resp && resp.ok) {
-                                                alert(`Reward credited: GHC ${parseFloat(resp.earned||0).toFixed(2)}`);
-                                                // refresh wallet and list
-                                                await window.API.getWallet().catch(()=>{});
-                                                loadEasyEarns();
-                                                window.dispatchEvent(new Event('userFinanceUpdated'));
-                                            } else {
-                                                alert(resp.message || 'Claim response received');
-                                            }
-                                        } catch (err) {
-                                            console.error('Auto-claim failed:', err);
-                                            progress.textContent = 'Claim failed — try submitting proof manually.';
-                                        }
-                                    }
-                                });
+                                if (!isYouTubeUrl(v.url)) {
+                                    const vidEl = document.getElementById('video_' + t.id + '_' + v.video_index);
+                                    if (!vidEl) return;
+                                    vidEl.addEventListener('ended', async () => {
+                                        watched.add(v.video_index);
+                                        progress.textContent = `${watched.size}/${vids.length} watched`;
+                                        if (watched.size === vids.length) await attemptAutoClaim();
+                                    });
+                                }
                             });
+
+                            // YouTube: load API and create players
+                            const ytContainers = container.querySelectorAll('[id^="yt_player_"]');
+                            function attemptAutoClaim() {
+                                return (async () => {
+                                    progress.textContent = 'All videos watched — claiming reward...';
+                                    try {
+                                        const resp = await window.API.claimEasyEarn(t.id);
+                                        if (resp && resp.ok) {
+                                            alert(`Reward credited: GHC ${parseFloat(resp.earned||0).toFixed(2)}`);
+                                            await window.API.getWallet().catch(()=>{});
+                                            loadEasyEarns();
+                                            window.dispatchEvent(new Event('userFinanceUpdated'));
+                                        } else {
+                                            alert(resp.message || 'Claim response received');
+                                        }
+                                    } catch (err) {
+                                        console.error('Auto-claim failed:', err);
+                                        progress.textContent = 'Claim failed — try submitting proof manually.';
+                                    }
+                                })();
+                            }
+
+                            if (ytContainers.length > 0) {
+                                // Load YouTube IFrame API if not present
+                                if (typeof YT === 'undefined' || typeof YT.Player === 'undefined') {
+                                    // Inject API
+                                    if (!document.getElementById('youtube-iframe-api')) {
+                                        const s = document.createElement('script');
+                                        s.id = 'youtube-iframe-api';
+                                        s.src = 'https://www.youtube.com/iframe_api';
+                                        document.head.appendChild(s);
+                                    }
+                                }
+
+                                // When API ready, initialize players
+                                function initYouTubePlayers() {
+                                    ytContainers.forEach(el => {
+                                        const id = el.id;
+                                        const videoId = el.getAttribute('data-yt-id');
+                                        if (!videoId) return;
+                                        const idxMatch = id.match(/yt_player_(.+)_(\d+)$/);
+                                        const vIndex = idxMatch ? Number(idxMatch[2]) : null;
+                                        const player = new YT.Player(id, {
+                                            videoId: videoId,
+                                            playerVars: { controls: 1, rel: 0 },
+                                            events: {
+                                                onStateChange: function(event) {
+                                                    if (event.data === YT.PlayerState.ENDED) {
+                                                        watched.add(vIndex);
+                                                        progress.textContent = `${watched.size}/${vids.length} watched`;
+                                                        if (watched.size === vids.length) attemptAutoClaim();
+                                                    }
+                                                }
+                                            }
+                                        });
+                                        ytPlayers.push(player);
+                                    });
+                                }
+
+                                if (typeof YT !== 'undefined' && typeof YT.Player !== 'undefined') {
+                                    initYouTubePlayers();
+                                } else {
+                                    // Wait for global callback
+                                    const prev = window.onYouTubeIframeAPIReady;
+                                    window.onYouTubeIframeAPIReady = function() {
+                                        if (typeof prev === 'function') prev();
+                                        initYouTubePlayers();
+                                    };
+                                }
+                            }
+
+                            // Check if all watched already (edge cases)
+                            const checkInterval = setInterval(() => {
+                                if (watched.size === vids.length) {
+                                    clearInterval(checkInterval);
+                                }
+                            }, 1000);
 
                         } catch (err) {
                             console.error('Failed to load videos for task', t.id, err);
@@ -369,34 +424,6 @@
             loadEasyEarns();
         }
     </script>
-        <div class="card">
-            <h3>Backlog for the next implementation cycle</h3>
-            <div class="idea-list">
-                <div class="idea-item">
-                    <div>
-                        <strong>Smart reminder prompts</strong>
-                        <p>Notify users when a task is pending, nearly due, or ready for follow-up.</p>
-                    </div>
-                    <span class="status planned">Planned</span>
-                </div>
-
-                <div class="idea-item">
-                    <div>
-                        <strong>Admin action dashboard</strong>
-                        <p>Give admins one place to review task flow, frozen items, and order health.</p>
-                    </div>
-                    <span class="status in-progress">In progress</span>
-                </div>
-
-                <div class="idea-item">
-                    <div>
-                        <strong>Reward notification center</strong>
-                        <p>Surface wallet updates, task completions, and bonus activity instantly.</p>
-                    </div>
-                    <span class="status ready">Ready</span>
-                </div>
-            </div>
-        </div>
     </div>
 </body>
 </html>

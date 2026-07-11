@@ -1067,6 +1067,51 @@ app.delete('/admin/easy-earns/:id', requireAuth, requireAdmin, async (req, res) 
   res.json({ ok: true });
 });
 
+// Admin: manage videos for an Easy Earns task
+app.post('/admin/easy-earns/:id/videos', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params; // task id
+    const { title, url, duration_seconds, video_index } = req.body || {};
+    if (!url) return res.status(400).json({ error: 'Video url is required' });
+    const { rows } = await query(
+      `insert into easy_earn_videos (task_id, video_index, title, url, duration_seconds) values ($1,$2,$3,$4,$5) returning *`,
+      [id, video_index || 0, title || null, url, duration_seconds || 0]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin add video error:', err);
+    res.status(500).json({ error: 'Failed to add video' });
+  }
+});
+
+app.put('/admin/easy-earns/:id/videos/:videoId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id: taskId, videoId } = req.params;
+    const { title, url, duration_seconds, video_index } = req.body || {};
+    const { rows } = await query(
+      `update easy_earn_videos set title = coalesce($1,title), url = coalesce($2,url), duration_seconds = coalesce($3,duration_seconds), video_index = coalesce($4,video_index) where id = $5 and task_id = $6 returning *`,
+      [title || null, url || null, typeof duration_seconds === 'undefined' ? null : duration_seconds, typeof video_index === 'undefined' ? null : video_index, videoId, taskId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Video not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin update video error:', err);
+    res.status(500).json({ error: 'Failed to update video' });
+  }
+});
+
+app.delete('/admin/easy-earns/:id/videos/:videoId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id: taskId, videoId } = req.params;
+    const { rowCount } = await query('delete from easy_earn_videos where id = $1 and task_id = $2', [videoId, taskId]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Video not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin delete video error:', err);
+    res.status(500).json({ error: 'Failed to delete video' });
+  }
+});
+
 // Admin cleanup: remove previously seeded task-ideas except the Video Watch Task
 app.post('/admin/easy-earns/cleanup', requireAuth, requireAdmin, async (req, res) => {
   try {

@@ -489,6 +489,19 @@ window.API = {
     return this.call(`/easy-earns/${taskId}/videos`);
   },
 
+  // Admin video management for easy earns
+  async addEasyEarnVideo(taskId, video) {
+    return this.call(`/admin/easy-earns/${taskId}/videos`, { method: 'POST', body: JSON.stringify(video) });
+  },
+
+  async updateEasyEarnVideo(taskId, videoId, video) {
+    return this.call(`/admin/easy-earns/${taskId}/videos/${videoId}`, { method: 'PUT', body: JSON.stringify(video) });
+  },
+
+  async deleteEasyEarnVideo(taskId, videoId) {
+    return this.call(`/admin/easy-earns/${taskId}/videos/${videoId}`, { method: 'DELETE' });
+  },
+
   // Admin Easy Earns management
   async getAdminEasyEarns() {
     return this.call('/admin/easy-earns');
