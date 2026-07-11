@@ -789,9 +789,6 @@
                     beginnerSection.classList.add('loaded');
                 }
                 
-                // Check for pending orders and resume them
-                await resumePendingOrders();
-                
                 // Show filter buttons
                 await new Promise(resolve => setTimeout(resolve, 100));
                 document.querySelector('.filter-buttons').classList.add('loaded');
@@ -806,6 +803,11 @@
                 if (pageLoading) {
                     pageLoading.style.display = 'none';
                 }
+                
+                // Check for pending orders in background (non-blocking)
+                resumePendingOrders().catch(err => {
+                    console.error('Error resuming pending orders:', err);
+                });
             } catch (error) {
                 console.error('Error initializing page:', error);
                 // Hide loading spinner even on error
