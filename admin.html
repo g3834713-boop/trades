@@ -317,6 +317,74 @@
             justify-content: center;
         }
 
+        .easy-earns-toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .easy-earns-layout {
+            display: grid;
+            grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.6fr);
+            gap: 20px;
+        }
+
+        .easy-earns-panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .easy-earns-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .easy-earn-task-item {
+            width: 100%;
+            border: none;
+            border-bottom: 1px solid #f1f1f1;
+            background: white;
+            padding: 14px 16px;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .easy-earn-task-item:hover,
+        .easy-earn-task-item.active {
+            background: #f5f7ff;
+        }
+
+        .easy-earn-task-title {
+            display: block;
+            color: #333;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .easy-earn-task-meta {
+            color: #777;
+            font-size: 12px;
+        }
+
+        @media (max-width: 900px) {
+            .easy-earns-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .easy-earns-panel-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+
         .btn {
             padding: 6px 12px;
             border: none;
@@ -325,6 +393,11 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+        }
+
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
         }
 
         .btn-primary {
@@ -352,6 +425,16 @@
 
         .btn-success:hover {
             background: #229954;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
         }
 
         /* Forms */
@@ -482,6 +565,10 @@
                     <i class="las la-tasks"></i>
                     <span>Tasks</span>
                 </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('easy-earns')">
+                    <i class="las la-play-circle"></i>
+                    <span>Easy Earns</span>
+                </a></li>
                 <li><a href="#" class="menu-link" onclick="switchSection('beginner-tasks')">
                     <i class="las la-graduation-cap"></i>
                     <span>Beginner Tasks</span>
@@ -599,6 +686,49 @@
                         <div>Actions</div>
                     </div>
                     <div id="tasksTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Easy Earns Section -->
+            <div class="content-section" id="easy-earns">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Easy Earns Management</h2>
+                <div class="easy-earns-toolbar">
+                    <button class="btn btn-primary" onclick="loadEasyEarns()">
+                        <i class="las la-sync"></i> Refresh
+                    </button>
+                </div>
+                <div class="easy-earns-layout">
+                    <div class="easy-earns-panel">
+                        <div class="easy-earns-panel-header">
+                            <h3 style="font-size: 16px; color: #333;">Easy Earn Tasks</h3>
+                        </div>
+                        <div id="easyEarnTasksList">
+                            <div class="empty-state"><p>Select Refresh to load Easy Earn tasks</p></div>
+                        </div>
+                    </div>
+                    <div class="easy-earns-panel">
+                        <div class="easy-earns-panel-header">
+                            <div>
+                                <h3 id="easyEarnVideosTitle" style="font-size: 16px; color: #333;">Videos</h3>
+                                <div id="easyEarnVideosSubtitle" style="font-size: 12px; color: #777; margin-top: 4px;">No Easy Earn task selected</div>
+                            </div>
+                            <button class="btn btn-primary" id="addEasyEarnVideoBtn" onclick="openEasyEarnVideoModal()" disabled>
+                                <i class="las la-plus"></i> Add Video
+                            </button>
+                        </div>
+                        <div class="table-container" style="box-shadow: none; border-radius: 0;">
+                            <div class="table-header" style="grid-template-columns: 0.5fr 1.1fr 2fr 0.8fr 1fr;">
+                                <div>#</div>
+                                <div>Title</div>
+                                <div>URL</div>
+                                <div>Duration</div>
+                                <div>Actions</div>
+                            </div>
+                            <div id="easyEarnVideosTableBody">
+                                <div class="empty-state"><p>No videos loaded</p></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1117,6 +1247,35 @@
         </div>
     </div>
 
+    <!-- Add/Edit Easy Earn Video Modal -->
+    <div class="modal" id="easyEarnVideoModal">
+        <div class="modal-content">
+            <div class="modal-title" id="easyEarnVideoModalTitle">Add Easy Earn Video</div>
+            <input type="hidden" id="easyEarnVideoTaskId">
+            <input type="hidden" id="easyEarnVideoId">
+            <div class="form-group">
+                <label class="form-label">Video Title</label>
+                <input type="text" class="form-input" id="easyEarnVideoTitleInput" placeholder="e.g., Intro Video">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Video URL</label>
+                <input type="url" class="form-input" id="easyEarnVideoUrlInput" placeholder="https://example.com/video.mp4">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Display Order</label>
+                <input type="number" class="form-input" id="easyEarnVideoIndexInput" min="1" step="1" value="1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Duration (seconds)</label>
+                <input type="number" class="form-input" id="easyEarnVideoDurationInput" min="0" step="1" value="0">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeEasyEarnVideoModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEasyEarnVideo()">Save Video</button>
+            </div>
+        </div>
+    </div>
+
     <!-- View Submissions Modal -->
     <div class="modal" id="submissionsModal">
         <div class="modal-content" style="max-width: 700px;">
@@ -1137,6 +1296,38 @@
     </div>
 
     <script>
+        let easyEarnTasksCache = [];
+        let easyEarnVideosCache = [];
+        let selectedEasyEarnTaskId = null;
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char]));
+        }
+
+        function isValidHttpUrl(value) {
+            try {
+                const url = new URL(value);
+                return url.protocol === 'http:' || url.protocol === 'https:';
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function formatVideoDuration(seconds) {
+            const totalSeconds = Math.max(0, parseInt(seconds || 0, 10) || 0);
+            const minutes = Math.floor(totalSeconds / 60);
+            const remainingSeconds = totalSeconds % 60;
+            if (minutes > 0 && remainingSeconds > 0) return `${minutes}m ${remainingSeconds}s`;
+            if (minutes > 0) return `${minutes}m`;
+            return `${remainingSeconds}s`;
+        }
+
         // Switch between sections
         function switchSection(sectionId) {
             // Remove active class from all sections and links
@@ -1164,6 +1355,7 @@
                 'dashboard': 'Dashboard',
                 'users': 'User Management',
                 'tasks': 'Task Management',
+                'easy-earns': 'Easy Earns Management',
                 'beginner-tasks': 'Beginner Tasks Management',
                 'products': 'Product Management',
                 'teller-products': 'Teller Product Tasks',
@@ -1178,6 +1370,7 @@
             if (sectionId === 'dashboard') loadDashboard();
             if (sectionId === 'users') loadUsers();
             if (sectionId === 'tasks') loadTasks();
+            if (sectionId === 'easy-earns') loadEasyEarns();
             if (sectionId === 'beginner-tasks') loadBeginnerTasks();
             if (sectionId === 'products') loadProducts();
             if (sectionId === 'teller-products') loadTellerProductsSection();
@@ -1342,6 +1535,221 @@
             } catch (error) {
                 console.error('Failed to load tasks:', error);
                 document.getElementById('tasksTableBody').innerHTML = '<div class="empty-state"><p>Failed to load tasks</p></div>';
+            }
+        }
+
+        async function loadEasyEarns() {
+            const tasksList = document.getElementById('easyEarnTasksList');
+            const videosBody = document.getElementById('easyEarnVideosTableBody');
+            if (!tasksList || !videosBody) return;
+
+            tasksList.innerHTML = '<div class="empty-state"><p>Loading Easy Earn tasks...</p></div>';
+            videosBody.innerHTML = '<div class="empty-state"><p>Loading videos...</p></div>';
+
+            try {
+                const tasks = await window.API.getAdminEasyEarns();
+                easyEarnTasksCache = Array.isArray(tasks) ? tasks : [];
+
+                if (easyEarnTasksCache.length === 0) {
+                    selectedEasyEarnTaskId = null;
+                    renderEasyEarnTasks();
+                    clearEasyEarnVideos('No Easy Earn tasks found', 'Create an Easy Earn task from the backend first');
+                    return;
+                }
+
+                const selectedStillExists = easyEarnTasksCache.some(task => task.id === selectedEasyEarnTaskId);
+                if (!selectedEasyEarnTaskId || !selectedStillExists) {
+                    selectedEasyEarnTaskId = easyEarnTasksCache[0].id;
+                }
+
+                renderEasyEarnTasks();
+                await loadEasyEarnVideos(selectedEasyEarnTaskId);
+            } catch (error) {
+                console.error('Failed to load Easy Earns:', error);
+                tasksList.innerHTML = '<div class="empty-state"><p>Failed to load Easy Earn tasks</p></div>';
+                clearEasyEarnVideos('Videos unavailable', 'Easy Earn tasks could not be loaded');
+            }
+        }
+
+        function renderEasyEarnTasks() {
+            const tasksList = document.getElementById('easyEarnTasksList');
+            if (!tasksList) return;
+
+            if (easyEarnTasksCache.length === 0) {
+                tasksList.innerHTML = '<div class="empty-state"><p>No Easy Earn tasks created</p></div>';
+                return;
+            }
+
+            tasksList.innerHTML = easyEarnTasksCache.map(task => {
+                const activeClass = task.id === selectedEasyEarnTaskId ? 'active' : '';
+                const amount = parseFloat(task.amount || 0).toFixed(2);
+                const status = task.status || 'active';
+                return `<button type="button" class="easy-earn-task-item ${activeClass}" onclick="selectEasyEarnTask('${task.id}')">
+                    <span class="easy-earn-task-title">${escapeHtml(task.title || 'Untitled Easy Earn')}</span>
+                    <span class="easy-earn-task-meta">GHC ${amount} - ${escapeHtml(status)}</span>
+                </button>`;
+            }).join('');
+        }
+
+        async function selectEasyEarnTask(taskId) {
+            selectedEasyEarnTaskId = taskId;
+            renderEasyEarnTasks();
+            await loadEasyEarnVideos(taskId);
+        }
+
+        function clearEasyEarnVideos(title, subtitle) {
+            document.getElementById('easyEarnVideosTitle').textContent = title;
+            document.getElementById('easyEarnVideosSubtitle').textContent = subtitle;
+            document.getElementById('addEasyEarnVideoBtn').disabled = true;
+            document.getElementById('easyEarnVideosTableBody').innerHTML = '<div class="empty-state"><p>No videos loaded</p></div>';
+            easyEarnVideosCache = [];
+        }
+
+        async function loadEasyEarnVideos(taskId) {
+            const task = easyEarnTasksCache.find(item => item.id === taskId);
+            const videosBody = document.getElementById('easyEarnVideosTableBody');
+
+            if (!task) {
+                clearEasyEarnVideos('No Easy Earn task selected', 'Choose a task to manage videos');
+                return;
+            }
+
+            document.getElementById('easyEarnVideosTitle').textContent = `${task.title || 'Easy Earn'} Videos`;
+            document.getElementById('easyEarnVideosSubtitle').textContent = `Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}`;
+            document.getElementById('addEasyEarnVideoBtn').disabled = false;
+            videosBody.innerHTML = '<div class="empty-state"><p>Loading videos...</p></div>';
+
+            try {
+                const videos = await window.API.getEasyEarnVideos(taskId);
+                easyEarnVideosCache = Array.isArray(videos)
+                    ? videos.sort((a, b) => (parseInt(a.video_index || 0, 10) || 0) - (parseInt(b.video_index || 0, 10) || 0))
+                    : [];
+                renderEasyEarnVideos();
+            } catch (error) {
+                console.error('Failed to load Easy Earn videos:', error);
+                videosBody.innerHTML = '<div class="empty-state"><p>Failed to load videos</p></div>';
+            }
+        }
+
+        function renderEasyEarnVideos() {
+            const videosBody = document.getElementById('easyEarnVideosTableBody');
+            if (!videosBody) return;
+
+            if (easyEarnVideosCache.length === 0) {
+                videosBody.innerHTML = '<div class="empty-state"><p>No videos added for this task</p></div>';
+                return;
+            }
+
+            videosBody.innerHTML = easyEarnVideosCache.map((video, index) => {
+                const videoUrl = video.url || '';
+                const shortUrl = videoUrl.length > 54 ? `${videoUrl.substring(0, 54)}...` : videoUrl;
+                const urlHtml = videoUrl
+                    ? `<a href="${escapeHtml(videoUrl)}" target="_blank" rel="noopener" style="color: #4361ee; text-decoration: underline;">${escapeHtml(shortUrl)}</a>`
+                    : '<span style="color: #999;">No URL</span>';
+                return `<div class="table-row" style="grid-template-columns: 0.5fr 1.1fr 2fr 0.8fr 1fr;">
+                    <div class="table-cell">${parseInt(video.video_index || index + 1, 10) || index + 1}</div>
+                    <div class="table-cell">${escapeHtml(video.title || `Video ${index + 1}`)}</div>
+                    <div class="table-cell">${urlHtml}</div>
+                    <div class="table-cell">${formatVideoDuration(video.duration_seconds)}</div>
+                    <div class="table-action">
+                        <button class="btn btn-secondary" onclick="openEditEasyEarnVideoModal('${video.id}')">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteEasyEarnVideo('${video.id}')">Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function openEasyEarnVideoModal() {
+            if (!selectedEasyEarnTaskId) {
+                alert('Select an Easy Earn task first');
+                return;
+            }
+
+            const nextIndex = easyEarnVideosCache.reduce((max, video) => {
+                const index = parseInt(video.video_index || 0, 10) || 0;
+                return Math.max(max, index);
+            }, 0) + 1;
+
+            document.getElementById('easyEarnVideoModalTitle').textContent = 'Add Easy Earn Video';
+            document.getElementById('easyEarnVideoTaskId').value = selectedEasyEarnTaskId;
+            document.getElementById('easyEarnVideoId').value = '';
+            document.getElementById('easyEarnVideoTitleInput').value = '';
+            document.getElementById('easyEarnVideoUrlInput').value = '';
+            document.getElementById('easyEarnVideoIndexInput').value = nextIndex;
+            document.getElementById('easyEarnVideoDurationInput').value = '0';
+            document.getElementById('easyEarnVideoModal').classList.add('show');
+        }
+
+        function openEditEasyEarnVideoModal(videoId) {
+            const video = easyEarnVideosCache.find(item => item.id === videoId);
+            if (!video) {
+                alert('Video not found');
+                return;
+            }
+
+            document.getElementById('easyEarnVideoModalTitle').textContent = 'Edit Easy Earn Video';
+            document.getElementById('easyEarnVideoTaskId').value = selectedEasyEarnTaskId;
+            document.getElementById('easyEarnVideoId').value = video.id;
+            document.getElementById('easyEarnVideoTitleInput').value = video.title || '';
+            document.getElementById('easyEarnVideoUrlInput').value = video.url || '';
+            document.getElementById('easyEarnVideoIndexInput').value = parseInt(video.video_index || 1, 10) || 1;
+            document.getElementById('easyEarnVideoDurationInput').value = parseInt(video.duration_seconds || 0, 10) || 0;
+            document.getElementById('easyEarnVideoModal').classList.add('show');
+        }
+
+        function closeEasyEarnVideoModal() {
+            document.getElementById('easyEarnVideoModal').classList.remove('show');
+            document.getElementById('easyEarnVideoTaskId').value = '';
+            document.getElementById('easyEarnVideoId').value = '';
+        }
+
+        async function saveEasyEarnVideo() {
+            const taskId = document.getElementById('easyEarnVideoTaskId').value;
+            const videoId = document.getElementById('easyEarnVideoId').value;
+            const title = document.getElementById('easyEarnVideoTitleInput').value.trim();
+            const url = document.getElementById('easyEarnVideoUrlInput').value.trim();
+            const videoIndex = parseInt(document.getElementById('easyEarnVideoIndexInput').value, 10);
+            const durationSeconds = parseInt(document.getElementById('easyEarnVideoDurationInput').value, 10);
+
+            if (!taskId) return alert('No Easy Earn task selected');
+            if (!url || !isValidHttpUrl(url)) return alert('Enter a valid http or https video URL');
+            if (!Number.isInteger(videoIndex) || videoIndex < 1) return alert('Display order must be 1 or higher');
+            if (!Number.isInteger(durationSeconds) || durationSeconds < 0) return alert('Duration must be 0 or higher');
+
+            const payload = {
+                title,
+                url,
+                video_index: videoIndex,
+                duration_seconds: durationSeconds
+            };
+
+            try {
+                if (videoId) {
+                    await window.API.updateEasyEarnVideo(taskId, videoId, payload);
+                    alert('Video updated successfully');
+                } else {
+                    await window.API.addEasyEarnVideo(taskId, payload);
+                    alert('Video added successfully');
+                }
+                closeEasyEarnVideoModal();
+                await loadEasyEarnVideos(taskId);
+            } catch (error) {
+                console.error('Failed to save Easy Earn video:', error);
+                alert('Failed to save video: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        async function deleteEasyEarnVideo(videoId) {
+            if (!selectedEasyEarnTaskId) return alert('No Easy Earn task selected');
+            if (!confirm('Delete this video?')) return;
+
+            try {
+                await window.API.deleteEasyEarnVideo(selectedEasyEarnTaskId, videoId);
+                alert('Video deleted successfully');
+                await loadEasyEarnVideos(selectedEasyEarnTaskId);
+            } catch (error) {
+                console.error('Failed to delete Easy Earn video:', error);
+                alert('Failed to delete video: ' + (error.message || 'Unknown error'));
             }
         }
 
