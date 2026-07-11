@@ -463,6 +463,10 @@ window.API = {
     return this.call('/beginner-tasks');
   },
 
+  async getEasyEarns() {
+    return this.call('/easy-earns');
+  },
+
   async submitBeginnerTask(taskId, url) {
     return this.call(`/beginner-tasks/${taskId}/submit`, {
       method: 'POST',
@@ -470,8 +474,21 @@ window.API = {
     });
   },
 
+  async submitEasyEarn(taskId, url) {
+    return this.call(`/easy-earns/${taskId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify({ url })
+    });
+  },
+
   async claimBeginnerTaskReward(taskId) {
     return this.call(`/beginner-tasks/${taskId}/claim`, {
+      method: 'POST'
+    });
+  },
+
+  async claimEasyEarn(taskId) {
+    return this.call(`/easy-earns/${taskId}/claim`, {
       method: 'POST'
     });
   },

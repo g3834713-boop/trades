@@ -1332,8 +1332,19 @@
                     </div>
                 `;
 
-                // Add daily check-in button/status below the balance
+                // Add task ideas entry and daily check-in button/status below the balance
                 try {
+                    const balanceCard = document.querySelector('.balance-section');
+                    const ideasContainer = document.createElement('div');
+                    ideasContainer.style.marginTop = '12px';
+                    ideasContainer.innerHTML = `
+                        <button class="task-action-btn" onclick="window.location.href='task-ideas.html'" style="background: linear-gradient(135deg, #2d9cdb, #4361ee); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <i class="las la-lightbulb"></i>
+                            Open Easy Earns
+                        </button>
+                    `;
+                    balanceCard.appendChild(ideasContainer);
+
                     const checkin = await window.API.getDailyCheckin().catch(() => ({ checkedIn: false, amount: 0 }));
                     const btnContainer = document.createElement('div');
                     btnContainer.style.marginTop = '12px';
@@ -1342,7 +1353,7 @@
                     } else {
                         btnContainer.innerHTML = `<button class="task-action-btn" onclick="doDailyCheckin(this)">Daily Check-in (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`;
                     }
-                    document.querySelector('.balance-section').appendChild(btnContainer);
+                    balanceCard.appendChild(btnContainer);
                 } catch (err) {
                     console.warn('Failed to load checkin status', err);
                 }

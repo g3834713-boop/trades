@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DailyTrade - Easy Earns</title>
+    <script src="config.js"></script>
+    <script type="module" src="auth.js"></script>
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        .page {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .back-btn, .primary-btn {
+            border: none;
+            border-radius: 999px;
+            padding: 10px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .back-btn {
+            background: #e8eefc;
+            color: #4361ee;
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, #4361ee, #2d9cdb);
+            color: white;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #4361ee 0%, #2d9cdb 100%);
+            color: white;
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 15px 35px rgba(67, 97, 238, 0.18);
+            margin-bottom: 20px;
+        }
+
+        .hero h1 {
+            margin: 8px 0 8px;
+            font-size: 26px;
+        }
+
+        .hero p {
+            margin: 0;
+            line-height: 1.6;
+            opacity: 0.95;
+            max-width: 700px;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.2);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .card h3 {
+            margin: 0 0 12px;
+            font-size: 18px;
+        }
+
+        .card ul, .card ol {
+            padding-left: 18px;
+            margin: 0;
+            line-height: 1.7;
+            color: #4b5563;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status.planned { background: #e8f2ff; color: #2b6df0; }
+        .status.in-progress { background: #fff4d6; color: #b7791f; }
+        .status.ready { background: #e7f7ed; color: #2f855a; }
+
+        .idea-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .idea-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .idea-item strong { display: block; margin-bottom: 6px; }
+        .idea-item p { margin: 0; color: #6b7280; font-size: 14px; }
+
+        @media (max-width: 760px) {
+            .grid { grid-template-columns: 1fr; }
+            .topbar { flex-direction: column; align-items: flex-start; }
+            .hero { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="topbar">
+            <a href="tasks.html" class="back-btn"><i class="las la-arrow-left"></i> Back to tasks</a>
+            <a href="tasks.html" class="primary-btn"><i class="las la-rocket"></i> Start implementing</a>
+        </div>
+
+        <section class="hero">
+            <span class="pill">Planning workspace</span>
+            <h1>Easy Earns Implementation Plan</h1>
+            <p>This page is the dedicated home for the Easy Earns feature rollout, including the task ideas, implementation priorities, and the step-by-step plan for turning those tasks into live earning opportunities.</p>
+        </section>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Priority ideas</h3>
+                <ul>
+                    <li>Smart task reminders and nudges for pending orders.</li>
+                    <li>Improved admin oversight for completed and frozen tasks.</li>
+                    <li>Notification center for payment, credit, and task updates.</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>Suggested rollout</h3>
+                <ol>
+                    <li>Validate the idea with the product goals and user impact.</li>
+                    <li>Break the feature into an MVP and a later enhancement phase.</li>
+                    <li>Implement, test, and ship in small, measurable increments.</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="card" id="easyEarnsCard" style="margin-top:18px;">
+            <h3>Easy Earns - Live Tasks</h3>
+            <p style="color:#6b7280; margin-top:6px;">These are active Easy Earns tasks you can complete for quick rewards. Click "Start" for instructions and to submit proof.</p>
+            <div id="easyEarnsList" style="margin-top:12px; display:flex; flex-direction:column; gap:12px;"></div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="easyModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:9999;">
+        <div style="background:white; border-radius:12px; width:94%; max-width:640px; padding:18px;">
+            <h3 id="modalTitle">Start Task</h3>
+            <p id="modalDesc" style="color:#4b5563; margin-top:6px;"></p>
+            <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+                <label style="font-weight:700; font-size:13px;">Proof URL or notes</label>
+                <input id="proofInput" type="text" placeholder="Paste screenshot URL or short notes" style="padding:10px; border:1px solid #e5e7eb; border-radius:8px; width:100%;" />
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button id="submitProofBtn" class="primary-btn" style="flex:1;">Submit Proof</button>
+                    <button id="claimRewardBtn" class="back-btn" style="flex:1; background:#e6ffef; color:#087f41; display:none;">Claim Reward</button>
+                </div>
+                <button id="closeModalBtn" class="back-btn" style="margin-top:12px; background:#f3f4f6; color:#374151;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Easy Earns frontend: loads beginner tasks and allows submit/claim flows
+        async function loadEasyEarns() {
+            const listEl = document.getElementById('easyEarnsList');
+            listEl.innerHTML = '<div style="color:#6b7280">Loading tasks...</div>';
+            try {
+                const tasks = await window.API.getEasyEarns();
+                if (!Array.isArray(tasks) || tasks.length === 0) {
+                    listEl.innerHTML = '<div class="empty-state-text">No Easy Earns tasks are active right now.</div>';
+                    return;
+                }
+
+                listEl.innerHTML = '';
+                tasks.forEach(task => {
+                    const item = document.createElement('div');
+                    item.className = 'idea-item';
+                    item.innerHTML = `
+                        <div style="flex:1">
+                            <strong>${escapeHtml(task.title)}</strong>
+                            <p>${escapeHtml(task.description || '')}</p>
+                            <div style="margin-top:8px; font-size:13px; color:#6b7280">Reward: GHC ${parseFloat(task.amount||0).toFixed(2)}</div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px; min-width:160px; align-items:flex-end;">
+                            <button class="primary-btn" style="padding:8px 12px;" onclick="openEasyModal('${task.id}', '${escapeAttr(task.title)}', '${escapeAttr(task.description||'')}', ${parseFloat(task.amount||0)})">Start</button>
+                            <div style="font-size:12px; color:#9ca3af; text-align:right;">${task.can_submit ? '<span style="color:#16a34a">Ready to submit</span>' : 'Cooldown active'}</div>
+                        </div>
+                    `;
+                    listEl.appendChild(item);
+                });
+            } catch (err) {
+                console.error('Failed to load Easy Earns tasks', err);
+                listEl.innerHTML = '<div style="color:#ef4444">Failed to load tasks. Please try again later.</div>';
+            }
+        }
+
+        function escapeHtml(s){ return String(s||'').replace(/[&<>\\"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+        function escapeAttr(s){ return String(s||'').replace(/'/g, "\\'").replace(/\\"/g,'\\\\\"'); }
+
+        let currentTaskId = null;
+
+        function openEasyModal(id, title, desc, amount) {
+            currentTaskId = id;
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalDesc').textContent = desc || '';
+            document.getElementById('proofInput').value = '';
+            document.getElementById('submitProofBtn').style.display = '';
+            document.getElementById('claimRewardBtn').style.display = 'none';
+            document.getElementById('easyModal').style.display = 'flex';
+        }
+
+        document.getElementById('closeModalBtn').addEventListener('click', ()=>{ document.getElementById('easyModal').style.display='none'; });
+
+        document.getElementById('submitProofBtn').addEventListener('click', async ()=>{
+            const url = document.getElementById('proofInput').value.trim();
+            if (!url) return alert('Please provide a screenshot URL or short notes.');
+            try {
+                document.getElementById('submitProofBtn').disabled = true;
+                document.getElementById('submitProofBtn').textContent = 'Submitting...';
+                const res = await window.API.submitEasyEarn(currentTaskId, url);
+                alert(res.message || 'Submission successful');
+                document.getElementById('submitProofBtn').style.display = 'none';
+                document.getElementById('claimRewardBtn').style.display = '';
+            } catch (err) {
+                alert(err.message || 'Submission failed');
+            } finally {
+                document.getElementById('submitProofBtn').disabled = false;
+                document.getElementById('submitProofBtn').textContent = 'Submit Proof';
+            }
+        });
+
+        document.getElementById('claimRewardBtn').addEventListener('click', async ()=>{
+            try {
+                document.getElementById('claimRewardBtn').disabled = true;
+                document.getElementById('claimRewardBtn').textContent = 'Claiming...';
+                const res = await window.API.claimEasyEarn(currentTaskId);
+                alert(res.message || `You earned GHC ${res.earned}`);
+                document.getElementById('easyModal').style.display = 'none';
+                // refresh tasks & balance
+                await loadEasyEarns();
+                await window.API.getWallet().catch(()=>{});
+                window.dispatchEvent(new Event('userFinanceUpdated'));
+            } catch (err) {
+                alert(err.message || 'Claim failed');
+            } finally {
+                document.getElementById('claimRewardBtn').disabled = false;
+                document.getElementById('claimRewardBtn').textContent = 'Claim Reward';
+            }
+        });
+
+        // Load on page ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadEasyEarns);
+        } else {
+            loadEasyEarns();
+        }
+    </script>
+        <div class="card">
+            <h3>Backlog for the next implementation cycle</h3>
+            <div class="idea-list">
+                <div class="idea-item">
+                    <div>
+                        <strong>Smart reminder prompts</strong>
+                        <p>Notify users when a task is pending, nearly due, or ready for follow-up.</p>
+                    </div>
+                    <span class="status planned">Planned</span>
+                </div>
+
+                <div class="idea-item">
+                    <div>
+                        <strong>Admin action dashboard</strong>
+                        <p>Give admins one place to review task flow, frozen items, and order health.</p>
+                    </div>
+                    <span class="status in-progress">In progress</span>
+                </div>
+
+                <div class="idea-item">
+                    <div>
+                        <strong>Reward notification center</strong>
+                        <p>Surface wallet updates, task completions, and bonus activity instantly.</p>
+                    </div>
+                    <span class="status ready">Ready</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

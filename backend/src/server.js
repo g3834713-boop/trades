@@ -1720,43 +1720,52 @@ app.delete('/admin/beginner-tasks/submissions/:id', requireAuth, requireAdmin, a
 });
 
 // User: Get active beginner tasks with cooldown info
+async function getBeginnerTasksForUser(userId) {
+  const { rows: tasks } = await query(
+    `select * from beginner_tasks where status = 'active' order by created_at desc`
+  );
+
+  for (const task of tasks) {
+    const { rows: lastSubmission } = await query(
+      `select submitted_at from beginner_task_submissions
+       where task_id = $1 and user_id = $2
+       order by submitted_at desc limit 1`,
+      [task.id, userId]
+    );
+
+    if (lastSubmission.length > 0) {
+      task.last_submitted_at = lastSubmission[0].submitted_at;
+      const lastTime = new Date(lastSubmission[0].submitted_at);
+      const nextTime = new Date(lastTime.getTime() + 30 * 60 * 1000);
+      task.next_available_at = nextTime;
+      task.can_submit = new Date() >= nextTime;
+    } else {
+      task.can_submit = true;
+      task.last_submitted_at = null;
+      task.next_available_at = null;
+    }
+  }
+
+  return tasks;
+}
+
 app.get('/beginner-tasks', requireAuth, async (req, res) => {
   try {
     const { id: userId } = req.user;
-    
-    // Get all active tasks
-    const { rows: tasks } = await query(
-      `select * from beginner_tasks where status = 'active' order by created_at desc`
-    );
-    
-    // For each task, get user's last submission time
-    for (const task of tasks) {
-      const { rows: lastSubmission } = await query(
-        `select submitted_at from beginner_task_submissions
-         where task_id = $1 and user_id = $2
-         order by submitted_at desc limit 1`,
-        [task.id, userId]
-      );
-      
-      if (lastSubmission.length > 0) {
-        task.last_submitted_at = lastSubmission[0].submitted_at;
-        
-        // Calculate next available time (30 mins from last submission)
-        const lastTime = new Date(lastSubmission[0].submitted_at);
-        const nextTime = new Date(lastTime.getTime() + 30 * 60 * 1000);
-        task.next_available_at = nextTime;
-        task.can_submit = new Date() >= nextTime;
-      } else {
-        task.can_submit = true;
-        task.last_submitted_at = null;
-        task.next_available_at = null;
-      }
-    }
-    
-    res.json(tasks);
+    res.json(await getBeginnerTasksForUser(userId));
   } catch (error) {
     console.error('Error fetching beginner tasks:', error);
     res.status(500).json({ error: 'Failed to fetch beginner tasks: ' + error.message });
+  }
+});
+
+app.get('/easy-earns', requireAuth, async (req, res) => {
+  try {
+    const { id: userId } = req.user;
+    res.json(await getBeginnerTasksForUser(userId));
+  } catch (error) {
+    console.error('Error fetching Easy Earns tasks:', error);
+    res.status(500).json({ error: 'Failed to fetch Easy Earns tasks: ' + error.message });
   }
 });
 
@@ -1828,6 +1837,69 @@ app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/easy-earns/:id/submit', requireAuth, async (req, res) => {
+  const { id: taskId } = req.params;
+  const { id: userId } = req.user;
+  const { url } = req.body;
+
+  if (!url || !url.trim()) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  try {
+    const { rows: taskRows } = await query(
+      `select * from beginner_tasks where id = $1`,
+      [taskId]
+    );
+
+    if (taskRows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const task = taskRows[0];
+    if (task.status !== 'active') {
+      return res.status(400).json({ error: 'This task is not currently active' });
+    }
+
+    const { rows: lastSubmission } = await query(
+      `select submitted_at from beginner_task_submissions
+       where task_id = $1 and user_id = $2
+       order by submitted_at desc limit 1`,
+      [taskId, userId]
+    );
+
+    if (lastSubmission.length > 0) {
+      const lastTime = new Date(lastSubmission[0].submitted_at);
+      const nextTime = new Date(lastTime.getTime() + 30 * 60 * 1000);
+      const now = new Date();
+
+      if (now < nextTime) {
+        const minutesLeft = Math.ceil((nextTime - now) / 1000 / 60);
+        return res.status(400).json({
+          error: `Please wait ${minutesLeft} more minutes before submitting again`,
+          next_available_at: nextTime
+        });
+      }
+    }
+
+    await query(
+      `insert into beginner_task_submissions (task_id, user_id, url)
+       values ($1, $2, $3)`,
+      [taskId, userId, url.trim()]
+    );
+
+    res.json({
+      ok: true,
+      message: 'Submission successful',
+      task_title: task.title,
+      next_available_at: new Date(Date.now() + 30 * 60 * 1000)
+    });
+  } catch (error) {
+    console.error('Error submitting Easy Earns task:', error);
+    res.status(500).json({ error: 'Failed to submit task: ' + error.message });
+  }
+});
+
 // User: Claim beginner task reward
 app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
   try {
@@ -1878,6 +1950,56 @@ app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error claiming beginner task reward:', error);
+    res.status(500).json({ error: 'Failed to claim reward: ' + error.message });
+  }
+});
+
+app.post('/easy-earns/:id/claim', requireAuth, async (req, res) => {
+  try {
+    const { id: taskId } = req.params;
+    const { id: userId } = req.user;
+
+    const { rows: taskRows } = await query(
+      `select * from beginner_tasks where id = $1`,
+      [taskId]
+    );
+
+    if (taskRows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const task = taskRows[0];
+    const rewardAmount = parseFloat(task.amount);
+
+    const { rows: submissionRows } = await query(
+      `select * from beginner_task_submissions
+       where task_id = $1 and user_id = $2
+       order by submitted_at desc limit 1`,
+      [taskId, userId]
+    );
+
+    if (submissionRows.length === 0) {
+      return res.status(404).json({ error: 'No submission found' });
+    }
+
+    await query(
+      `update wallets set balance = balance + $1 where user_id = $2`,
+      [rewardAmount, userId]
+    );
+
+    await query(
+      `insert into transactions (user_id, type, amount, reason)
+       values ($1, 'credit', $2, $3)`,
+      [userId, rewardAmount, `Easy Earns reward: ${task.title}`]
+    );
+
+    res.json({
+      ok: true,
+      message: 'Reward claimed successfully',
+      earned: rewardAmount
+    });
+  } catch (error) {
+    console.error('Error claiming Easy Earns reward:', error);
     res.status(500).json({ error: 'Failed to claim reward: ' + error.message });
   }
 });
@@ -2098,6 +2220,23 @@ async function ensureSchema() {
   
   // Add commission column to tasks if it doesn't exist
   await query('alter table tasks add column if not exists commission numeric(5,2) not null default 0');
+
+  // Seed a small set of Easy Earns (beginner) tasks for initial rollout
+  await query(`
+    insert into beginner_tasks (id, title, description, amount, status)
+    select gen_random_uuid(), v.title, v.description, v.amount, 'active'
+    from (values
+      ('Follow + Like Campaign', 'Follow the specified social accounts, like 5 posts and comment. Submit screenshot URL.', 2.00),
+      ('Share & Tag Friends', 'Share the post to 3+ friends/groups and tag 5 friends. Submit screenshot URL.', 3.00),
+      ('Mobile App Signup', 'Download and sign up to the advertised mobile app. Submit confirmation screenshot.', 3.00),
+      ('Website Feedback Form', 'Complete the feedback form and submit screenshot of the confirmation.', 2.00),
+      ('Product Description', 'Write a 100-150 word product description and submit text.', 6.00),
+      ('Video Watch Task', 'Watch the provided video for at least 2 minutes and submit timestamped screenshot.', 1.50),
+      ('Data Copying (Small)', 'Copy 20 entries from image to spreadsheet and submit the file link.', 5.00),
+      ('Referral Signup', 'Refer a friend who completes a task; submit friend email for validation.', 4.00)
+    ) as v(title, description, amount)
+    where not exists (select 1 from beginner_tasks bt where bt.title = v.title)
+  `);
   
   await query(`
     create table if not exists products (
