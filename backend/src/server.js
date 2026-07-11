@@ -1882,6 +1882,128 @@ app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
   }
 });
 
+// Order processing: Start an order (called after user deducts cost)
+app.post('/orders/start', requireAuth, async (req, res) => {
+  const { taskId, productId, cost, interest, totalReturn } = req.body;
+  const { id: userId } = req.user;
+
+  if (!taskId && !productId) {
+    return res.status(400).json({ error: 'Task ID or Product ID required' });
+  }
+
+  try {
+    const { rows } = await query(
+      `insert into order_processing (user_id, task_id, product_id, cost, interest, total_return, current_step, total_steps)
+       values ($1, $2, $3, $4, $5, $6, 0, 15)
+       returning id, current_step, total_steps, status`,
+      [userId, taskId || null, productId || null, cost || 0, interest || 0, totalReturn || 0]
+    );
+
+    if (rows.length === 0) {
+      return res.status(500).json({ error: 'Failed to create order' });
+    }
+
+    const orderId = rows[0].id;
+
+    // Start automatic background processing after 1 second
+    setTimeout(() => {
+      advanceOrderProcessing(orderId, userId).catch(err => {
+        console.error('Error advancing order:', err);
+      });
+    }, 1000);
+
+    res.json({ ok: true, orderId });
+  } catch (error) {
+    console.error('Error starting order:', error);
+    res.status(500).json({ error: 'Failed to start order' });
+  }
+});
+
+// Order processing: Get current status and progress
+app.get('/orders/:orderId/status', requireAuth, async (req, res) => {
+  const { orderId } = req.params;
+  const { id: userId } = req.user;
+
+  try {
+    const { rows } = await query(
+      `select * from order_processing where id = $1 and user_id = $2`,
+      [orderId, userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const order = rows[0];
+    const progress = Math.round((order.current_step / order.total_steps) * 100);
+
+    res.json({
+      orderId: order.id,
+      status: order.status,
+      currentStep: order.current_step,
+      totalSteps: order.total_steps,
+      progress,
+      cost: order.cost,
+      interest: order.interest,
+      totalReturn: order.total_return,
+      completedAt: order.completed_at
+    });
+  } catch (error) {
+    console.error('Error getting order status:', error);
+    res.status(500).json({ error: 'Failed to get order status' });
+  }
+});
+
+// Background order processing function
+async function advanceOrderProcessing(orderId, userId) {
+  const maxSteps = 15;
+  const stepDuration = 12000; // 12 seconds per step
+
+  for (let step = 1; step <= maxSteps; step++) {
+    // Update progress
+    await query(
+      `update order_processing set current_step = $1 where id = $2 and user_id = $3`,
+      [step, orderId, userId]
+    );
+
+    // If last step, mark as completed and credit earnings
+    if (step === maxSteps) {
+      const { rows } = await query(
+        `select * from order_processing where id = $1 and user_id = $2`,
+        [orderId, userId]
+      );
+
+      if (rows.length > 0) {
+        const order = rows[0];
+        const totalReturn = parseFloat(order.total_return) || 0;
+
+        // Credit the earnings to user's bonus wallet
+        await query(
+          `update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2`,
+          [totalReturn, userId]
+        );
+
+        // Record transaction
+        const taskOrProduct = order.task_id ? 'task' : 'product';
+        await query(
+          `insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)`,
+          [userId, 'order_reward', totalReturn, `Order completed - ${taskOrProduct} reward`]
+        );
+
+        // Mark order as completed
+        await query(
+          `update order_processing set status = 'completed', completed_at = now() where id = $1`,
+          [orderId]
+        );
+      }
+      break;
+    }
+
+    // Wait before next step
+    await new Promise(resolve => setTimeout(resolve, stepDuration));
+  }
+}
+
 const port = process.env.PORT || 8080;
 
 async function ensureSchema() {
@@ -2068,6 +2190,25 @@ async function ensureSchema() {
       unique(user_id, checkin_date)
     )
   `);
+
+  await query(`
+    create table if not exists order_processing (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      task_id uuid references tasks(id) on delete cascade,
+      product_id uuid references products(id) on delete cascade,
+      status text not null default 'processing',
+      current_step integer not null default 0,
+      total_steps integer not null default 15,
+      cost numeric(12,2) not null default 0,
+      interest numeric(12,2) not null default 0,
+      total_return numeric(12,2) not null default 0,
+      created_at timestamptz default now(),
+      completed_at timestamptz
+    )
+  `);
+  await query('create index if not exists order_processing_user_idx on order_processing(user_id)');
+  await query('create index if not exists order_processing_status_idx on order_processing(status)');
 
   // Backfill referral codes for existing users who don't have one
   const { rows: usersWithoutCode } = await query("select id from app_users where referral_code is null or referral_code = ''");

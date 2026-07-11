@@ -127,3 +127,34 @@ create table if not exists payments (
   requested_at timestamptz default now(),
   completed_at timestamptz
 );
+
+create table if not exists app_settings (
+  key text primary key,
+  value text
+);
+
+create table if not exists daily_checkins (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references app_users(id) on delete cascade,
+  checkin_date date not null,
+  created_at timestamptz default now(),
+  unique(user_id, checkin_date)
+);
+
+create table if not exists order_processing (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references app_users(id) on delete cascade,
+  task_id uuid references tasks(id) on delete cascade,
+  product_id uuid references products(id) on delete cascade,
+  status text not null default 'processing', -- processing, completed
+  current_step integer not null default 0,
+  total_steps integer not null default 15,
+  cost numeric(12,2) not null default 0,
+  interest numeric(12,2) not null default 0,
+  total_return numeric(12,2) not null default 0,
+  created_at timestamptz default now(),
+  completed_at timestamptz
+);
+
+create index if not exists order_processing_user_idx on order_processing(user_id);
+create index if not exists order_processing_status_idx on order_processing(status);

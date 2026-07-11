@@ -553,6 +553,18 @@ window.API = {
 
   async getTellerAssignments(level) {
     return this.call(`/admin/teller-assignments?level=${level}`);
+  },
+
+  // Order processing (background)
+  async startOrder(taskId, productId, cost, interest, totalReturn) {
+    return this.call('/orders/start', {
+      method: 'POST',
+      body: JSON.stringify({ taskId, productId, cost, interest, totalReturn })
+    });
+  },
+
+  async getOrderStatus(orderId) {
+    return this.call(`/orders/${orderId}/status`);
   }
 };
 

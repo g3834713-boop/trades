@@ -754,14 +754,15 @@
     <script>
         // Task data
         let tasksData = { pending: [], frozen: [], completed: [] };
-        let processingTimer = null;
-        let processingStepIndex = 0;
+        let orderPollTimer = null;
         let processingState = {
             active: false,
             visible: false,
+            orderId: null,
             taskTitle: '',
-            steps: [],
-            currentStep: ''
+            currentStep: 0,
+            totalSteps: 15,
+            progress: 0
         };
 
         // Initialize page
@@ -788,6 +789,9 @@
                     beginnerSection.classList.add('loaded');
                 }
                 
+                // Check for pending orders and resume them
+                await resumePendingOrders();
+                
                 // Show filter buttons
                 await new Promise(resolve => setTimeout(resolve, 100));
                 document.querySelector('.filter-buttons').classList.add('loaded');
@@ -810,6 +814,114 @@
                     pageLoading.style.display = 'none';
                 }
             }
+        }
+
+        async function resumePendingOrders() {
+            // Check if user has a pending order that was interrupted
+            try {
+                // Get the list of orders to check if any are processing
+                // For now, we'll check the processingState if it was stored
+                const pendingOrder = window.localStorage.getItem('pendingOrderId');
+                if (pendingOrder) {
+                    const orderStatus = await window.API.getOrderStatus(pendingOrder);
+                    if (orderStatus && orderStatus.status === 'processing') {
+                        // Resume polling for this order
+                        processingState = {
+                            active: true,
+                            visible: true,
+                            orderId: pendingOrder,
+                            taskTitle: 'Unknown Task',
+                            currentStep: orderStatus.currentStep,
+                            totalSteps: orderStatus.totalSteps,
+                            progress: orderStatus.progress
+                        };
+
+                        // Show the processing modal
+                        const modal = document.getElementById('orderSuccessModal');
+                        const processingSection = document.getElementById('processingSection');
+                        const rewardSection = document.getElementById('rewardSection');
+                        const claimBtn = document.getElementById('claimRewardsBtn');
+                        const modalTitle = document.getElementById('modalTitle');
+                        const processingBanner = document.getElementById('processingBanner');
+
+                        processingSection.style.display = 'block';
+                        rewardSection.style.display = 'none';
+                        if (claimBtn) {
+                            claimBtn.style.display = 'none';
+                        }
+                        if (modalTitle) {
+                            modalTitle.textContent = 'Order Resuming...';
+                        }
+                        document.getElementById('costSection').style.display = 'flex';
+                        document.getElementById('interestSection').style.display = 'flex';
+                        document.getElementById('profitSection').style.display = 'none';
+                        if (processingBanner) {
+                            processingBanner.style.display = 'flex';
+                        }
+                        updateProcessingUi();
+
+                        // Resume polling
+                        setTimeout(() => {
+                            modal.classList.add('show');
+                        }, 100);
+
+                        // Resume polling for updates
+                        resumeOrderPolling(pendingOrder);
+                    } else if (orderStatus && orderStatus.status === 'completed') {
+                        // Order already completed, clean up
+                        window.localStorage.removeItem('pendingOrderId');
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking pending orders:', error);
+            }
+        }
+
+        async function resumeOrderPolling(orderId) {
+            if (orderPollTimer) {
+                clearInterval(orderPollTimer);
+            }
+
+            const pollOnce = async () => {
+                try {
+                    const orderStatus = await window.API.getOrderStatus(orderId);
+                    processingState.currentStep = orderStatus.currentStep;
+                    processingState.progress = orderStatus.progress;
+                    updateProcessingUi();
+
+                    if (orderStatus.status === 'completed') {
+                        clearInterval(orderPollTimer);
+                        orderPollTimer = null;
+                        
+                        // Clear pending order from storage
+                        window.localStorage.removeItem('pendingOrderId');
+                        
+                        // Reload tasks and balance
+                        await loadUserTasks();
+                        updateBalance();
+                        updateAward();
+
+                        // Close modal
+                        const modal = document.getElementById('orderSuccessModal');
+                        modal.classList.remove('show');
+                        const processingBanner = document.getElementById('processingBanner');
+                        if (processingBanner) {
+                            processingBanner.style.display = 'none';
+                        }
+
+                        processingState.active = false;
+                        processingState.visible = false;
+
+                        // Show success message
+                        alert(`Order completed! Earnings have been credited to your account.`);
+                    }
+                } catch (error) {
+                    console.error('Error polling order status:', error);
+                }
+            };
+
+            await pollOnce();
+            orderPollTimer = setInterval(pollOnce, 2000);
         }
 
         async function loadBeginnerTasks() {
@@ -982,7 +1094,58 @@
             }
         }
 
-        function showProcessingModal(taskTitle) {
+        async function pollOrderStatus(orderId, taskTitle, totalReturn, task, isProduct) {
+            // Stop any existing polling
+            if (orderPollTimer) {
+                clearInterval(orderPollTimer);
+            }
+
+            const pollOnce = async () => {
+                try {
+                    const orderStatus = await window.API.getOrderStatus(orderId);
+                    processingState.currentStep = orderStatus.currentStep;
+                    processingState.progress = orderStatus.progress;
+                    updateProcessingUi();
+
+                    // If order is completed, auto-complete and close modal
+                    if (orderStatus.status === 'completed') {
+                        clearInterval(orderPollTimer);
+                        orderPollTimer = null;
+                        
+                        // Clear pending order from storage
+                        window.localStorage.removeItem('pendingOrderId');
+                        
+                        // Reload tasks and balance
+                        await loadUserTasks();
+                        updateBalance();
+                        updateAward();
+
+                        // Close modal
+                        const modal = document.getElementById('orderSuccessModal');
+                        modal.classList.remove('show');
+                        const processingBanner = document.getElementById('processingBanner');
+                        if (processingBanner) {
+                            processingBanner.style.display = 'none';
+                        }
+
+                        processingState.active = false;
+                        processingState.visible = false;
+
+                        // Show success message
+                        const interestAmount = totalReturn - task.amount;
+                        alert(`Task completed successfully!\n\nCost: GHC ${task.amount.toFixed(2)}\nInterest earned: GHC ${interestAmount.toFixed(2)}\nTotal received: GHC ${totalReturn.toFixed(2)}`);
+                    }
+                } catch (error) {
+                    console.error('Error polling order status:', error);
+                }
+            };
+
+            // Poll immediately and then every 2 seconds
+            await pollOnce();
+            orderPollTimer = setInterval(pollOnce, 2000);
+        }
+
+        function showProcessingModal(taskTitle, orderId, totalReturn, task, isProduct) {
             const modal = document.getElementById('orderSuccessModal');
             const processingSection = document.getElementById('processingSection');
             const rewardSection = document.getElementById('rewardSection');
@@ -990,32 +1153,18 @@
             const modalTitle = document.getElementById('modalTitle');
             const processingBanner = document.getElementById('processingBanner');
 
-            if (processingTimer) {
-                clearInterval(processingTimer);
+            if (orderPollTimer) {
+                clearInterval(orderPollTimer);
             }
-            processingStepIndex = 0;
+
             processingState = {
                 active: true,
                 visible: true,
+                orderId: orderId,
                 taskTitle: taskTitle || '',
-                steps: [
-                    'Order placed',
-                    'Searching for supplier',
-                    'Locating investor',
-                    'Locating exchanger',
-                    'Finding source',
-                    'Approving sale',
-                    'Transacting order',
-                    'Funding wallet',
-                    'Exchanging currency',
-                    'Order successful',
-                    'Returning gains',
-                    'Returning profit',
-                    'Funding broker',
-                    'Funding investor',
-                    'Congratulations'
-                ],
-                currentStep: 'Order placed'
+                currentStep: 0,
+                totalSteps: 15,
+                progress: 0
             };
 
             processingSection.style.display = 'block';
@@ -1023,6 +1172,7 @@
             if (claimBtn) {
                 claimBtn.disabled = true;
                 claimBtn.textContent = 'Processing...';
+                claimBtn.style.display = 'none'; // Hide claim button - no longer needed
                 claimBtn.removeAttribute('data-beginner-task');
             }
             if (modalTitle) {
@@ -1036,29 +1186,10 @@
             }
             updateProcessingUi();
 
-            const advanceProcessing = () => {
-                if (!processingState.active) return;
-                if (processingStepIndex >= processingState.steps.length) {
-                    clearInterval(processingTimer);
-                    processingTimer = null;
-                    processingState.currentStep = 'Congratulations';
-                    processingState.visible = false;
-                    updateProcessingUi();
-                    if (processingBanner) {
-                        processingBanner.style.display = 'flex';
-                    }
-                    setTimeout(() => {
-                        claimRewards();
-                    }, 800);
-                    return;
-                }
-                processingState.currentStep = processingState.steps[processingStepIndex];
-                processingStepIndex += 1;
-                updateProcessingUi();
-            };
-
-            advanceProcessing();
-            processingTimer = setInterval(advanceProcessing, 12000);
+            // Start polling for order status
+            pollOrderStatus(orderId, taskTitle, totalReturn, task, isProduct).catch(err => {
+                console.error('Error starting order polling:', err);
+            });
 
             setTimeout(() => {
                 modal.classList.add('show');
@@ -1382,14 +1513,10 @@
                 const interestAmount = (task.amount * task.commission) / 100;
                 const totalReturn = task.amount + interestAmount;
 
-                // Store task info for claimRewards function
-                window.pendingReward = {
-                    taskId: taskId,
-                    task: task,
-                    totalReturn: totalReturn,
-                    interestAmount: interestAmount,
-                    isProduct: isProduct === 'true' || isProduct === true
-                };
+                // Display cost and interest
+                document.getElementById('orderCost').textContent = task.amount.toFixed(2);
+                document.getElementById('orderInterest').textContent = interestAmount.toFixed(2);
+                document.getElementById('orderTotal').textContent = totalReturn.toFixed(2);
 
                 // Deduct cost from balance
                 await window.API.call('/wallet/deduct', {
@@ -1400,11 +1527,14 @@
                 // Update UI to show balance deduction
                 updateBalance();
 
-                // Show pending processing modal for regular task/product
-                document.getElementById('orderCost').textContent = task.amount.toFixed(2);
-                document.getElementById('orderInterest').textContent = interestAmount.toFixed(2);
-                document.getElementById('orderTotal').textContent = totalReturn.toFixed(2);
-                showProcessingModal(task.title);
+                // Start background order processing on server
+                const orderResult = await window.API.startOrder(taskId, null, task.amount, interestAmount, totalReturn);
+                
+                // Store order ID in local storage so we can resume if page refreshes
+                window.localStorage.setItem('pendingOrderId', orderResult.orderId);
+                
+                // Show processing modal with polling
+                showProcessingModal(task.title, orderResult.orderId, totalReturn, task, false);
 
             } catch (error) {
                 console.error('Error completing task:', error);
@@ -1416,123 +1546,53 @@
             const claimBtn = document.getElementById('claimRewardsBtn');
             const modal = document.getElementById('orderSuccessModal');
             const processingBanner = document.getElementById('processingBanner');
-            const processingBannerText = document.getElementById('processingBannerText');
             
             if (claimBtn) {
                 claimBtn.disabled = true;
                 claimBtn.textContent = 'Processing...';
             }
             
-            // Check if this is a beginner task claim
-            const isBeginnerTask = claimBtn?.getAttribute('data-beginner-task') === 'true';
-            
-            if (isBeginnerTask) {
-                if (!window.pendingBeginnerReward) {
-                    alert('No pending reward found');
-                    return;
-                }
+            // This function is now only used for beginner task claims
+            // Regular task claims are auto-completed by the backend
+            if (!window.pendingBeginnerReward) {
+                alert('No pending reward found');
+                return;
+            }
 
-                // Disable button to prevent double-click
-                claimBtn.disabled = true;
-                claimBtn.textContent = 'Processing...';
+            try {
+                const { taskId, rewardAmount } = window.pendingBeginnerReward;
+
+                // Claim beginner task reward
+                await window.API.claimBeginnerTaskReward(taskId);
+
+                // Reload beginner tasks and balance
+                await loadBeginnerTasks();
+                updateBalance();
+                updateAward();
+
+                // Close modal
+                modal.classList.remove('show');
+                if (processingBanner) {
+                    processingBanner.style.display = 'none';
+                }
                 
-                try {
-                    const { taskId, rewardAmount } = window.pendingBeginnerReward;
-
-                    // Claim beginner task reward
-                    await window.API.claimBeginnerTaskReward(taskId);
-
-                    // Reload beginner tasks and balance
-                    await loadBeginnerTasks();
-                    updateBalance();
-                    updateAward();
-
-                    // Close modal
-                    modal.classList.remove('show');
-                    if (processingBanner) {
-                        processingBanner.style.display = 'none';
-                    }
-                    
-                    // Clear pending reward
-                    window.pendingBeginnerReward = null;
-                    if (claimBtn) {
-                        claimBtn.removeAttribute('data-beginner-task');
-                    }
-                    
-                    // Show success message
-                    alert(`Reward claimed successfully!\nYou earned GHC ${parseFloat(rewardAmount || 0).toFixed(2)}`);
-
-                } catch (error) {
-                    console.error('Error claiming reward:', error);
-                    if (claimBtn) {
-                        claimBtn.disabled = false;
-                        claimBtn.textContent = 'Claim Rewards';
-                    }
-                    alert('Error claiming reward: ' + (error.message || 'Unknown error'));
+                // Clear pending reward
+                window.pendingBeginnerReward = null;
+                if (claimBtn) {
+                    claimBtn.removeAttribute('data-beginner-task');
+                    claimBtn.style.display = 'block'; // Reset display
                 }
-            } else {
-                // Regular task claim
-                if (!window.pendingReward) {
-                    alert('No pending reward found');
-                    return;
-                }
-
-                // Disable button to prevent double-click
-                claimBtn.disabled = true;
-                claimBtn.textContent = 'Processing...';
                 
-                try {
-                    const { taskId, task, totalReturn, interestAmount, isProduct } = window.pendingReward;
+                // Show success message
+                alert(`Reward claimed successfully!\nYou earned GHC ${parseFloat(rewardAmount || 0).toFixed(2)}`);
 
-                    // Add interest/commission to user
-                    await window.API.call('/wallet/add-bonus', {
-                        method: 'POST',
-                        body: JSON.stringify({ 
-                            amount: totalReturn, 
-                            reason: `Task completed: ${task.title} - Cost: ${task.amount.toFixed(2)} + Interest: ${interestAmount.toFixed(2)}`
-                        })
-                    });
-
-                    // Mark task/product as completed in database
-                    if (task.isProduct) {
-                        await window.API.completeProduct(taskId);
-                    } else {
-                        await window.API.completeTask(taskId);
-                    }
-
-                    // Reload tasks to update status
-                    await loadUserTasks();
-                    
-                    // Update display
-                    updateBalance();
-                    updateAward();
-                    displayTasks('completed');
-
-                    // Close modal
-                    modal.classList.remove('show');
-                    if (processingBanner) {
-                        processingBanner.style.display = 'none';
-                    }
-                    
-                    // Clear pending reward
-                    window.pendingReward = null;
-                    processingState.active = false;
-                    processingState.visible = false;
-                    if (processingBannerText) {
-                        processingBannerText.textContent = 'Reward credited';
-                    }
-                    
-                    // Show success message
-                    alert(`Task completed successfully!\n\nCost: GHC ${task.amount.toFixed(2)}\nInterest earned: GHC ${interestAmount.toFixed(2)}\nTotal received: GHC ${totalReturn.toFixed(2)}`);
-
-                } catch (error) {
-                    console.error('Error claiming reward:', error);
-                    if (claimBtn) {
-                        claimBtn.disabled = false;
-                        claimBtn.textContent = 'Claim Rewards';
-                    }
-                    alert('Error claiming reward: ' + (error.message || 'Unknown error'));
+            } catch (error) {
+                console.error('Error claiming reward:', error);
+                if (claimBtn) {
+                    claimBtn.disabled = false;
+                    claimBtn.textContent = 'Claim Rewards';
                 }
+                alert('Error claiming reward: ' + (error.message || 'Unknown error'));
             }
         }
 
