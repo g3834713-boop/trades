@@ -884,8 +884,8 @@
                         <div class="notification-text">
                             Please ensure <span class="notification-highlight">full payment</span> for your order. If your payment is not received within 30 minutes, you can send a screenshot of your payment receipt or payment confirmation SMS to the Finance Department customer service for verification and processing.
                             <div class="notification-support">
-                                <strong>Finance Department Customer Service</strong><br>
-                                <i class="las la-paper-plane"></i> Telegram: <strong>@DailyTrader</strong>
+                                <strong id="supportFinanceDepartmentName">Finance Department Customer Service</strong><br>
+                                <i class="las la-paper-plane"></i> Telegram: <strong id="supportFinanceTelegram">@DailyTrader</strong>
                             </div>
                         </div>
                     </div>
@@ -906,8 +906,8 @@
                     </div>
 
                     <div class="notification-support">
-                        <strong>Need Help?</strong><br>
-                        If your recharge or withdrawal funds have not arrived within 30 minutes, please contact the platform's finance manager via Telegram: <strong>@DailyTradee</strong>
+                        <strong id="supportNeedHelpTitle">Need Help?</strong><br>
+                        If your recharge or withdrawal funds have not arrived within 30 minutes, please contact the platform's finance manager via Telegram: <strong id="supportFinanceManagerTelegram">@DailyTradee</strong>
                     </div>
 
                     <!-- Official Announcement Section -->
@@ -935,7 +935,7 @@
 
                     <div class="notification-support">
                         <i class="las la-exclamation-triangle" style="margin-right: 6px;"></i>
-                        <strong>Complaint Process:</strong> If your recharge or withdrawal transaction through this platform is not processed and credited within 30 minutes, please contact the platform's CFO (<strong>@DailyTrader</strong>) via Telegram to file a complaint.
+                        <strong>Complaint Process:</strong> If your recharge or withdrawal transaction through this platform is not processed and credited within 30 minutes, please contact the platform's CFO (<strong id="supportCfoTelegram">@DailyTrader</strong>) via Telegram to file a complaint.
                     </div>
 
                     <!-- Quick Safety Tips -->
@@ -945,7 +945,7 @@
                     </div>
 
                     <div class="notification-warning">
-                        ✓ <strong>Remember:</strong> Anyone sending you their wallet account number privately is a scammer. Funds can only be transferred to the account shown in the store! If your funds haven't arrived, please contact <strong>@DailyTrader</strong>.
+                        ✓ <strong>Remember:</strong> Anyone sending you their wallet account number privately is a scammer. Funds can only be transferred to the account shown in the store! If your funds haven't arrived, please contact <strong id="supportGeneralTelegram">@DailyTrader</strong>.
                     </div>
 
                     <!-- Bonus Section -->
@@ -1671,9 +1671,37 @@
             });
         }
 
+        function applySupportSettings() {
+            const settings = getAppSettings();
+            const support = settings.support || {};
+
+            const financeDepartmentName = document.getElementById('supportFinanceDepartmentName');
+            const financeTelegram = document.getElementById('supportFinanceTelegram');
+            const financeManagerTelegram = document.getElementById('supportFinanceManagerTelegram');
+            const cfoTelegram = document.getElementById('supportCfoTelegram');
+            const generalTelegram = document.getElementById('supportGeneralTelegram');
+
+            if (financeDepartmentName) {
+                financeDepartmentName.textContent = support.financeDepartmentName || DEFAULT_SETTINGS.support.financeDepartmentName;
+            }
+            if (financeTelegram) {
+                financeTelegram.textContent = support.financeTelegram || DEFAULT_SETTINGS.support.financeTelegram;
+            }
+            if (financeManagerTelegram) {
+                financeManagerTelegram.textContent = support.financeManagerTelegram || DEFAULT_SETTINGS.support.financeManagerTelegram;
+            }
+            if (cfoTelegram) {
+                cfoTelegram.textContent = support.cfoTelegram || DEFAULT_SETTINGS.support.cfoTelegram;
+            }
+            if (generalTelegram) {
+                generalTelegram.textContent = support.generalSupportTelegram || DEFAULT_SETTINGS.support.generalSupportTelegram;
+            }
+        }
+
         // Load user data and apply language on page load
         window.addEventListener('DOMContentLoaded', async function() {
             applyTranslations();
+            applySupportSettings();
 
             // === Instantly show cached data so values never flash blank ===
             const cachedProfile = localStorage.getItem('cachedUserProfile');

@@ -742,6 +742,22 @@
                         <label class="form-label">Platform Name</label>
                         <input type="text" class="form-input" id="platformName" value="DailyTrade">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Platform Support Telegram</label>
+                        <input type="text" class="form-input" id="supportTelegram" value="@DailyTrader">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Finance Manager Telegram</label>
+                        <input type="text" class="form-input" id="financeManagerTelegram" value="@DailyTradee">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">CFO Telegram</label>
+                        <input type="text" class="form-input" id="cfoTelegram" value="@DailyTrader">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Support Email</label>
+                        <input type="email" class="form-input" id="supportEmail" value="support@dailytrade.com">
+                    </div>
                     <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
                 </div>
             </div>
@@ -2261,12 +2277,40 @@
             }
         }
 
+        function loadAdminSettings() {
+            const settings = getAppSettings();
+            document.getElementById('commissionRate').value = settings.commissionRate;
+            document.getElementById('minWithdrawal').value = settings.minWithdrawal;
+            document.getElementById('platformName').value = settings.platformName;
+            document.getElementById('supportTelegram').value = settings.support.supportTelegram;
+            document.getElementById('financeManagerTelegram').value = settings.support.financeManagerTelegram;
+            document.getElementById('cfoTelegram').value = settings.support.cfoTelegram;
+            document.getElementById('supportEmail').value = settings.support.supportEmail;
+        }
+
         function saveSettings() {
-            const commissionRate = document.getElementById('commissionRate').value;
-            const minWithdrawal = document.getElementById('minWithdrawal').value;
-            const platformName = document.getElementById('platformName').value;
-            // Settings are display-only for now
-            alert('Settings noted. Server-side settings coming soon.');
+            const commissionRate = parseFloat(document.getElementById('commissionRate').value) || DEFAULT_SETTINGS.commissionRate;
+            const minWithdrawal = parseFloat(document.getElementById('minWithdrawal').value) || DEFAULT_SETTINGS.minWithdrawal;
+            const platformName = document.getElementById('platformName').value.trim() || DEFAULT_SETTINGS.platformName;
+            const supportTelegram = document.getElementById('supportTelegram').value.trim() || DEFAULT_SETTINGS.support.financeTelegram;
+            const financeManagerTelegram = document.getElementById('financeManagerTelegram').value.trim() || DEFAULT_SETTINGS.support.financeManagerTelegram;
+            const cfoTelegram = document.getElementById('cfoTelegram').value.trim() || DEFAULT_SETTINGS.support.cfoTelegram;
+            const supportEmail = document.getElementById('supportEmail').value.trim() || DEFAULT_SETTINGS.support.supportEmail;
+
+            saveAppSettings({
+                commissionRate,
+                minWithdrawal,
+                platformName,
+                support: {
+                    supportTelegram,
+                    financeManagerTelegram,
+                    cfoTelegram,
+                    supportEmail
+                }
+            });
+
+            loadAdminSettings();
+            alert('Settings saved. Updated defaults are now persisted across the site.');
         }
 
         async function filterUsers() {
@@ -2313,6 +2357,7 @@
         // Initialize on load
         window.addEventListener('DOMContentLoaded', async function() {
             const isLocalAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
+            loadAdminSettings();
 
             try {
                 if (typeof window.AuthService === 'undefined') {
@@ -2341,6 +2386,7 @@
                     return;
                 }
 
+                loadAdminSettings();
                 loadDashboard();
             } catch (error) {
                 console.error('Error loading admin panel:', error);
