@@ -1159,6 +1159,7 @@
             <div class="available-balance">
                 Available Balance: <span id="availableBalance">GHC 0.00</span>
             </div>
+            <div class="info-box" id="withdrawRestrictionNotice" style="display:none; background:#fff7ed; border-color:#fdba74; color:#9a2c00; font-size:12px;"></div>
             <div class="form-group">
                 <label class="form-label">Withdrawal Method</label>
                 <select class="form-select" id="withdrawMethod">
@@ -1270,13 +1271,45 @@
             }
         }
 
+        function updateWithdrawRestrictionNotice(profile = window.currentUserProfile) {
+            const state = window.API?.getVerificationRestrictionState?.(profile) || { isRestricted: false, message: null };
+            const noticeEl = document.getElementById('withdrawRestrictionNotice');
+            const amountInput = document.getElementById('withdrawAmount');
+
+            if (noticeEl) {
+                if (state.isRestricted) {
+                    noticeEl.style.display = 'block';
+                    noticeEl.innerHTML = `<strong>Verification Required</strong> — You can browse normally, but withdrawals above GHC 20.00 are blocked until identity verification is approved.`;
+                } else {
+                    noticeEl.style.display = 'none';
+                    noticeEl.innerHTML = '';
+                }
+            }
+
+            if (amountInput) {
+                if (state.isRestricted) {
+                    amountInput.setAttribute('max', '20');
+                } else {
+                    amountInput.removeAttribute('max');
+                }
+            }
+
+            return state;
+        }
+
         async function loadWithdrawData() {
             try {
                 const wallet = await window.API.getWallet();
                 document.getElementById('availableBalance').textContent = `GHC ${parseFloat(wallet.balance || 0).toFixed(2)}`;
+                const profile = window.currentUserProfile || await window.API.getUserProfile().catch(() => null);
+                if (profile) {
+                    window.currentUserProfile = profile;
+                }
+                updateWithdrawRestrictionNotice(profile || window.currentUserProfile);
             } catch (error) {
                 console.error('Error loading withdraw data:', error);
                 document.getElementById('availableBalance').textContent = 'GHC 0.00';
+                updateWithdrawRestrictionNotice(window.currentUserProfile);
             }
         }
 
@@ -1325,6 +1358,13 @@
 
                 if (parseFloat(amount) < 50) {
                     alert('Minimum withdrawal amount is GHC 50.00');
+                    return;
+                }
+
+                const profile = window.currentUserProfile || await window.API.getUserProfile().catch(() => null);
+                const restrictionState = updateWithdrawRestrictionNotice(profile || window.currentUserProfile);
+                if (restrictionState.isRestricted && parseFloat(amount) > restrictionState.limit) {
+                    alert(`Verification is required before withdrawals above GHC ${restrictionState.limit.toFixed(2)}. Please complete identity verification from Mine.`);
                     return;
                 }
 

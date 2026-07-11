@@ -4,8 +4,32 @@ create table if not exists app_users (
   email text unique not null,
   full_name text,
   phone text,
+  avatar_url text,
+  verification_required boolean not null default false,
+  verification_status text not null default 'none',
+  verification_requested_at timestamptz,
+  referral_code text,
+  referred_by uuid,
   created_at timestamptz default now()
 );
+
+create table if not exists identity_verifications (
+  user_id uuid primary key references app_users(id) on delete cascade,
+  first_name text not null,
+  last_name text not null,
+  middle_name text,
+  date_of_birth date not null,
+  ghana_card_id text not null,
+  card_front_data text,
+  card_back_data text,
+  status text not null default 'pending',
+  submitted_at timestamptz default now(),
+  reviewed_at timestamptz,
+  reviewed_by text,
+  review_notes text
+);
+
+create index if not exists identity_verifications_status_idx on identity_verifications(status);
 
 create table if not exists wallets (
   user_id uuid primary key references app_users(id) on delete cascade,

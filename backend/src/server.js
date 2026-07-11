@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { query } from './db.js';
 import { requireAuth, requireAdmin } from './middleware/auth.js';
+import { canWithdrawAmount } from './verificationLimits.js';
 
 
 const app = express();
@@ -109,6 +110,7 @@ app.post('/users/sync', requireAuth, async (req, res) => {
 app.get('/users/me', requireAuth, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
+            u.avatar_url, u.verification_required, u.verification_status, u.verification_requested_at,
             u.referral_code, w.balance, w.bonus
      from app_users u
      left join wallets w on u.id = w.user_id
@@ -134,6 +136,7 @@ app.put('/users/me', requireAuth, async (req, res) => {
 
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
+            u.avatar_url, u.verification_required, u.verification_status, u.verification_requested_at,
             u.referral_code, w.balance, w.bonus
      from app_users u
      left join wallets w on u.id = w.user_id
@@ -141,6 +144,84 @@ app.put('/users/me', requireAuth, async (req, res) => {
     [req.user.id]
   );
 
+  res.json(rows[0]);
+});
+
+app.post('/users/me/avatar', requireAuth, async (req, res) => {
+  const avatarUrl = typeof req.body.avatarUrl === 'string' ? req.body.avatarUrl.trim() : '';
+  if (!avatarUrl) return res.status(400).json({ error: 'Avatar image is required' });
+
+  await query('update app_users set avatar_url = $1 where id = $2', [avatarUrl, req.user.id]);
+
+  const { rows } = await query(
+    `select u.id, u.email, u.full_name, u.phone, u.created_at,
+            u.avatar_url, u.verification_required, u.verification_status, u.verification_requested_at,
+            u.referral_code, w.balance, w.bonus
+     from app_users u
+     left join wallets w on u.id = w.user_id
+     where u.id = $1`,
+    [req.user.id]
+  );
+
+  res.json(rows[0]);
+});
+
+app.post('/users/me/verification', requireAuth, async (req, res) => {
+  const {
+    firstName,
+    lastName,
+    middleName,
+    dateOfBirth,
+    ghanaCardId,
+    cardFrontData,
+    cardBackData
+  } = req.body;
+
+  if (!firstName || !lastName || !dateOfBirth || !ghanaCardId) {
+    return res.status(400).json({ error: 'Missing required verification fields' });
+  }
+
+  await query(
+    `insert into identity_verifications
+      (user_id, first_name, last_name, middle_name, date_of_birth, ghana_card_id, card_front_data, card_back_data, status, submitted_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', now())
+     on conflict (user_id) do update set
+       first_name = excluded.first_name,
+       last_name = excluded.last_name,
+       middle_name = excluded.middle_name,
+       date_of_birth = excluded.date_of_birth,
+       ghana_card_id = excluded.ghana_card_id,
+       card_front_data = excluded.card_front_data,
+       card_back_data = excluded.card_back_data,
+       status = 'pending',
+       reviewed_at = null,
+       reviewed_by = null,
+       review_notes = null,
+       submitted_at = now()`,
+    [req.user.id, firstName.trim(), lastName.trim(), middleName?.trim() || null, dateOfBirth, ghanaCardId.trim(), cardFrontData || null, cardBackData || null]
+  );
+
+  await query(
+    'update app_users set verification_status = $1, verification_requested_at = now() where id = $2',
+    ['pending', req.user.id]
+  );
+
+  res.json({ ok: true });
+});
+
+app.get('/users/me/verification', requireAuth, async (req, res) => {
+  const { rows } = await query(
+    `select u.verification_required, u.verification_status, u.verification_requested_at,
+            v.first_name, v.last_name, v.middle_name, v.date_of_birth, v.ghana_card_id,
+            v.card_front_data, v.card_back_data, v.status as submission_status,
+            v.submitted_at, v.reviewed_at, v.reviewed_by, v.review_notes
+     from app_users u
+     left join identity_verifications v on u.id = v.user_id
+     where u.id = $1`,
+    [req.user.id]
+  );
+
+  if (rows.length === 0) return res.status(404).json({ error: 'Verification data not found' });
   res.json(rows[0]);
 });
 
@@ -170,6 +251,7 @@ app.get('/users/me/referral-stats', requireAuth, async (req, res) => {
 app.get('/admin/users', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
+            u.avatar_url, u.verification_required, u.verification_status, u.verification_requested_at,
             w.balance, w.bonus,
             upn.payment_number, upn.method as payment_method,
             (select count(*) from payments where user_id = u.id) as payment_count,
@@ -181,6 +263,58 @@ app.get('/admin/users', requireAuth, requireAdmin, async (req, res) => {
   );
   
   res.json(rows);
+});
+
+app.get('/admin/users/:userId/verification', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await query(
+    `select u.id, u.email, u.full_name, u.phone, u.verification_required, u.verification_status,
+            v.first_name, v.last_name, v.middle_name, v.date_of_birth, v.ghana_card_id,
+            v.card_front_data, v.card_back_data, v.status as submission_status,
+            v.submitted_at, v.reviewed_at, v.reviewed_by, v.review_notes
+     from app_users u
+     left join identity_verifications v on u.id = v.user_id
+     where u.id = $1`,
+    [req.params.userId]
+  );
+
+  if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+  res.json(rows[0]);
+});
+
+app.post('/admin/users/:userId/verification/require', requireAuth, requireAdmin, async (req, res) => {
+  const required = !!req.body.required;
+  const status = required ? 'pending' : 'none';
+
+  await query(
+    `update app_users set verification_required = $1, verification_status = $2, verification_requested_at = case when $1 then now() else null end where id = $3`,
+    [required, status, req.params.userId]
+  );
+
+  res.json({ ok: true });
+});
+
+app.post('/admin/users/:userId/verification/approve', requireAuth, requireAdmin, async (req, res) => {
+  const reviewer = req.user.email || req.user.id;
+  const notes = typeof req.body.notes === 'string' ? req.body.notes.trim() : null;
+
+  await query('update identity_verifications set status = $1, reviewed_at = now(), reviewed_by = $2, review_notes = $3 where user_id = $4',
+    ['approved', reviewer, notes, req.params.userId]
+  );
+  await query('update app_users set verification_status = $1 where id = $2', ['approved', req.params.userId]);
+
+  res.json({ ok: true });
+});
+
+app.post('/admin/users/:userId/verification/reject', requireAuth, requireAdmin, async (req, res) => {
+  const reviewer = req.user.email || req.user.id;
+  const notes = typeof req.body.notes === 'string' ? req.body.notes.trim() : null;
+
+  await query('update identity_verifications set status = $1, reviewed_at = now(), reviewed_by = $2, review_notes = $3 where user_id = $4',
+    ['rejected', reviewer, notes, req.params.userId]
+  );
+  await query('update app_users set verification_status = $1 where id = $2', ['rejected', req.params.userId]);
+
+  res.json({ ok: true });
 });
 
 // Wallet
@@ -304,6 +438,17 @@ app.post('/withdrawals', requireAuth, async (req, res) => {
   const balance = Number(walletRows[0]?.balance || 0);
   if (numericAmount > balance) {
     return res.status(400).json({ error: 'Insufficient balance' });
+  }
+
+  const { rows: profileRows } = await query(
+    'select verification_required, verification_status from app_users where id = $1',
+    [id]
+  );
+  const verificationRule = canWithdrawAmount(profileRows[0] || {}, numericAmount);
+  if (!verificationRule.allowed) {
+    return res.status(403).json({
+      error: verificationRule.reason || 'Verification is required before withdrawals above GHC 20.00.'
+    });
   }
 
   const { rows } = await query(
@@ -1584,6 +1729,28 @@ async function ensureSchema() {
   await query('create index if not exists teller_assignments_user_level_idx on teller_product_assignments(user_id, level, status)');
 
   // Referral system columns and table
+  await query('alter table app_users add column if not exists avatar_url text');
+  await query('alter table app_users add column if not exists verification_required boolean not null default false');
+  await query('alter table app_users add column if not exists verification_status text not null default \'none\'');
+  await query('alter table app_users add column if not exists verification_requested_at timestamptz');
+  await query(`
+    create table if not exists identity_verifications (
+      user_id uuid primary key references app_users(id) on delete cascade,
+      first_name text not null,
+      last_name text not null,
+      middle_name text,
+      date_of_birth date not null,
+      ghana_card_id text not null,
+      card_front_data text,
+      card_back_data text,
+      status text not null default 'pending',
+      submitted_at timestamptz default now(),
+      reviewed_at timestamptz,
+      reviewed_by text,
+      review_notes text
+    )
+  `);
+  await query('create index if not exists identity_verifications_status_idx on identity_verifications(status)');
   await query('alter table app_users add column if not exists referral_code text');
   await query('alter table app_users add column if not exists referred_by uuid');
   await query('create unique index if not exists app_users_referral_code_idx on app_users(referral_code)');

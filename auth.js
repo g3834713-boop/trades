@@ -114,6 +114,53 @@ window.AuthService = {
   }
 };
 
+function getVerificationStatusText(status) {
+  return String(status || '').trim().toLowerCase();
+}
+
+function getVerificationRestrictionState(profile) {
+  const required = Boolean(profile?.verification_required);
+  const status = getVerificationStatusText(profile?.verification_status);
+  const approved = status === 'approved' || status === 'verified';
+  const isRestricted = required && !approved;
+
+  return {
+    required,
+    approved,
+    isRestricted,
+    limit: isRestricted ? 20 : Number.POSITIVE_INFINITY,
+    message: isRestricted
+      ? 'Verification Required: You can browse normally, but withdrawals and payouts above GHC 20.00 are blocked until identity verification is approved.'
+      : null
+  };
+}
+
+function renderVerificationRestrictionBanner(message) {
+  if (typeof document === 'undefined') return;
+
+  if (!message) {
+    const existingBanner = document.getElementById('verificationRestrictionBanner');
+    if (existingBanner) existingBanner.remove();
+    return;
+  }
+
+  let banner = document.getElementById('verificationRestrictionBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'verificationRestrictionBanner';
+    banner.style.cssText = 'position: sticky; top: 0; z-index: 9999; background: #fff7ed; color: #9a2c00; border-bottom: 1px solid #fdba74; padding: 10px 14px; font-size: 13px; line-height: 1.4; display: flex; align-items: center; justify-content: space-between; gap: 8px;';
+    const firstChild = document.body?.firstChild;
+    if (document.body) {
+      document.body.insertBefore(banner, firstChild || null);
+    }
+  }
+
+  banner.innerHTML = `
+    <div><strong>Verification Required</strong> — ${message}</div>
+    <a href="mine.html" style="color: #7c2d12; font-weight: 700; text-decoration: none;">Complete verification</a>
+  `;
+}
+
 // API client
 window.API = {
   async call(endpoint, options = {}) {
@@ -168,6 +215,22 @@ window.API = {
     return this.call('/wallet');
   },
 
+  getVerificationRestrictionState(profile) {
+    return getVerificationRestrictionState(profile);
+  },
+
+  async showVerificationRestrictionNotice(profileOverride = null) {
+    try {
+      const profile = profileOverride || await this.getUserProfile().catch(() => null);
+      const state = getVerificationRestrictionState(profile);
+      renderVerificationRestrictionBanner(state.message);
+      return state;
+    } catch (error) {
+      console.warn('Failed to load verification notice:', error);
+      return { isRestricted: false, message: null };
+    }
+  },
+
   async getTransactions() {
     return this.call('/transactions');
   },
@@ -187,6 +250,49 @@ window.API = {
     return this.call('/users/me', {
       method: 'PUT',
       body: JSON.stringify({ fullName, phone })
+    });
+  },
+
+  async uploadAvatar(avatarUrl) {
+    return this.call('/users/me/avatar', {
+      method: 'POST',
+      body: JSON.stringify({ avatarUrl })
+    });
+  },
+
+  async submitVerification(data) {
+    return this.call('/users/me/verification', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async getMyVerification() {
+    return this.call('/users/me/verification');
+  },
+
+  async getUserVerification(userId) {
+    return this.call(`/admin/users/${userId}/verification`);
+  },
+
+  async requireUserVerification(userId, required) {
+    return this.call(`/admin/users/${userId}/verification/require`, {
+      method: 'POST',
+      body: JSON.stringify({ required })
+    });
+  },
+
+  async approveUserVerification(userId, notes) {
+    return this.call(`/admin/users/${userId}/verification/approve`, {
+      method: 'POST',
+      body: JSON.stringify({ notes })
+    });
+  },
+
+  async rejectUserVerification(userId, notes) {
+    return this.call(`/admin/users/${userId}/verification/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ notes })
     });
   },
 
@@ -434,3 +540,11 @@ window.API = {
     return this.call(`/admin/teller-assignments?level=${level}`);
   }
 };
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    window.API.showVerificationRestrictionNotice().catch(() => {});
+  });
+} else {
+  window.API.showVerificationRestrictionNotice().catch(() => {});
+}

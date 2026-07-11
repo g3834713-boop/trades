@@ -59,17 +59,45 @@
         }
 
         .profile-avatar {
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             border-radius: 50%;
-            background: #4361ee;
+            background: #f5f6ff;
             margin: 0 auto 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
-            color: white;
-            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+            font-size: 40px;
+            color: #4361ee;
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.15);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .verification-badge {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #555;
+            background: #eef4ff;
+            border: 1px solid #dce7ff;
+            padding: 8px 12px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .verification-badge span {
+            font-weight: 700;
+            color: #2740d4;
         }
 
         .profile-name {
@@ -456,9 +484,14 @@
 
     <!-- Profile Section -->
     <div class="profile-section">
-        <div class="profile-avatar">👤</div>
+        <div class="profile-avatar" id="profileAvatarContainer" onclick="triggerAvatarUpload()">
+            <img id="profileAvatarImage" src="" alt="Avatar" style="display:none;" />
+            <span id="profileAvatarIcon">👤</span>
+            <input type="file" id="avatarUploadInput" accept="image/*" style="display:none;" onchange="handleAvatarSelected(event)">
+        </div>
         <div class="profile-name" id="profileName">User</div>
         <div class="profile-id" id="profileId">ID-000000</div>
+        <div class="verification-badge" id="verificationBadge"><span id="verificationStatusText">Not requested</span></div>
     </div>
 
     <!-- Balance Section -->
@@ -481,6 +514,15 @@
                 document.getElementById('profileId').textContent = cached.id ? 'ID-' + cached.id.substring(0, 8).toUpperCase() : 'ID-UNKNOWN';
                 document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
                 document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(cached.bonus || 0).toFixed(2)}`;
+                if (cached.avatar_url) {
+                    updateAvatarUI(cached.avatar_url);
+                }
+                const verificationStatus = cached.verification_status || 'none';
+                const requiredFlag = !!cached.verification_required;
+                const displayStatus = requiredFlag && verificationStatus === 'none'
+                    ? 'Verification required'
+                    : (verificationStatus === 'pending' ? 'Pending review' : verificationStatus.replace(/_/g, ' '));
+                setVerificationBadge(displayStatus, requiredFlag);
             }
         } catch (error) {
             console.warn('Failed to prefill cached profile:', error);
@@ -520,6 +562,13 @@
             <div class="menu-item-left">
                 <i class="las la-share-alt"></i>
                 <span>Invite Friends</span>
+            </div>
+            <i class="las la-chevron-right"></i>
+        </div>
+        <div class="menu-item" onclick="navigateTo('verify')">
+            <div class="menu-item-left">
+                <i class="las la-id-card"></i>
+                <span>Verify Identity</span>
             </div>
             <i class="las la-chevron-right"></i>
         </div>
@@ -610,6 +659,55 @@
             </div>
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closeActionModal('inviteModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verify Identity Modal -->
+    <div class="action-modal" id="verifyModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-id-card"></i>
+                Verify Identity
+            </div>
+            <div class="info-box" id="verifyInfoBox">
+                Complete your identity verification by uploading your Ghana Card front and back plus your personal details.
+            </div>
+            <div style="display: grid; gap: 12px;">
+                <div class="form-group">
+                    <label class="form-label">First Name</label>
+                    <input type="text" class="form-input" id="verifyFirstName" placeholder="First name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Middle Name</label>
+                    <input type="text" class="form-input" id="verifyMiddleName" placeholder="Middle name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Last Name</label>
+                    <input type="text" class="form-input" id="verifyLastName" placeholder="Last name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date of Birth</label>
+                    <input type="date" class="form-input" id="verifyDateOfBirth">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ghana Card ID</label>
+                    <input type="text" class="form-input" id="verifyGhanaCardId" placeholder="e.g., ID123456789">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ghana Card Front</label>
+                    <input type="file" class="form-input" id="verifyCardFront" accept="image/*" onchange="previewVerificationImage(event, 'front')">
+                    <div id="verifyCardFrontPreview" style="margin-top: 10px;"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ghana Card Back</label>
+                    <input type="file" class="form-input" id="verifyCardBack" accept="image/*" onchange="previewVerificationImage(event, 'back')">
+                    <div id="verifyCardBackPreview" style="margin-top: 10px;"></div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('verifyModal')">Cancel</button>
+                <button class="btn-submit" onclick="submitIdentityVerification()">Submit Verification</button>
             </div>
         </div>
     </div>
@@ -853,6 +951,7 @@
             <div class="info-box">
                 Withdraw your earnings to your mobile money or bank account.
             </div>
+            <div class="info-box" id="withdrawRestrictionNotice" style="display:none; background:#fff7ed; border-color:#fdba74; color:#9a2c00; font-size:12px;"></div>
             <div class="form-group">
                 <label class="form-label">Available Balance</label>
                 <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; color: #4361ee; font-weight: bold;" id="availableBalance">GHC 0.00</div>
@@ -1126,6 +1225,9 @@
                     openActionModal('inviteModal');
                     loadInviteCode();
                     break;
+                case 'verify':
+                    openActionModal('verifyModal');
+                    break;
                 case 'language':
                     openActionModal('languageModal');
                     break;
@@ -1362,6 +1464,32 @@
             }
         }
 
+        function updateWithdrawRestrictionNotice(profile = window.currentUserProfile) {
+            const state = window.API?.getVerificationRestrictionState?.(profile) || { isRestricted: false, message: null };
+            const noticeEl = document.getElementById('withdrawRestrictionNotice');
+            const amountInput = document.getElementById('withdrawAmount');
+
+            if (noticeEl) {
+                if (state.isRestricted) {
+                    noticeEl.style.display = 'block';
+                    noticeEl.innerHTML = `<strong>Verification Required</strong> — You can browse normally, but withdrawals above GHC 20.00 are blocked until identity verification is approved.`;
+                } else {
+                    noticeEl.style.display = 'none';
+                    noticeEl.innerHTML = '';
+                }
+            }
+
+            if (amountInput) {
+                if (state.isRestricted) {
+                    amountInput.setAttribute('max', '20');
+                } else {
+                    amountInput.removeAttribute('max');
+                }
+            }
+
+            return state;
+        }
+
         async function submitWithdraw() {
             try {
                 const method = document.getElementById('withdrawMethod').value;
@@ -1375,6 +1503,13 @@
 
                 if (parseFloat(amount) < 50) {
                     alert('Minimum withdrawal amount is GHC 50.00');
+                    return;
+                }
+
+                const profile = window.currentUserProfile || await window.API.getUserProfile().catch(() => null);
+                const restrictionState = updateWithdrawRestrictionNotice(profile || window.currentUserProfile);
+                if (restrictionState.isRestricted && parseFloat(amount) > restrictionState.limit) {
+                    alert(`Verification is required before withdrawals above GHC ${restrictionState.limit.toFixed(2)}. Please complete identity verification from Mine.`);
                     return;
                 }
 
@@ -1562,6 +1697,15 @@
                     document.getElementById('profileId').textContent = 'ID-' + userProfile.id.substring(0, 8).toUpperCase();
                     document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(userProfile.balance || 0).toFixed(2)}`;
                     document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(userProfile.bonus || 0).toFixed(2)}`;
+                    if (userProfile.avatar_url) {
+                        updateAvatarUI(userProfile.avatar_url);
+                    }
+                    const verificationStatus = userProfile.verification_status || 'none';
+                    const requiredFlag = !!userProfile.verification_required;
+                    const displayStatus = requiredFlag && verificationStatus === 'none'
+                        ? 'Verification required'
+                        : (verificationStatus === 'pending' ? 'Pending review' : verificationStatus.replace(/_/g, ' '));
+                    setVerificationBadge(displayStatus, requiredFlag);
                     
                     // Store user data globally and cache for next page visit
                     window.currentUserProfile = userProfile;
@@ -1729,6 +1873,98 @@
                     alert('Referral link copied!');
                 });
             }
+        }
+
+        function triggerAvatarUpload() {
+            document.getElementById('avatarUploadInput').click();
+        }
+
+        function handleAvatarSelected(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async () => {
+                const dataUrl = reader.result;
+                if (typeof dataUrl === 'string') {
+                    try {
+                        await window.API.uploadAvatar(dataUrl);
+                        updateAvatarUI(dataUrl);
+                        alert('Profile photo uploaded successfully');
+                    } catch (error) {
+                        console.error('Avatar upload failed:', error);
+                        alert(error.message || 'Failed to upload profile photo');
+                    }
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function previewVerificationImage(event, side) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const dataUrl = reader.result;
+                if (typeof dataUrl === 'string') {
+                    document.getElementById(`verifyCard${side === 'front' ? 'Front' : 'Back'}Preview`).innerHTML = `<img src="${dataUrl}" style="width: 100%; max-height: 180px; border-radius: 10px; object-fit: cover;"/>`;
+                    window[`verified${side === 'front' ? 'FrontData' : 'BackData'}`] = dataUrl;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function submitIdentityVerification() {
+            const firstName = document.getElementById('verifyFirstName').value.trim();
+            const middleName = document.getElementById('verifyMiddleName').value.trim();
+            const lastName = document.getElementById('verifyLastName').value.trim();
+            const dateOfBirth = document.getElementById('verifyDateOfBirth').value;
+            const ghanaCardId = document.getElementById('verifyGhanaCardId').value.trim();
+            const cardFrontData = window.verifiedFrontData || null;
+            const cardBackData = window.verifiedBackData || null;
+
+            if (!firstName || !lastName || !dateOfBirth || !ghanaCardId) {
+                alert('Please fill in all required verification fields');
+                return;
+            }
+            if (!cardFrontData || !cardBackData) {
+                alert('Please upload both front and back images of your Ghana Card');
+                return;
+            }
+
+            try {
+                await window.API.submitVerification({
+                    firstName,
+                    middleName,
+                    lastName,
+                    dateOfBirth,
+                    ghanaCardId,
+                    cardFrontData,
+                    cardBackData
+                });
+                closeActionModal('verifyModal');
+                setVerificationBadge('Pending review', true);
+                alert('Verification submitted successfully. An admin will review it shortly.');
+            } catch (error) {
+                console.error('Verification submission failed:', error);
+                alert(error.message || 'Failed to submit verification');
+            }
+        }
+
+        function updateAvatarUI(avatarUrl) {
+            const avatarImage = document.getElementById('profileAvatarImage');
+            const avatarIcon = document.getElementById('profileAvatarIcon');
+            avatarImage.src = avatarUrl;
+            avatarImage.style.display = 'block';
+            avatarIcon.style.display = 'none';
+        }
+
+        function setVerificationBadge(statusText, required = false) {
+            const badge = document.getElementById('verificationBadge');
+            const statusSpan = document.getElementById('verificationStatusText');
+            statusSpan.textContent = statusText;
+            badge.style.background = required ? '#fff5f5' : '#eef4ff';
+            badge.style.borderColor = required ? '#f5c6cb' : '#dce7ff';
+            statusSpan.style.color = required ? '#c0392b' : '#2740d4';
         }
 
         // Language Functions

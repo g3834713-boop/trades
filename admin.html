@@ -804,6 +804,51 @@
         </div>
     </div>
 
+    <!-- Verification Review Modal -->
+    <div class="modal" id="verificationModal">
+        <div class="modal-content" style="max-width: 760px;">
+            <div class="modal-title">User Verification</div>
+            <input type="hidden" id="verificationUserId">
+            <div class="form-group">
+                <label class="form-label">User</label>
+                <div class="form-input" id="verificationUserName" style="background: #f9f9f9;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Current Status</label>
+                <div class="form-input" id="verificationStatusDisplay" style="background: #f9f9f9;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Verification Required</label>
+                <div class="form-input" id="verificationRequiredDisplay" style="background: #f9f9f9;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Name</label>
+                <div class="form-input" id="verificationNameDisplay" style="background: #f9f9f9;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Date of Birth</label>
+                <div class="form-input" id="verificationDobDisplay" style="background: #f9f9f9;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ghana Card ID</label>
+                <div class="form-input" id="verificationCardIdDisplay" style="background: #f9f9f9;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Documents</label>
+                <div id="verificationDocuments" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Review Notes</label>
+                <textarea class="form-textarea" id="verificationReviewNotes" placeholder="Optional feedback or rejection note"></textarea>
+            </div>
+            <div class="modal-buttons" style="flex-wrap: wrap; gap: 10px;">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeVerificationModal()">Close</button>
+                <button class="btn btn-danger" onclick="rejectUserVerification()">Reject</button>
+                <button class="btn btn-success" onclick="approveUserVerification()">Approve</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Add Task Modal -->
     <div class="modal" id="taskModal">
         <div class="modal-content">
@@ -1074,6 +1119,7 @@
                         const paymentMethod = user.payment_method ? ` (${user.payment_method})` : '';
                         const joinDate = new Date(user.created_at).toLocaleDateString();
                         const isAdmin = user.email === 'admin0@gmail.com';
+                        const safeName = (user.full_name || user.email || '').replace(/'/g, "\\'");
                         html += `<div class="table-row">
                             <div class="table-cell">${user.full_name || user.email} ${isAdmin ? '<span class="admin-badge" style="color: #fff; background: #4361ee; border-radius: 4px; padding: 2px 6px; margin-left: 6px; font-size: 12px;">Admin</span>' : ''}</div>
                             <div class="table-cell">${user.email}</div>
@@ -1081,10 +1127,14 @@
                             <div class="table-cell">GHC ${balance.toFixed(2)} <span style="color: #4361ee;">(+${bonus.toFixed(2)} bonus)</span></div>
                             <div class="table-cell">${paymentNumber}${paymentMethod}</div>
                             <div class="table-action">
-                                <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${user.full_name || user.email}')">Add Funds</button>
-                                <button class="btn btn-success" onclick="openPaymentNumberModal('${user.id}', '${user.full_name || user.email}', '${user.payment_number || ''}', '${user.payment_method || ''}')">Set Payment Number</button>
-                                ${user.payment_number ? `<button class="btn btn-danger" onclick="deletePaymentNumber('${user.id}', '${user.full_name || user.email}')">Remove</button>` : ''}
-                                
+                                <div style="margin-bottom: 10px; font-size: 12px; color: #444;">
+                                    Verify: <strong>${user.verification_status || 'none'}</strong>${user.verification_required ? ' (required)' : ''}
+                                </div>
+                                <button class="btn btn-secondary" onclick="openUserVerificationModal('${user.id}', '${safeName}')">Review</button>
+                                <button class="btn btn-warning" onclick="toggleUserVerificationRequirement('${user.id}', ${!user.verification_required})">${user.verification_required ? 'Release Verify' : 'Require Verify'}</button>
+                                <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${safeName}')">Add Funds</button>
+                                <button class="btn btn-success" onclick="openPaymentNumberModal('${user.id}', '${safeName}', '${user.payment_number || ''}', '${user.payment_method || ''}')">Set Payment Number</button>
+                                ${user.payment_number ? `<button class="btn btn-danger" onclick="deletePaymentNumber('${user.id}', '${safeName}')">Remove</button>` : ''}
                             </div>
                         </div>`;
                     });
@@ -1542,6 +1592,80 @@
             } catch (error) {
                 console.error('Error removing payment number:', error);
                 alert(error.message || 'Failed to remove payment number');
+            }
+        }
+
+        async function openUserVerificationModal(userId, userName) {
+            try {
+                const verification = await window.API.getUserVerification(userId);
+                document.getElementById('verificationUserId').value = userId;
+                document.getElementById('verificationUserName').textContent = userName;
+                document.getElementById('verificationStatusDisplay').textContent = verification.verification_status || 'none';
+                document.getElementById('verificationRequiredDisplay').textContent = verification.verification_required ? 'Yes' : 'No';
+                document.getElementById('verificationNameDisplay').textContent = verification.first_name ? `${verification.first_name} ${verification.middle_name || ''} ${verification.last_name}`.trim() : 'Not submitted';
+                document.getElementById('verificationDobDisplay').textContent = verification.date_of_birth || '-';
+                document.getElementById('verificationCardIdDisplay').textContent = verification.ghana_card_id || '-';
+                document.getElementById('verificationReviewNotes').value = verification.review_notes || '';
+
+                const documents = document.getElementById('verificationDocuments');
+                documents.innerHTML = '';
+                if (verification.card_front_data) {
+                    documents.innerHTML += `<div style="border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; text-align:center; padding:8px;"><div style="font-size:12px; color:#555; margin-bottom:6px;">Front</div><img src="${verification.card_front_data}" style="width:100%; height:auto; object-fit:contain;"/></div>`;
+                }
+                if (verification.card_back_data) {
+                    documents.innerHTML += `<div style="border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; text-align:center; padding:8px;"><div style="font-size:12px; color:#555; margin-bottom:6px;">Back</div><img src="${verification.card_back_data}" style="width:100%; height:auto; object-fit:contain;"/></div>`;
+                }
+                if (!verification.card_front_data && !verification.card_back_data) {
+                    documents.innerHTML = '<div style="color:#999;">No documents uploaded yet</div>';
+                }
+
+                document.getElementById('verificationModal').classList.add('show');
+            } catch (error) {
+                console.error('Error loading user verification:', error);
+                alert(error.message || 'Failed to load verification details');
+            }
+        }
+
+        function closeVerificationModal() {
+            document.getElementById('verificationModal').classList.remove('show');
+        }
+
+        async function toggleUserVerificationRequirement(userId, required) {
+            try {
+                await window.API.requireUserVerification(userId, required);
+                loadUsers();
+                alert(`Verification requirement ${required ? 'enabled' : 'removed'} for this user.`);
+            } catch (error) {
+                console.error('Error changing verification requirement:', error);
+                alert(error.message || 'Failed to update verification requirement');
+            }
+        }
+
+        async function approveUserVerification() {
+            const userId = document.getElementById('verificationUserId').value;
+            const notes = document.getElementById('verificationReviewNotes').value.trim();
+            try {
+                await window.API.approveUserVerification(userId, notes);
+                alert('Verification approved.');
+                closeVerificationModal();
+                loadUsers();
+            } catch (error) {
+                console.error('Error approving verification:', error);
+                alert(error.message || 'Failed to approve verification');
+            }
+        }
+
+        async function rejectUserVerification() {
+            const userId = document.getElementById('verificationUserId').value;
+            const notes = document.getElementById('verificationReviewNotes').value.trim();
+            try {
+                await window.API.rejectUserVerification(userId, notes);
+                alert('Verification rejected.');
+                closeVerificationModal();
+                loadUsers();
+            } catch (error) {
+                console.error('Error rejecting verification:', error);
+                alert(error.message || 'Failed to reject verification');
             }
         }
 
