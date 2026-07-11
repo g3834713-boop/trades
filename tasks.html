@@ -1008,10 +1008,20 @@
             }
         }
 
+        let dailyCheckinStatus = { eligible: false, amount: 0, lastCheckin: null };
+
         async function updateBalance() {
             try {
                 // Get wallet data from backend
                 const wallet = await window.API.getWallet();
+
+                // Get daily check-in status
+                try {
+                    dailyCheckinStatus = await window.API.getCheckinStatus();
+                } catch (error) {
+                    console.warn('Failed to load daily check-in status:', error);
+                    dailyCheckinStatus = { eligible: false, amount: 0, lastCheckin: null };
+                }
 
                 // Count tasks
                 const totalTasks = Object.values(tasksData).flat().length;
@@ -1049,6 +1059,18 @@
             }
         }
 
+        async function claimDailyCheckin() {
+            try {
+                const result = await window.API.claimDailyCheckin();
+                alert(`Daily check-in claimed successfully! You earned GHC ${parseFloat(result.amount || 0).toFixed(2)}.`);
+                await updateBalance();
+                updateAward();
+            } catch (error) {
+                console.error('Failed to claim daily check-in:', error);
+                alert(error.message || 'Failed to claim daily check-in.');
+            }
+        }
+
         function updateAward() {
             let totalCompleted = tasksData.completed.length;
             let totalTasks = Object.values(tasksData).flat().length;
@@ -1056,6 +1078,13 @@
 
             const awardSection = document.querySelector('.award-section');
             if (awardSection) {
+                const checkinText = dailyCheckinStatus.eligible
+                    ? `Ready to claim GHC ${parseFloat(dailyCheckinStatus.amount || 0).toFixed(2)}`
+                    : (dailyCheckinStatus.lastCheckin ? `Last claimed ${dailyCheckinStatus.lastCheckin}` : 'Not claimed yet');
+                const checkinButton = dailyCheckinStatus.eligible
+                    ? `<button class="task-action-btn" style="margin-top: 12px; width: 100%;" onclick="claimDailyCheckin()">Claim Daily Reward</button>`
+                    : '';
+
                 awardSection.innerHTML = `
                     <div class="award-title">Award Progress</div>
                     <div class="award-amount">GHC ${(tasksData.completed.reduce((sum, t) => sum + t.amount, 0)).toFixed(2)}</div>
@@ -1063,6 +1092,11 @@
                         <div class="award-bar-fill" style="width: ${percentage}%;"></div>
                     </div>
                     <div class="award-percentage">${percentage}% Complete</div>
+                    <div class="balance-item" style="margin-top: 16px; padding: 16px; background: rgba(255,255,255,0.16); border-radius: 12px;">
+                        <div class="balance-item-label" style="color: white;">Daily Check-in Reward</div>
+                        <div class="balance-item-value" style="color: white;">${checkinText}</div>
+                        ${checkinButton}
+                    </div>
                 `;
             }
         }

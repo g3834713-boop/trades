@@ -7,8 +7,50 @@ import { query } from './db.js';
 import { requireAuth, requireAdmin } from './middleware/auth.js';
 import { canWithdrawAmount } from './verificationLimits.js';
 
-
 const app = express();
+
+async function getAppSetting(key, defaultValue = null) {
+  const { rows } = await query('select value from app_settings where key = $1', [key]);
+  if (!rows.length) return defaultValue;
+  return rows[0].value;
+}
+
+async function getAllAppSettings() {
+  const { rows } = await query('select key, value from app_settings');
+  const settings = { commissionRate: 20, minWithdrawal: 50, platformName: 'DailyTrade', supportPhone: '+233 XXX XXX XXX', supportEmail: 'support@dailytrade.com', supportLiveChat: 'Telegram: @DailyTrader', dailyCheckinAmount: 5 };
+  for (const row of rows) {
+    const key = row.key;
+    const value = row.value;
+    if (key === 'commission_rate') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.commissionRate = parsed;
+    } else if (key === 'min_withdrawal') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.minWithdrawal = parsed;
+    } else if (key === 'platform_name') {
+      if (value != null && value !== '') settings.platformName = value;
+    } else if (key === 'support_phone') {
+      if (value != null && value !== '') settings.supportPhone = value;
+    } else if (key === 'support_email') {
+      if (value != null && value !== '') settings.supportEmail = value;
+    } else if (key === 'support_live_chat') {
+      if (value != null && value !== '') settings.supportLiveChat = value;
+    } else if (key === 'daily_checkin_amount') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.dailyCheckinAmount = parsed;
+    }
+  }
+  return settings;
+}
+
+async function upsertAppSetting(key, value) {
+  await query(
+    `insert into app_settings (key, value)
+     values ($1, $2)
+     on conflict (key) do update set value = excluded.value`,
+    [key, String(value)]
+  );
+}
 
 // Prevent caching for all API responses
 app.use((req, res, next) => {
@@ -412,6 +454,100 @@ app.post('/wallet/add-bonus', requireAuth, async (req, res) => {
   
   const { rows } = await query('select balance, bonus from wallets where user_id = $1', [id]);
   res.json(rows[0]);
+});
+
+// App settings
+app.get('/settings', async (req, res) => {
+  const settings = await getAllAppSettings();
+  res.json(settings);
+});
+
+app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
+  const {
+    commissionRate,
+    minWithdrawal,
+    platformName,
+    supportPhone,
+    supportEmail,
+    supportLiveChat,
+    dailyCheckinAmount
+  } = req.body;
+
+  if (commissionRate !== undefined) {
+    await upsertAppSetting('commission_rate', commissionRate);
+  }
+  if (minWithdrawal !== undefined) {
+    await upsertAppSetting('min_withdrawal', minWithdrawal);
+  }
+  if (platformName !== undefined) {
+    await upsertAppSetting('platform_name', platformName);
+  }
+  if (supportPhone !== undefined) {
+    await upsertAppSetting('support_phone', supportPhone);
+  }
+  if (supportEmail !== undefined) {
+    await upsertAppSetting('support_email', supportEmail);
+  }
+  if (supportLiveChat !== undefined) {
+    await upsertAppSetting('support_live_chat', supportLiveChat);
+  }
+  if (dailyCheckinAmount !== undefined) {
+    await upsertAppSetting('daily_checkin_amount', dailyCheckinAmount);
+  }
+
+  res.json({ ok: true });
+});
+
+app.get('/users/me/checkin', requireAuth, async (req, res) => {
+  const { id: userId } = req.user;
+  const settings = await getAllAppSettings();
+  const { rows } = await query(
+    `select checkin_date from daily_checkins where user_id = $1 order by checkin_date desc limit 1`,
+    [userId]
+  );
+  const today = new Date().toISOString().slice(0, 10);
+  const lastCheckin = rows[0]?.checkin_date;
+  const lastCheckinDate = lastCheckin ? new Date(lastCheckin).toISOString().slice(0, 10) : null;
+  res.json({
+    lastCheckin: lastCheckinDate,
+    eligible: lastCheckinDate !== today,
+    amount: Number(settings.dailyCheckinAmount) || 5
+  });
+});
+
+app.post('/users/me/checkin', requireAuth, async (req, res) => {
+  const { id: userId } = req.user;
+  const settings = await getAllAppSettings();
+  const amount = Number(settings.dailyCheckinAmount) || 5;
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { rows } = await query(
+    `select checkin_date from daily_checkins where user_id = $1 order by checkin_date desc limit 1`,
+    [userId]
+  );
+  const lastCheckin = rows[0]?.checkin_date;
+  const lastCheckinDate = lastCheckin ? new Date(lastCheckin).toISOString().slice(0, 10) : null;
+
+  if (lastCheckinDate === today) {
+    return res.status(400).json({ error: 'You have already claimed today\'s check-in reward.' });
+  }
+
+  await query(
+    `insert into daily_checkins (user_id, checkin_date)
+     values ($1, $2)`,
+    [userId, today]
+  );
+  await query(
+    'update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2',
+    [amount, userId]
+  );
+  await query(
+    `insert into transactions (user_id, type, amount, reason)
+     values ($1, 'daily_checkin', $2, $3)`,
+    [userId, amount, 'Daily check-in reward']
+  );
+
+  res.json({ ok: true, amount, nextCheckin: today });
 });
 
 // Transactions
@@ -1765,6 +1901,23 @@ async function ensureSchema() {
     )
   `);
   await query('create index if not exists referrals_referrer_idx on referrals(referrer_id)');
+
+  await query(`
+    create table if not exists app_settings (
+      key text primary key,
+      value text
+    )
+  `);
+
+  await query(`
+    create table if not exists daily_checkins (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      checkin_date date not null,
+      created_at timestamptz default now(),
+      unique(user_id, checkin_date)
+    )
+  `);
 
   // Backfill referral codes for existing users who don't have one
   const { rows: usersWithoutCode } = await query("select id from app_users where referral_code is null or referral_code = ''");

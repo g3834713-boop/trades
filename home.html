@@ -907,7 +907,11 @@
 
                     <div class="notification-support">
                         <strong>Need Help?</strong><br>
-                        If your recharge or withdrawal funds have not arrived within 30 minutes, please contact the platform's finance manager via Telegram: <strong>@DailyTradee</strong>
+                        If your recharge or withdrawal funds have not arrived within 30 minutes, please contact support: <strong id="supportLiveChatValue">Telegram: @DailyTrader</strong>
+                    </div>
+                    <div class="notification-support">
+                        <strong>Support Email:</strong> <span id="supportEmailValue">support@dailytrade.com</span><br>
+                        <strong>Support Phone:</strong> <span id="supportPhoneValue">+233 XXX XXX XXX</span>
                     </div>
 
                     <!-- Official Announcement Section -->
@@ -1712,6 +1716,16 @@
 
                 // Sync user to backend (non-blocking, fire and forget)
                 window.API.call('/users/sync', { method: 'POST' }).catch(e => console.warn('User sync failed:', e));
+
+                // Load support details from settings
+                try {
+                    const settings = await window.API.getSettings();
+                    document.getElementById('supportLiveChatValue').textContent = settings.supportLiveChat || 'Telegram: @DailyTrader';
+                    document.getElementById('supportEmailValue').textContent = settings.supportEmail || 'support@dailytrade.com';
+                    document.getElementById('supportPhoneValue').textContent = settings.supportPhone || '+233 XXX XXX XXX';
+                } catch (error) {
+                    console.warn('Failed to load support settings:', error);
+                }
 
                 // Fetch complete user profile from backend with retry
                 let userProfile = null;

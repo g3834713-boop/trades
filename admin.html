@@ -742,6 +742,22 @@
                         <label class="form-label">Platform Name</label>
                         <input type="text" class="form-input" id="platformName" value="DailyTrade">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Support Phone</label>
+                        <input type="text" class="form-input" id="supportPhone" value="+233 XXX XXX XXX">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Support Email</label>
+                        <input type="text" class="form-input" id="supportEmail" value="support@dailytrade.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Live Chat / Help Link</label>
+                        <input type="text" class="form-input" id="supportLiveChat" value="Telegram: @DailyTrader">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Daily Check-in Reward (GHC)</label>
+                        <input type="number" class="form-input" id="dailyCheckinAmount" value="5" min="0" step="0.01">
+                    </div>
                     <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
                 </div>
             </div>
@@ -1059,6 +1075,7 @@
             if (sectionId === 'payments') loadPayments();
             if (sectionId === 'payouts') loadPayouts();
             if (sectionId === 'reports') loadReports();
+            if (sectionId === 'settings') loadSettings();
         }
 
         // Load Dashboard
@@ -2261,12 +2278,46 @@
             }
         }
 
-        function saveSettings() {
-            const commissionRate = document.getElementById('commissionRate').value;
-            const minWithdrawal = document.getElementById('minWithdrawal').value;
-            const platformName = document.getElementById('platformName').value;
-            // Settings are display-only for now
-            alert('Settings noted. Server-side settings coming soon.');
+        async function saveSettings() {
+            const commissionRate = parseFloat(document.getElementById('commissionRate').value) || 0;
+            const minWithdrawal = parseFloat(document.getElementById('minWithdrawal').value) || 0;
+            const platformName = document.getElementById('platformName').value.trim();
+            const supportPhone = document.getElementById('supportPhone').value.trim();
+            const supportEmail = document.getElementById('supportEmail').value.trim();
+            const supportLiveChat = document.getElementById('supportLiveChat').value.trim();
+            const dailyCheckinAmount = parseFloat(document.getElementById('dailyCheckinAmount').value) || 0;
+
+            try {
+                await window.API.saveSettings({
+                    commissionRate,
+                    minWithdrawal,
+                    platformName,
+                    supportPhone,
+                    supportEmail,
+                    supportLiveChat,
+                    dailyCheckinAmount
+                });
+                alert('Settings saved successfully!');
+                loadSettings();
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                alert(error.message || 'Failed to save settings');
+            }
+        }
+
+        async function loadSettings() {
+            try {
+                const settings = await window.API.getSettings();
+                document.getElementById('commissionRate').value = parseFloat(settings.commissionRate ?? 20).toFixed(0);
+                document.getElementById('minWithdrawal').value = parseFloat(settings.minWithdrawal ?? 50).toFixed(2);
+                document.getElementById('platformName').value = settings.platformName ?? 'DailyTrade';
+                document.getElementById('supportPhone').value = settings.supportPhone ?? '+233 XXX XXX XXX';
+                document.getElementById('supportEmail').value = settings.supportEmail ?? 'support@dailytrade.com';
+                document.getElementById('supportLiveChat').value = settings.supportLiveChat ?? 'Telegram: @DailyTrader';
+                document.getElementById('dailyCheckinAmount').value = parseFloat(settings.dailyCheckinAmount ?? 5).toFixed(2);
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
         }
 
         async function filterUsers() {

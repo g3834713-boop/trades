@@ -127,3 +127,16 @@ create table if not exists payments (
   requested_at timestamptz default now(),
   completed_at timestamptz
 );
+
+create table if not exists app_settings (
+  key text primary key,
+  value text
+);
+
+create table if not exists daily_checkins (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references app_users(id) on delete cascade,
+  checkin_date date not null,
+  created_at timestamptz default now(),
+  unique(user_id, checkin_date)
+);

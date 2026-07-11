@@ -764,17 +764,17 @@
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4361ee;">
                     <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #333;"><i class="las la-phone" style="margin-right: 6px;"></i>Phone Support</div>
-                    <div style="font-size: 13px; color: #666;">+233 XXX XXX XXX</div>
+                    <div id="supportPhoneValue" style="font-size: 13px; color: #666;">+233 XXX XXX XXX</div>
                     <div style="font-size: 12px; color: #999; margin-top: 4px;">Mon-Fri: 9AM-6PM GMT</div>
                 </div>
                 <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4361ee;">
                     <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #333;"><i class="las la-envelope" style="margin-right: 6px;"></i>Email Support</div>
-                    <div style="font-size: 13px; color: #666;">support@dailytrade.com</div>
+                    <div id="supportEmailValue" style="font-size: 13px; color: #666;">support@dailytrade.com</div>
                     <div style="font-size: 12px; color: #999; margin-top: 4px;">Response time: 24 hours</div>
                 </div>
                 <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4361ee;">
                     <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #333;"><i class="las la-comments" style="margin-right: 6px;"></i>Live Chat</div>
-                    <div style="font-size: 13px; color: #666;">Available on our website</div>
+                    <div id="supportLiveChatValue" style="font-size: 13px; color: #666;">Telegram: @DailyTrader</div>
                     <div style="font-size: 12px; color: #999; margin-top: 4px;">Mon-Fri: 10AM-8PM GMT</div>
                 </div>
             </div>
@@ -1272,6 +1272,7 @@
                     document.getElementById('accountPhone').value = profile.phone || '';
                     document.getElementById('accountId').value = 'ID-' + profile.id.substring(0, 8).toUpperCase();
                 }
+                await loadSupportDetails();
             } catch (error) {
                 console.error('Error loading account data:', error);
             }
@@ -1716,6 +1717,7 @@
                     // Store user data globally and cache for next page visit
                     window.currentUserProfile = userProfile;
                     localStorage.setItem('cachedUserProfile', JSON.stringify(userProfile));
+                    await loadSupportDetails();
                 } else if (!cachedProfile) {
                     // Only fall back to defaults if we had no cache either
                     const user = await window.AuthService.getUser();
@@ -1953,6 +1955,17 @@
             } catch (error) {
                 console.error('Verification submission failed:', error);
                 alert(error.message || 'Failed to submit verification');
+            }
+        }
+
+        async function loadSupportDetails() {
+            try {
+                const settings = await window.API.getSettings();
+                document.getElementById('supportPhoneValue').textContent = settings.supportPhone || '+233 XXX XXX XXX';
+                document.getElementById('supportEmailValue').textContent = settings.supportEmail || 'support@dailytrade.com';
+                document.getElementById('supportLiveChatValue').textContent = settings.supportLiveChat || 'Available on our website';
+            } catch (error) {
+                console.warn('Failed to load support settings:', error);
             }
         }
 

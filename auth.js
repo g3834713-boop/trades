@@ -480,6 +480,27 @@ window.API = {
     return this.call('/admin/users');
   },
 
+  async getSettings() {
+    return this.call('/settings');
+  },
+
+  async saveSettings(settings) {
+    return this.call('/admin/settings', {
+      method: 'POST',
+      body: JSON.stringify(settings)
+    });
+  },
+
+  async getCheckinStatus() {
+    return this.call('/users/me/checkin');
+  },
+
+  async claimDailyCheckin() {
+    return this.call('/users/me/checkin', {
+      method: 'POST'
+    });
+  },
+
   // ...existing code...
 
   async upsertPaymentNumber(userId, paymentNumber, method) {
