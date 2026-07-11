@@ -1031,6 +1031,56 @@ app.get('/admin/tasks', requireAuth, requireAdmin, async (req, res) => {
   res.json(rows);
 });
 
+// Admin: list/manage Easy Earns tasks
+app.get('/admin/easy-earns', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await query('select * from tasks where is_easy_earn = true order by created_at desc');
+  res.json(rows);
+});
+
+app.post('/admin/easy-earns', requireAuth, requireAdmin, async (req, res) => {
+  const { title, description, amount, commission, videos } = req.body;
+  if (!title || !amount) return res.status(400).json({ error: 'Title and amount required' });
+  const { rows } = await query(`insert into tasks (title, description, amount, commission, status, is_easy_earn) values ($1,$2,$3,$4,$5,true) returning *`, [title, description || null, amount, commission || 0, 'active']);
+  const task = rows[0];
+  if (Array.isArray(videos) && videos.length) {
+    for (let i = 0; i < videos.length; i++) {
+      const v = videos[i];
+      await query('insert into easy_earn_videos (task_id, video_index, title, url, duration_seconds) values ($1,$2,$3,$4,$5)', [task.id, i+1, v.title || null, v.url || null, v.duration_seconds || 0]);
+    }
+  }
+  res.json(task);
+});
+
+app.put('/admin/easy-earns/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { title, description, amount, commission, status } = req.body;
+  const { rows } = await query(`update tasks set title = coalesce($1,title), description = coalesce($2,description), amount = coalesce($3,amount), commission = coalesce($4,commission), status = coalesce($5,status), is_easy_earn = true where id = $6 returning *`, [title || null, description || null, typeof amount === 'undefined' ? null : amount, typeof commission === 'undefined' ? null : commission, status || null, id]);
+  if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
+  res.json(rows[0]);
+});
+
+app.delete('/admin/easy-earns/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  await query('delete from easy_earn_videos where task_id = $1', [id]);
+  const { rowCount } = await query('delete from tasks where id = $1 and is_easy_earn = true', [id]);
+  if (rowCount === 0) return res.status(404).json({ error: 'Not found' });
+  res.json({ ok: true });
+});
+
+// Admin cleanup: remove previously seeded task-ideas except the Video Watch Task
+app.post('/admin/easy-earns/cleanup', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const titlesToRemove = [
+      'Follow + Like Campaign', 'Share & Tag Friends', 'Mobile App Signup', 'Website Feedback Form', 'Product Description', 'Data Copying', 'Referral Signup'
+    ];
+    const { rowCount } = await query(`delete from tasks where title = any($1::text[]) and coalesce(is_easy_earn,false) = false`, [titlesToRemove]);
+    res.json({ ok: true, removed: rowCount });
+  } catch (err) {
+    console.error('Cleanup error:', err);
+    res.status(500).json({ error: 'Cleanup failed' });
+  }
+});
+
 // Admin: Delete task
 app.delete('/admin/tasks/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -2275,6 +2325,21 @@ async function ensureSchema() {
   
   // Add commission column to tasks if it doesn't exist
   await query('alter table tasks add column if not exists commission numeric(5,2) not null default 0');
+  // Mark tasks that belong to the Easy Earns feature
+  await query('alter table tasks add column if not exists is_easy_earn boolean not null default false');
+
+  // Table to store video lists for video-watch easy-earn tasks
+  await query(`
+    create table if not exists easy_earn_videos (
+      id uuid primary key default gen_random_uuid(),
+      task_id uuid not null references tasks(id) on delete cascade,
+      video_index int not null,
+      title text,
+      url text,
+      duration_seconds int default 0,
+      created_at timestamptz default now()
+    )
+  `);
 
   // Seed a small set of Easy Earns (beginner) tasks for initial rollout
   await query(`
@@ -2319,6 +2384,22 @@ async function ensureSchema() {
     )
   `);
   await query('create unique index if not exists product_assignments_unique on product_assignments(product_id, user_id)');
+
+  // Easy-earn submissions (separate from beginner tasks)
+  await query(`
+    create table if not exists easy_earn_submissions (
+      id uuid primary key default gen_random_uuid(),
+      task_id uuid not null references tasks(id) on delete cascade,
+      user_id uuid not null references app_users(id) on delete cascade,
+      url text,
+      notes text,
+      status text not null default 'submitted',
+      awarded_amount numeric(12,2) default 0,
+      submitted_at timestamptz default now(),
+      reviewed_at timestamptz,
+      reviewed_by text
+    )
+  `);
 
   await query(`
     create table if not exists teller_wallets (
@@ -2426,14 +2507,37 @@ async function ensureSchema() {
 }
 
 // --- Task catalog endpoints ---
-// Public: list active tasks
+// Public: list active tasks (exclude Easy Earns special tasks)
 app.get('/tasks', async (req, res) => {
   try {
-    const { rows } = await query("select id, title, description, amount, commission, status, created_at from tasks where status = 'active' order by created_at desc");
+    const { rows } = await query("select id, title, description, amount, commission, status, created_at from tasks where status = 'active' and (is_easy_earn is not true) order by created_at desc");
     res.json(rows);
   } catch (err) {
     console.error('List tasks error:', err);
     res.status(500).json({ error: 'Failed to list tasks' });
+  }
+});
+
+// Public: list Easy Earns tasks (video-watch and related items)
+app.get('/easy-earns', async (req, res) => {
+  try {
+    const { rows } = await query("select id, title, description, amount, commission, status, created_at from tasks where status = 'active' and is_easy_earn = true order by created_at desc");
+    res.json(rows);
+  } catch (err) {
+    console.error('List easy earns error:', err);
+    res.status(500).json({ error: 'Failed to list easy earns tasks' });
+  }
+});
+
+// Public: get videos for an easy-earn video task
+app.get('/easy-earns/:id/videos', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await query('select id, video_index, title, url, duration_seconds from easy_earn_videos where task_id = $1 order by video_index asc', [id]);
+    res.json(rows);
+  } catch (err) {
+    console.error('Get easy earn videos error:', err);
+    res.status(500).json({ error: 'Failed to load videos' });
   }
 });
 
@@ -2447,6 +2551,60 @@ app.get('/tasks/:id', async (req, res) => {
   } catch (err) {
     console.error('Get task error:', err);
     res.status(500).json({ error: 'Failed to get task' });
+  }
+});
+
+// Submit proof for an Easy Earns task
+app.post('/easy-earns/:id/submit', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { url, notes } = req.body || {};
+    if ((!url || String(url).trim() === '') && (!notes || String(notes).trim() === '')) return res.status(400).json({ error: 'Proof URL or notes required' });
+
+    // Ensure task exists and is easy earn
+    const { rows: taskRows } = await query('select id, title, amount from tasks where id = $1 and is_easy_earn = true and status = $2', [id, 'active']);
+    if (taskRows.length === 0) return res.status(404).json({ error: 'Easy Earns task not found' });
+
+    const userId = req.user.id;
+    const { rows } = await query(
+      `insert into easy_earn_submissions (task_id, user_id, url, notes)
+       values ($1,$2,$3,$4) returning id, submitted_at`,
+      [id, userId, url || null, notes || null]
+    );
+
+    res.json({ ok: true, message: 'Submission received', submissionId: rows[0].id });
+  } catch (err) {
+    console.error('Easy earns submit error:', err);
+    res.status(500).json({ error: 'Failed to submit proof' });
+  }
+});
+
+// Claim an Easy Earns submission reward (instant for MVP)
+app.post('/easy-earns/:id/claim', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Find latest submission by user for this task that is not yet claimed
+    const { rows: subs } = await query('select id, status from easy_earn_submissions where task_id = $1 and user_id = $2 order by submitted_at desc limit 1', [id, userId]);
+    if (subs.length === 0) return res.status(400).json({ error: 'No submission found. Please submit proof first.' });
+    const sub = subs[0];
+    if (sub.status === 'claimed') return res.status(400).json({ error: 'Already claimed' });
+
+    // Get task amount
+    const { rows: taskRows } = await query('select amount from tasks where id = $1 and is_easy_earn = true and status = $2', [id, 'active']);
+    if (taskRows.length === 0) return res.status(404).json({ error: 'Task not available' });
+    const amount = parseFloat(taskRows[0].amount) || 0;
+
+    // Credit user immediately (MVP) and mark submission claimed
+    await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, userId]);
+    await query('update easy_earn_submissions set status = $1, awarded_amount = $2, reviewed_at = now(), reviewed_by = $3 where id = $4', ['claimed', amount, req.user.email || req.user.id, sub.id]);
+    await query('insert into transactions (user_id, type, amount, reason) values ($1,$2,$3,$4)', [userId, 'easy_earn', amount, `Easy Earns reward for task ${id}`]);
+
+    res.json({ ok: true, earned: amount, message: 'Reward credited' });
+  } catch (err) {
+    console.error('Easy earns claim error:', err);
+    res.status(500).json({ error: 'Failed to claim reward' });
   }
 });
 
@@ -2487,22 +2645,46 @@ async function ensureInitialTasks() {
   try {
     const { rows } = await query('select count(*) as c from tasks');
     const count = parseInt(rows[0].c || 0);
+    // Ensure the Video Watch easy-earn task exists. Keep other catalog tasks separate.
     if (count === 0) {
-      const recommended = [
-        { title: 'Follow + Like Campaign', description: 'Follow and like specified social posts. Submit screenshot proof.', amount: 2.00 },
-        { title: 'Share & Tag Friends', description: 'Share post and tag friends, submit screenshot proof.', amount: 2.50 },
-        { title: 'Mobile App Signup', description: 'Sign up for a mobile app and verify account. Submit dashboard screenshot.', amount: 3.00 },
-        { title: 'Website Feedback Form', description: 'Complete a short website feedback form and submit confirmation.', amount: 1.50 },
-        { title: 'Product Description', description: 'Write a 100-150 word product description. Submit for review.', amount: 6.00 },
-        { title: 'Video Watch Task', description: 'Watch a short video for at least 2 minutes and submit proof.', amount: 1.50 },
-        { title: 'Data Copying', description: 'Copy data from provided image or PDF into spreadsheet entries.', amount: 5.00 },
-        { title: 'Referral Signup', description: 'Refer a friend who completes a task; earn referral reward.', amount: 4.00 }
-      ];
-
-      for (const t of recommended) {
-        await query('insert into tasks (title, description, amount, commission, status) values ($1, $2, $3, $4, $5)', [t.title, t.description, t.amount, 50.00, 'active']);
+      // Create a single Easy Earns task for video watching
+      const { rows: existing } = await query("select id from tasks where title = 'Video Watch Task' limit 1");
+      let videoTaskId = existing[0]?.id;
+      if (!videoTaskId) {
+        const inserted = await query(
+          `insert into tasks (title, description, amount, commission, status, is_easy_earn)
+           values ($1, $2, $3, $4, $5, true)
+           returning id`,
+          ['Video Watch Task', 'Watch a short set of videos and submit proof to earn rewards.', 1.50, 0, 'active']
+        );
+        videoTaskId = inserted.rows[0].id;
+      } else {
+        // mark it as easy earn and active
+        await query('update tasks set is_easy_earn = true, status = $1 where id = $2', ['active', videoTaskId]);
       }
-      console.log('Seeded initial tasks');
+
+      // Seed five placeholder videos for the task (admin can update later)
+      const { rows: existingVideos } = await query('select count(*) as c from easy_earn_videos where task_id = $1', [videoTaskId]);
+      const videoCount = parseInt(existingVideos[0].c || 0);
+      if (videoCount < 5) {
+        const placeholders = [
+          ['Intro Video', 'https://example.com/video1.mp4', 120],
+          ['How-to Video', 'https://example.com/video2.mp4', 150],
+          ['Product Demo', 'https://example.com/video3.mp4', 95],
+          ['Quick Tips', 'https://example.com/video4.mp4', 130],
+          ['Wrap Up', 'https://example.com/video5.mp4', 110]
+        ];
+        for (let i = 0; i < placeholders.length; i++) {
+          const [title, url, dur] = placeholders[i];
+          await query(
+            `insert into easy_earn_videos (task_id, video_index, title, url, duration_seconds)
+             values ($1, $2, $3, $4, $5)
+             on conflict do nothing`,
+            [videoTaskId, i + 1, title, url, dur]
+          );
+        }
+      }
+      console.log('Seeded Video Watch Easy Earns task');
     }
   } catch (err) {
     console.error('Initial tasks seed error:', err);

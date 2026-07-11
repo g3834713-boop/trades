@@ -485,6 +485,23 @@ window.API = {
     return this.call('/easy-earns');
   },
 
+  async getEasyEarnVideos(taskId) {
+    return this.call(`/easy-earns/${taskId}/videos`);
+  },
+
+  // Admin Easy Earns management
+  async getAdminEasyEarns() {
+    return this.call('/admin/easy-earns');
+  },
+
+  async createAdminEasyEarn(data) {
+    return this.call('/admin/easy-earns', { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  async cleanupEasyEarnSeeds() {
+    return this.call('/admin/easy-earns/cleanup', { method: 'POST' });
+  },
+
   async getTasksCatalog() {
     return this.call('/tasks');
   },
