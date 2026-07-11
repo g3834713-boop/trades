@@ -756,6 +756,13 @@
         let tasksData = { pending: [], frozen: [], completed: [] };
         let processingTimer = null;
         let processingStepIndex = 0;
+        let processingState = {
+            active: false,
+            visible: false,
+            taskTitle: '',
+            steps: [],
+            currentStep: ''
+        };
 
         // Initialize page
         async function initializePage() {
@@ -903,16 +910,20 @@
 
         function showBeginnerTaskModal(rewardAmount) {
             const modal = document.getElementById('orderSuccessModal');
-            const countdownSection = document.getElementById('countdownSection');
             const rewardSection = document.getElementById('rewardSection');
-            const countdownTimer = document.getElementById('countdownTimer');
+            const processingSection = document.getElementById('processingSection');
             const claimBtn = document.getElementById('claimRewardsBtn');
+            const modalTitle = document.getElementById('modalTitle');
             
             // Reset modal state
-            countdownSection.style.display = 'block';
-            rewardSection.style.display = 'none';
-            claimBtn.disabled = false;
-            claimBtn.textContent = 'Claim Rewards';
+            if (processingSection) {
+                processingSection.style.display = 'none';
+            }
+            rewardSection.style.display = 'block';
+            if (claimBtn) {
+                claimBtn.disabled = false;
+                claimBtn.textContent = 'Claim Rewards';
+            }
             
             // Hide cost/interest, show profit for beginner task
             document.getElementById('costSection').style.display = 'none';
@@ -922,6 +933,9 @@
             // Update profit amount display
             document.getElementById('orderProfit').textContent = rewardAmount.toFixed(2);
             document.getElementById('orderTotal').textContent = rewardAmount.toFixed(2);
+            if (modalTitle) {
+                modalTitle.textContent = 'Reward Ready';
+            }
             
             // Add data attribute to track this is a beginner task claim
             claimBtn.setAttribute('data-beginner-task', 'true');
@@ -930,39 +944,79 @@
             setTimeout(() => {
                 modal.classList.add('show');
             }, 100);
+        }
 
-            // Countdown timer
-            let timeLeft = 10;
-            countdownTimer.textContent = timeLeft;
-            
-            const countdownInterval = setInterval(() => {
-                timeLeft--;
-                if (timeLeft >= 0) {
-                    countdownTimer.textContent = timeLeft;
-                }
-                
-                if (timeLeft < 0) {
-                    clearInterval(countdownInterval);
-                    // Show claim rewards button
-                    countdownSection.style.display = 'none';
-                    rewardSection.style.display = 'block';
-                }
-            }, 1000);
+        function updateProcessingUi() {
+            const processingStatus = document.getElementById('processingStatus');
+            const processingProgress = document.getElementById('processingProgress');
+            const processingPercent = document.getElementById('processingPercent');
+            const processingNote = document.getElementById('processingNote');
+            const processingBannerText = document.getElementById('processingBannerText');
+            const processingBanner = document.getElementById('processingBanner');
+            const modalTitle = document.getElementById('modalTitle');
+
+            if (!processingState.active) return;
+            if (processingStatus) {
+                processingStatus.textContent = processingState.currentStep;
+            }
+            if (processingNote) {
+                processingNote.textContent = processingState.taskTitle
+                    ? `Processing your reward for “${processingState.taskTitle}”`
+                    : 'Processing your reward';
+            }
+            const progress = processingState.steps.length === 0 ? 0 : ((processingStepIndex) / processingState.steps.length) * 100;
+            if (processingProgress) {
+                processingProgress.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+            }
+            if (processingPercent) {
+                processingPercent.textContent = `${Math.round(progress)}%`;
+            }
+            if (modalTitle) {
+                modalTitle.textContent = processingState.currentStep === 'Congratulations' ? 'Reward Ready' : 'Order Pending';
+            }
+            if (processingBannerText) {
+                processingBannerText.textContent = processingState.currentStep;
+            }
+            if (processingBanner) {
+                processingBanner.style.display = 'flex';
+            }
         }
 
         function showProcessingModal(taskTitle) {
             const modal = document.getElementById('orderSuccessModal');
             const processingSection = document.getElementById('processingSection');
             const rewardSection = document.getElementById('rewardSection');
-            const processingStatus = document.getElementById('processingStatus');
-            const processingSteps = document.getElementById('processingSteps');
             const claimBtn = document.getElementById('claimRewardsBtn');
             const modalTitle = document.getElementById('modalTitle');
+            const processingBanner = document.getElementById('processingBanner');
 
             if (processingTimer) {
                 clearInterval(processingTimer);
             }
             processingStepIndex = 0;
+            processingState = {
+                active: true,
+                visible: true,
+                taskTitle: taskTitle || '',
+                steps: [
+                    'Order placed',
+                    'Searching for supplier',
+                    'Locating investor',
+                    'Locating exchanger',
+                    'Finding source',
+                    'Approving sale',
+                    'Transacting order',
+                    'Funding wallet',
+                    'Exchanging currency',
+                    'Order successful',
+                    'Returning gains',
+                    'Returning profit',
+                    'Funding broker',
+                    'Funding investor',
+                    'Congratulations'
+                ],
+                currentStep: 'Order placed'
+            };
 
             processingSection.style.display = 'block';
             rewardSection.style.display = 'none';
@@ -977,62 +1031,59 @@
             document.getElementById('costSection').style.display = 'flex';
             document.getElementById('interestSection').style.display = 'flex';
             document.getElementById('profitSection').style.display = 'none';
-            document.getElementById('processingNote').textContent = `Please wait while we process your reward for “${taskTitle}”.`;
+            if (processingBanner) {
+                processingBanner.style.display = 'flex';
+            }
+            updateProcessingUi();
 
-            const steps = [
-                'Order placed',
-                'Searching for supplier',
-                'Locating investor',
-                'Locating exchanger',
-                'Finding source',
-                'Approving sale',
-                'Transacting order',
-                'Funding wallet',
-                'Exchanging currency',
-                'Order successful',
-                'Returning gains',
-                'Returning profit',
-                'Funding broker',
-                'Funding investor',
-                'Congratulations'
-            ];
-
-            const renderStep = () => {
-                if (processingStepIndex < steps.length) {
-                    processingStatus.textContent = steps[processingStepIndex];
-                    processingSteps.innerHTML = steps.slice(0, processingStepIndex + 1).map((step, index) => `
-                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; ${index <= processingStepIndex ? 'color:#2d3436;' : 'color:#b2bec3;'}">
-                            <span style="font-size:12px; ${index <= processingStepIndex ? 'color:#00b894;' : 'color:#b2bec3;'}">${index <= processingStepIndex ? '●' : '○'}</span>
-                            <span>${step}</span>
-                        </div>
-                    `).join('');
-                    processingStepIndex += 1;
-                }
-            };
-
-            renderStep();
-            processingTimer = setInterval(() => {
-                if (processingStepIndex >= steps.length) {
+            const advanceProcessing = () => {
+                if (!processingState.active) return;
+                if (processingStepIndex >= processingState.steps.length) {
                     clearInterval(processingTimer);
                     processingTimer = null;
-                    processingStatus.textContent = 'Congratulations';
-                    processingSteps.innerHTML = steps.map((step, index) => `
-                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; color:#2d3436;">
-                            <span style="font-size:12px; color:#00b894;">●</span>
-                            <span>${step}</span>
-                        </div>
-                    `).join('');
+                    processingState.currentStep = 'Congratulations';
+                    processingState.visible = false;
+                    updateProcessingUi();
+                    if (processingBanner) {
+                        processingBanner.style.display = 'flex';
+                    }
                     setTimeout(() => {
                         claimRewards();
-                    }, 600);
+                    }, 800);
                     return;
                 }
-                renderStep();
-            }, 12000);
+                processingState.currentStep = processingState.steps[processingStepIndex];
+                processingStepIndex += 1;
+                updateProcessingUi();
+            };
+
+            advanceProcessing();
+            processingTimer = setInterval(advanceProcessing, 12000);
 
             setTimeout(() => {
                 modal.classList.add('show');
             }, 100);
+        }
+
+        function closeProcessingModal() {
+            const modal = document.getElementById('orderSuccessModal');
+            const processingBanner = document.getElementById('processingBanner');
+            if (modal) {
+                modal.classList.remove('show');
+            }
+            if (processingBanner) {
+                processingBanner.style.display = 'flex';
+            }
+            processingState.visible = false;
+        }
+
+        function reopenProcessingModal() {
+            const modal = document.getElementById('orderSuccessModal');
+            if (!processingState.active) return;
+            processingState.visible = true;
+            if (modal) {
+                modal.classList.add('show');
+            }
         }
 
         async function loadUserTasks() {
@@ -1364,6 +1415,8 @@
         async function claimRewards() {
             const claimBtn = document.getElementById('claimRewardsBtn');
             const modal = document.getElementById('orderSuccessModal');
+            const processingBanner = document.getElementById('processingBanner');
+            const processingBannerText = document.getElementById('processingBannerText');
             
             if (claimBtn) {
                 claimBtn.disabled = true;
@@ -1396,6 +1449,9 @@
 
                     // Close modal
                     modal.classList.remove('show');
+                    if (processingBanner) {
+                        processingBanner.style.display = 'none';
+                    }
                     
                     // Clear pending reward
                     window.pendingBeginnerReward = null;
@@ -1454,9 +1510,17 @@
 
                     // Close modal
                     modal.classList.remove('show');
+                    if (processingBanner) {
+                        processingBanner.style.display = 'none';
+                    }
                     
                     // Clear pending reward
                     window.pendingReward = null;
+                    processingState.active = false;
+                    processingState.visible = false;
+                    if (processingBannerText) {
+                        processingBannerText.textContent = 'Reward credited';
+                    }
                     
                     // Show success message
                     alert(`Task completed successfully!\n\nCost: GHC ${task.amount.toFixed(2)}\nInterest earned: GHC ${interestAmount.toFixed(2)}\nTotal received: GHC ${totalReturn.toFixed(2)}`);
@@ -1615,15 +1679,26 @@
     <!-- Order Success Modal -->
     <div id="orderSuccessModal">
         <div style="background: white; border-radius: 12px; padding: 30px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);">
-            <div id="modalTitle" style="font-size: 28px; font-weight: bold; color: #2d3436; margin-bottom: 20px;">Order Pending</div>
+            <div id="modalTitle" style="font-size: 28px; font-weight: bold; color: #2d3436; margin-bottom: 16px;">Order Pending</div>
             
             <div id="processingSection" style="display: block;">
-                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin: 20px 0;">
+                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin: 12px 0 8px;">
                     <div style="width: 24px; height: 24px; border: 3px solid #e0e0e0; border-top-color: #00b894; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                    <div id="processingStatus" style="font-size: 16px; font-weight: bold; color: #00b894;">Order placed</div>
+                    <div id="processingStatus" style="font-size: 15px; font-weight: bold; color: #00b894;">Order placed</div>
                 </div>
-                <div id="processingNote" style="color: #636e72; margin-bottom: 14px; font-size: 14px; line-height: 1.5;">Please wait while we process your reward.</div>
-                <div id="processingSteps" style="text-align: left; font-size: 13px; color: #636e72; line-height: 1.6;"></div>
+                <div style="margin: 10px 0 14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:12px; color:#636e72;">
+                        <span>Progress</span>
+                        <span id="processingPercent">0%</span>
+                    </div>
+                    <div style="height: 8px; background: #e9ecef; border-radius: 999px; overflow: hidden;">
+                        <div id="processingProgress" style="height: 100%; width: 0%; background: linear-gradient(90deg, #00b894, #4361ee); transition: width 0.4s ease;"></div>
+                    </div>
+                </div>
+                <div id="processingNote" style="color: #636e72; margin-bottom: 12px; font-size: 14px; line-height: 1.5;">Please wait while we process your reward.</div>
+                <button onclick="closeProcessingModal()" style="width:100%; background:#f1f2f6; color:#2d3436; border:none; padding:10px 12px; border-radius:8px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:10px;">
+                    <i class="las la-minus"></i> Minimize
+                </button>
             </div>
             
             <div id="rewardSection" style="display: none;">
@@ -1651,6 +1726,17 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <div id="processingBanner" onclick="reopenProcessingModal()" style="display:none; position:fixed; left:12px; right:12px; bottom:84px; z-index:120; background:linear-gradient(135deg, #4361ee 0%, #3451d4 100%); border:none; border-radius:12px; padding:14px 16px; box-shadow:0 10px 30px rgba(67,97,238,0.25); align-items:center; justify-content:space-between; gap:12px; cursor:pointer; transition:all 0.2s ease;">
+        <div style="display:flex; align-items:center; gap:10px; flex:1;">
+            <div style="width:20px; height:20px; border:2px solid white; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></div>
+            <div style="display:flex; flex-direction:column; gap:2px;">
+                <div style="font-size:12px; font-weight:700; color:white;">Processing order</div>
+                <div id="processingBannerText" style="font-size:13px; color:#e8f0ff;">Order placed</div>
+            </div>
+        </div>
+        <div style="font-size:12px; font-weight:700; color:white; white-space:nowrap;">Tap to restore</div>
     </div>
 
     <!-- Bottom Navigation -->
