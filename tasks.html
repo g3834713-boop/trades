@@ -1084,12 +1084,33 @@
                 modalTitle.textContent = 'Order Pending';
             }
             if (processingBannerText) {
-                processingBannerText.textContent = `Step ${processingState.currentStep + 1}/${processingState.totalSteps}`;
+                const stepNum = processingState.currentStep + 1;
+                const stepDesc = orderStepDescriptions[processingState.currentStep] || '';
+                processingBannerText.textContent = `${stepNum}/15 ${stepDesc}`;
             }
             if (processingBanner) {
                 processingBanner.style.display = 'flex';
             }
         }
+
+        // Step descriptions for order processing
+        const orderStepDescriptions = [
+            "Order placed",
+            "Processing payment",
+            "Verifying order",
+            "Funding account",
+            "Setting up trade",
+            "Confirming trade",
+            "Executing trade",
+            "Settlement phase",
+            "Calculating returns",
+            "Processing earnings",
+            "Updating account",
+            "Finalizing transaction",
+            "Crediting wallet",
+            "Completing process",
+            "Reward ready"
+        ];
 
         async function pollOrderStatus(orderId, taskTitle, totalReturn, task, isProduct) {
             // Stop any existing polling

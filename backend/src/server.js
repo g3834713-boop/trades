@@ -1990,6 +1990,19 @@ async function advanceOrderProcessing(orderId, userId) {
           [userId, 'order_reward', totalReturn, `Order completed - ${taskOrProduct} reward`]
         );
 
+        // Mark task/product assignment as completed
+        if (order.task_id) {
+          await query(
+            `update task_assignments set status = 'completed', completed_at = now() where task_id = $1 and user_id = $2`,
+            [order.task_id, userId]
+          );
+        } else if (order.product_id) {
+          await query(
+            `update product_assignments set status = 'completed', completed_at = now() where product_id = $1 and user_id = $2`,
+            [order.product_id, userId]
+          );
+        }
+
         // Mark order as completed
         await query(
           `update order_processing set status = 'completed', completed_at = now() where id = $1`,
