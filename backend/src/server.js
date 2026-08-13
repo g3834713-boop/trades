@@ -41,6 +41,19 @@ async function deleteBeginnerTaskRowsByIds(taskIds) {
   return rowCount;
 }
 
+// Checks that a submitted product URL genuinely appears to be for the named product,
+// by comparing significant words in the product name against words found in the URL
+// (Amazon URLs embed a readable product-name slug in the path, e.g.
+// amazon.com/Wireless-Bluetooth-Headphones-Over-Ear/dp/B0XXXXX).
+function urlMatchesProductName(url, productName) {
+  const normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(' ').filter(Boolean);
+  const urlWords = new Set(normalize(url));
+  const nameWords = normalize(productName).filter(w => w.length > 2);
+  if (nameWords.length === 0) return true;
+  const matched = nameWords.filter(w => urlWords.has(w));
+  return matched.length >= Math.max(1, Math.ceil(nameWords.length * 0.6));
+}
+
 const EASY_EARN_CATEGORIES = {
   VIDEO: 'video',
   QUIZ: 'quiz',
@@ -774,6 +787,41 @@ app.get('/schedule/today', async (req, res) => {
   } catch (err) {
     console.error('Get today schedule error:', err);
     res.status(500).json({ error: 'Failed to load today\'s schedule' });
+  }
+});
+
+// Bot-facing: active beginner-task product names to announce for a 'beginner' slot.
+// Each row's title IS the product name the user must find and paste the real link for -
+// /beginner-tasks/:id/submit checks the submitted URL actually matches it.
+app.get('/schedule/beginner-tasks', requireSchedulerKey, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `select id, title, description, amount from beginner_tasks where status = 'active' order by created_at asc`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Bot get beginner tasks error:', err);
+    res.status(500).json({ error: 'Failed to load beginner tasks' });
+  }
+});
+
+// Bot-facing: live product pricing for the Teller package tier table, computed fresh
+// from real product data each time so it never drifts from what teller tasks actually pay.
+app.get('/schedule/teller-products', requireSchedulerKey, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `select id, name, price, commission from products where status = 'active' order by price asc`
+    );
+    const tiers = rows.map(p => {
+      const price = parseFloat(p.price) || 0;
+      const commission = parseFloat(p.commission) || 0;
+      const profit = Math.round((price * commission / 100) * 100) / 100;
+      return { id: p.id, name: p.name, amount: price, commissionPercent: commission, profit, totalReturn: Math.round((price + profit) * 100) / 100 };
+    });
+    res.json(tiers);
+  } catch (err) {
+    console.error('Bot get teller products error:', err);
+    res.status(500).json({ error: 'Failed to load teller products' });
   }
 });
 
@@ -2120,7 +2168,13 @@ app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
     if (task.status !== 'active') {
       return res.status(400).json({ error: 'This task is not currently active' });
     }
-    
+
+    if (!urlMatchesProductName(url, task.title)) {
+      return res.status(400).json({
+        error: `That link doesn't look like it's for "${task.title}". Make sure you're pasting the actual product page link.`
+      });
+    }
+
     // Check last submission time (30-minute cooldown)
     const { rows: lastSubmission } = await query(
       `select submitted_at from beginner_task_submissions
