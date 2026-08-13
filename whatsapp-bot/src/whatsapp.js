@@ -1,8 +1,12 @@
-import baileysPkg from '@whiskeysockets/baileys';
+import { makeWASocket, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import qrcodeTerminal from 'qrcode-terminal';
+import QRCode from 'qrcode';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { useDbAuthState } from './dbAuthState.js';
 
-const { default: makeWASocket, DisconnectReason, fetchLatestBaileysVersion } = baileysPkg;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const QR_IMAGE_PATH = path.join(__dirname, '..', 'qr.png');
 
 // Connects (or reconnects) to WhatsApp using the Postgres-backed session. Calls
 // onReady(sock) once fully connected. Automatically reconnects on drops, except
@@ -27,6 +31,12 @@ export async function connectWhatsApp({ onReady }) {
     if (qr) {
       console.log('\nScan this QR code with WhatsApp -> Linked Devices -> Link a Device:\n');
       qrcodeTerminal.generate(qr, { small: true });
+      try {
+        await QRCode.toFile(QR_IMAGE_PATH, qr, { width: 400 });
+        console.log(`QR code also saved as an image: ${QR_IMAGE_PATH}`);
+      } catch (err) {
+        console.error('Failed to write QR image file:', err.message);
+      }
     }
 
     if (connection === 'close') {

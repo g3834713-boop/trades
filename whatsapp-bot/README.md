@@ -24,8 +24,11 @@ allowed.
    - `SITE_API_URL` - the backend's URL.
    - `SCHEDULER_API_KEY` - must match the backend's own `SCHEDULER_API_KEY` env var exactly.
    - Leave `WHATSAPP_TARGET_JID` blank for now.
-3. `npm start`. A QR code prints in the terminal - open WhatsApp on the phone that
-   should run this bot, go to **Settings -> Linked Devices -> Link a Device**, and scan it.
+3. `npm start`. A QR code prints in the terminal, and is also saved as `qr.png` in this
+   folder (easier to actually scan than terminal ASCII art in most setups) - open
+   WhatsApp on the phone that should run this bot, go to **Settings -> Linked Devices ->
+   Link a Device**, and scan it. It expires after ~30-60s; the bot regenerates a fresh
+   one automatically if you miss it.
 4. Once connected, stop the bot (Ctrl+C) and get the JID to post to - pick **one**:
 
    **Posting to a Channel** (one-way broadcast, anyone can follow, they can't reply -
@@ -40,6 +43,10 @@ allowed.
    **Posting to a Group** (two-way, members can reply):
    - Add the bot's WhatsApp account to the group, then `npm run list-groups` to print
      every group it's in with its JID.
+
+   Either way, set `WHATSAPP_TARGET_JID` in `.env` to that JID, then run
+   `npm run test-send` to send one real message and confirm delivery before trusting it
+   for the actual schedule.
 
    Either way, copy the JID into `WHATSAPP_TARGET_JID` in `.env` - `sendMessage` works
    the same way for both, nothing else about the bot changes based on which you pick.

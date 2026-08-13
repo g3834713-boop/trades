@@ -1,7 +1,5 @@
-import baileysPkg from '@whiskeysockets/baileys';
+import { initAuthCreds, BufferJSON, proto } from '@whiskeysockets/baileys';
 import { query, ensureBotSchema } from './db.js';
-
-const { initAuthCreds, BufferJSON, proto } = baileysPkg;
 
 // Baileys' own useMultiFileAuthState, but backed by Postgres instead of local disk.
 // Local disk on most free PaaS hosting (Render included) is ephemeral - it's wiped on
