@@ -85,10 +85,12 @@ async function main() {
     console.warn('WHATSAPP_TARGET_JID is not set yet - connect once, then run `npm run list-groups` to find it.');
   }
 
-  startHealthServer();
+  const botState = { sock: null };
+  startHealthServer(undefined, botState);
 
   await connectWhatsApp({
     onReady: (sock) => {
+      botState.sock = sock;
       if (TARGET_JID) {
         scheduleDay(sock);
         scheduleNextDayKickoff(sock);
