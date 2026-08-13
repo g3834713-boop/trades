@@ -1,7 +1,7 @@
 # DailyTrade WhatsApp Task Bot
 
-Posts a randomized daily schedule of task announcements to a WhatsApp group, 8am-6pm,
-alternating between two task types:
+Posts a randomized daily schedule of task announcements to a WhatsApp group **or**
+Channel, 8am-6pm, alternating between two task types:
 
 - **Beginner / product-link task** (30 min) - announces a specific product name (pulled
   from the site's active Beginner Tasks). Users find and paste that product's real
@@ -26,9 +26,23 @@ allowed.
    - Leave `WHATSAPP_TARGET_JID` blank for now.
 3. `npm start`. A QR code prints in the terminal - open WhatsApp on the phone that
    should run this bot, go to **Settings -> Linked Devices -> Link a Device**, and scan it.
-4. Once connected, stop the bot (Ctrl+C), add the bot's WhatsApp account to the group
-   you want it to post in, then run `npm run list-groups` to print every group it's in
-   with its JID. Copy the right one into `WHATSAPP_TARGET_JID` in `.env`.
+4. Once connected, stop the bot (Ctrl+C) and get the JID to post to - pick **one**:
+
+   **Posting to a Channel** (one-way broadcast, anyone can follow, they can't reply -
+   this is what "post to a WhatsApp channel" means):
+   - New channel: `node create-channel.js "Channel Name" "Description"` - creates it
+     and prints its JID directly.
+   - Already have a channel: open its info screen in WhatsApp, copy its invite link
+     (`https://whatsapp.com/channel/XXXXXXXXXXXXXXXXX`), then
+     `node resolve-channel.js <that link>` - this bot's account must already be
+     following/admin of it first. Prints the JID.
+
+   **Posting to a Group** (two-way, members can reply):
+   - Add the bot's WhatsApp account to the group, then `npm run list-groups` to print
+     every group it's in with its JID.
+
+   Either way, copy the JID into `WHATSAPP_TARGET_JID` in `.env` - `sendMessage` works
+   the same way for both, nothing else about the bot changes based on which you pick.
 5. `npm start` again. It'll generate and schedule the rest of today's slots
    immediately, and regenerate a fresh schedule every day at 8am from then on.
 

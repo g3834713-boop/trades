@@ -6,7 +6,9 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "list-groups": "node list-groups.js"
+    "list-groups": "node list-groups.js",
+    "create-channel": "node create-channel.js",
+    "resolve-channel": "node resolve-channel.js"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.9",
