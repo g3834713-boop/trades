@@ -7,8 +7,8 @@ const CONFIG = {
   // unsigned upload preset under Settings -> Upload). Photo Survey uploads directly to
   // Cloudinary from the browser, so only the (public, non-secret) cloud name and preset
   // name are needed here - never put the Cloudinary API secret in frontend code.
-  CLOUDINARY_CLOUD_NAME: '',
-  CLOUDINARY_UPLOAD_PRESET: ''
+  CLOUDINARY_CLOUD_NAME: 'dqpy0ddog',
+  CLOUDINARY_UPLOAD_PRESET: 'trades'
 };
 
 const DEFAULT_SETTINGS = {
