@@ -7,17 +7,17 @@ Use `VERCEL_DEPLOY.md` for the current deployment steps.
 Current stack:
 
 - Frontend: Vercel
-- Backend: Railway
+- Backend: Render
 - Auth/database: Supabase
 
 Current backend API:
 
 ```text
-https://trades-production-de19.up.railway.app
+https://dailytrade-backend.onrender.com
 ```
 
 Health check:
 
 ```text
-https://trades-production-de19.up.railway.app/health
+https://dailytrade-backend.onrender.com/health
 ```

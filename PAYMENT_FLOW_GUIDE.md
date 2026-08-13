@@ -3,7 +3,7 @@
 ## Stack
 
 - Frontend: Vercel
-- Backend API: Railway (`https://trades-production-de19.up.railway.app`)
+- Backend API: Render (`https://dailytrade-backend.onrender.com`)
 - Auth/database: Supabase
 
 ## User Recharge Flow
@@ -12,7 +12,7 @@
 2. User clicks **Recharge** on `home.html` or `mine.html`.
 3. Frontend validates amount, method, and phone number.
 4. Frontend calls `window.API.createPayment(...)`.
-5. Railway creates a payment request in Supabase Postgres.
+5. Render creates a payment request in Supabase Postgres.
 6. User sees the assigned payment number.
 7. User makes the manual transfer.
 8. User submits the transaction ID.
@@ -26,14 +26,14 @@
 2. Admin opens payment requests in `admin.html`.
 3. Admin checks the submitted transaction ID.
 4. Admin clicks complete after verifying payment.
-5. Railway updates payment status, deposits, transactions, and wallet balance.
+5. Render updates payment status, deposits, transactions, and wallet balance.
 
 ## Withdrawal Flow
 
 1. User opens withdraw modal from `home.html` or `mine.html`.
 2. Frontend checks amount and current wallet balance.
 3. User submits withdrawal request.
-4. Railway stores the request in Supabase Postgres.
+4. Render stores the request in Supabase Postgres.
 5. Admin reviews/processes the withdrawal from the admin panel.
 
 ## Backend Endpoints
@@ -52,7 +52,7 @@
 ## Testing Checklist
 
 - [ ] User can register/login from Vercel.
-- [ ] Wallet balance loads from Railway.
+- [ ] Wallet balance loads from Render.
 - [ ] Recharge works on `home.html`.
 - [ ] Recharge works on `mine.html`.
 - [ ] Payment number displays after request.
@@ -64,8 +64,8 @@
 
 ## Deployment Status
 
-- Backend: live on Railway at `https://trades-production-de19.up.railway.app`
-- Health check: `https://trades-production-de19.up.railway.app/health`
+- Backend: live on Render at `https://dailytrade-backend.onrender.com`
+- Health check: `https://dailytrade-backend.onrender.com/health`
 - Database: Supabase Postgres
 - Frontend: Vercel
 

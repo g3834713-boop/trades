@@ -2,23 +2,23 @@
 
 ## Overview
 
-DailyTrade uses Supabase Auth in the browser, a Railway-hosted Express API, and Supabase Postgres for persistent app data.
+DailyTrade uses Supabase Auth in the browser, a Render-hosted Express API, and Supabase Postgres for persistent app data.
 
 ## Architecture
 
 ```text
 Browser on Vercel
   -> Supabase Auth for login/register
-  -> Railway API with Bearer JWT
-  -> Supabase Postgres through Railway backend
+  -> Render API with Bearer JWT
+  -> Supabase Postgres through Render backend
 ```
 
 ## Current URLs
 
 | Component | URL |
 | --- | --- |
-| Backend API | `https://trades-production-de19.up.railway.app` |
-| Backend health | `https://trades-production-de19.up.railway.app/health` |
+| Backend API | `https://dailytrade-backend.onrender.com` |
+| Backend health | `https://dailytrade-backend.onrender.com/health` |
 | Supabase project | `https://rogddhzsdfgvajyepnqp.supabase.co` |
 | Frontend | Your Vercel production URL |
 
@@ -36,7 +36,7 @@ Browser on Vercel
 - `backend/src/middleware/auth.js` verifies Supabase JWTs and admin email access.
 - `backend/schema.sql` contains the base tables to run in Supabase SQL Editor.
 
-## Required Railway Environment Variables
+## Required Render Environment Variables
 
 ```text
 DATABASE_URL=postgresql://...supabase-pooler-or-session-url...
@@ -70,15 +70,15 @@ Run `backend/schema.sql` once if the core tables do not exist.
 
 1. User registers or logs in with Supabase Auth.
 2. Frontend receives a Supabase session token.
-3. Frontend calls Railway with `Authorization: Bearer <token>`.
-4. Railway verifies the token with Supabase.
-5. Railway reads/writes Supabase Postgres.
+3. Frontend calls Render with `Authorization: Bearer <token>`.
+4. Render verifies the token with Supabase.
+5. Render reads/writes Supabase Postgres.
 
 ## Important Runtime Notes
 
-- Open frontend pages from Vercel, not Railway.
-- Railway route `/health` is the backend readiness check.
-- Railway `GET /register.html 404` means someone opened a frontend page on the backend service; it is not a backend failure.
+- Open frontend pages from Vercel, not Render.
+- Render route `/health` is the backend readiness check.
+- Render `GET /register.html 404` means someone opened a frontend page on the backend service; it is not a backend failure.
 - Use `VERCEL_DEPLOY.md` for current deployment steps.
 
-Last updated: July 10, 2026.
+Last updated: August 12, 2026.

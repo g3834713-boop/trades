@@ -18,19 +18,19 @@
 <body>
     <h1>DailyTrade Deployment Status</h1>
 
-    <p class="success">Backend API is live at: <code>https://trades-production-de19.up.railway.app</code></p>
+    <p class="success">Backend API is live at: <code>https://dailytrade-backend.onrender.com</code></p>
 
     <h2>Current Stack</h2>
     <ul>
         <li>Frontend: Vercel</li>
-        <li>Backend API: Railway</li>
+        <li>Backend API: Render</li>
         <li>Authentication: Supabase Auth</li>
         <li>Database: Supabase Postgres</li>
     </ul>
 
     <h2>Backend Check</h2>
-    <p>Open this URL to verify Railway:</p>
-    <pre>https://trades-production-de19.up.railway.app/health</pre>
+    <p>Open this URL to verify Render:</p>
+    <pre>https://dailytrade-backend.onrender.com/health</pre>
     <p>Expected response:</p>
     <pre>{"ok":true}</pre>
 
@@ -54,7 +54,7 @@
 Redirect URLs: https://your-vercel-domain.vercel.app/**</pre>
 
     <h2>Important Note</h2>
-    <p class="warning">Do not open pages like <code>/register.html</code> on Railway. Railway only serves the API, so those requests correctly return 404. Open frontend pages on Vercel.</p>
+    <p class="warning">Do not open pages like <code>/register.html</code> on Render. Render only serves the API, so those requests correctly return 404. Open frontend pages on Vercel.</p>
 
     <h2>Docs</h2>
     <ul>

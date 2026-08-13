@@ -3,15 +3,15 @@
 DailyTrade is deployed as three separate pieces:
 
 - **Vercel** hosts the static frontend pages.
-- **Railway** hosts the Node/Express backend API.
+- **Render** hosts the Node/Express backend API.
 - **Supabase** hosts authentication and PostgreSQL.
 
 ## Current Production URLs
 
 | Service | URL |
 | --- | --- |
-| Backend API | `https://trades-production-de19.up.railway.app` |
-| Backend health check | `https://trades-production-de19.up.railway.app/health` |
+| Backend API | `https://dailytrade-backend.onrender.com` |
+| Backend health check | `https://dailytrade-backend.onrender.com/health` |
 | Supabase project | `https://rogddhzsdfgvajyepnqp.supabase.co` |
 | GitHub repo | `https://github.com/g3834713-boop/trades` |
 | Frontend | Your Vercel production URL |
@@ -39,15 +39,15 @@ In Supabase Dashboard:
 3. Add redirect URL: `https://your-vercel-domain.vercel.app/**`.
 4. Run `backend/schema.sql` once in the SQL Editor if the base tables are missing.
 
-## Configure Railway
+## Configure Render
 
-Railway should deploy only the backend:
+Render should deploy only the backend:
 
 - Root directory: `backend`
 - Start command: `npm start`
 - Health endpoint: `/health`
 
-Required Railway variables:
+Required Render variables:
 
 ```text
 DATABASE_URL=postgresql://...supabase-pooler-or-session-url...
@@ -72,9 +72,9 @@ Use the Supabase pooler/session connection string for `DATABASE_URL`, especially
 
 ## Troubleshooting
 
-- If Railway shows `GET /register.html 404`, that is expected. Frontend pages live on Vercel.
+- If Render shows `GET /register.html 404`, that is expected. Frontend pages live on Vercel.
 - If login/register fails, check Supabase Site URL and redirect URLs.
-- If frontend API calls fail, confirm `config.js` points to the Railway API URL.
-- If database calls timeout, confirm Railway uses the Supabase pooler/session connection string and `DB_POOL_MAX=3`.
+- If frontend API calls fail, confirm `config.js` points to the Render API URL.
+- If database calls timeout, confirm Render uses the Supabase pooler/session connection string and `DB_POOL_MAX=3`.
 
-Last updated: July 10, 2026.
+Last updated: August 12, 2026.

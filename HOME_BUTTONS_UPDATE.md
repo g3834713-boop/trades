@@ -14,20 +14,20 @@ The home page action buttons are wired into the production backend/API flow.
 ## Data Sources
 
 - Authentication comes from Supabase Auth.
-- Wallet data comes from the Railway backend.
+- Wallet data comes from the Render backend.
 - Payment and withdrawal records are stored in Supabase Postgres.
 - Frontend pages are deployed on Vercel.
 
 ## Current Backend
 
 ```text
-https://trades-production-de19.up.railway.app
+https://dailytrade-backend.onrender.com
 ```
 
 Health check:
 
 ```text
-https://trades-production-de19.up.railway.app/health
+https://dailytrade-backend.onrender.com/health
 ```
 
 ## Test Checklist

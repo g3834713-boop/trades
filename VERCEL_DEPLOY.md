@@ -5,13 +5,13 @@ Use this guide for the current production setup.
 ## Stack
 
 - **Vercel**: static frontend hosting
-- **Railway**: backend API
+- **Render**: backend API
 - **Supabase**: authentication and PostgreSQL
 
 ## Prerequisites
 
 - GitHub repo: `g3834713-boop/trades`
-- Backend live at `https://trades-production-de19.up.railway.app`
+- Backend live at `https://dailytrade-backend.onrender.com`
 - Supabase project live at `https://rogddhzsdfgvajyepnqp.supabase.co`
 - Frontend config in `config.js`
 
@@ -31,11 +31,11 @@ Leave build and install commands blank because this is a static HTML/CSS/JS fron
 
 ## Frontend Configuration
 
-`config.js` must point at the live Railway backend:
+`config.js` must point at the live Render backend:
 
 ```javascript
 const CONFIG = {
-  API_URL: 'https://trades-production-de19.up.railway.app',
+  API_URL: 'https://dailytrade-backend.onrender.com',
   SUPABASE_URL: 'https://rogddhzsdfgvajyepnqp.supabase.co',
   SUPABASE_ANON_KEY: 'your anon key'
 };
@@ -58,9 +58,9 @@ Path in Supabase:
 Authentication -> URL Configuration
 ```
 
-## Railway Backend Settings
+## Render Backend Settings
 
-Railway should deploy from the backend folder:
+Render should deploy from the backend folder:
 
 ```text
 Root directory: backend
@@ -90,7 +90,7 @@ DB_SLOW_QUERY_MS=1500
 Check the backend:
 
 ```text
-https://trades-production-de19.up.railway.app/health
+https://dailytrade-backend.onrender.com/health
 ```
 
 Expected response:
@@ -109,7 +109,7 @@ Check the frontend:
 
 ## Common Issues
 
-- `GET /register.html 404` in Railway logs is normal. Those pages must be opened from Vercel.
-- `Failed to fetch` usually means `config.js` has the wrong `API_URL`, or the Railway deployment is asleep.
+- `GET /register.html 404` in Render logs is normal. Those pages must be opened from Vercel.
+- `Failed to fetch` usually means `config.js` has the wrong `API_URL`, or the Render deployment is asleep.
 - Login redirect issues usually mean Supabase Site URL/Redirect URLs still point to an old domain.
-- Database timeout logs usually mean Railway is using the wrong Supabase connection string or too many DB connections.
+- Database timeout logs usually mean Render is using the wrong Supabase connection string or too many DB connections.

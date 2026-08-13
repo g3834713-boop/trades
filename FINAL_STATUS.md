@@ -5,7 +5,7 @@
 DailyTrade is deployed and wired for the current production stack:
 
 - **Frontend**: Vercel
-- **Backend**: Railway
+- **Backend**: Render
 - **Auth/database**: Supabase
 - **Repository**: `https://github.com/g3834713-boop/trades`
 
@@ -13,8 +13,8 @@ DailyTrade is deployed and wired for the current production stack:
 
 | Service | Status | URL |
 | --- | --- | --- |
-| Railway backend | Live | `https://trades-production-de19.up.railway.app` |
-| Railway health | Passing | `https://trades-production-de19.up.railway.app/health` |
+| Render backend | Live | `https://dailytrade-backend.onrender.com` |
+| Render health | Passing | `https://dailytrade-backend.onrender.com/health` |
 | Supabase | Configured | `https://rogddhzsdfgvajyepnqp.supabase.co` |
 | Vercel frontend | Configured after Vercel import | Your Vercel production URL |
 
@@ -24,13 +24,13 @@ Frontend config is stored in `config.js`:
 
 ```javascript
 const CONFIG = {
-  API_URL: 'https://trades-production-de19.up.railway.app',
+  API_URL: 'https://dailytrade-backend.onrender.com',
   SUPABASE_URL: 'https://rogddhzsdfgvajyepnqp.supabase.co',
   SUPABASE_ANON_KEY: '...'
 };
 ```
 
-Railway backend variables:
+Render backend variables:
 
 ```text
 DATABASE_URL=postgresql://...supabase-pooler-or-session-url...
@@ -43,16 +43,16 @@ DB_POOL_MAX=3
 ## Completed
 
 - Supabase Auth integrated for registration/login.
-- Railway backend deployed and responding on `/health`.
+- Render backend deployed and responding on `/health`.
 - PostgreSQL schema documented in `backend/schema.sql`.
-- Frontend API URL updated to the live Railway service.
+- Frontend API URL updated to the live Render service.
 - Database pool pressure limited in `backend/src/db.js`.
 - Vercel deployment guide added in `VERCEL_DEPLOY.md`.
 
 ## Validation Checklist
 
 - [x] Backend health check returns `{"ok":true}`.
-- [x] `config.js` points to the current Railway URL.
+- [x] `config.js` points to the current Render URL.
 - [x] Latest changes pushed to `main`.
 - [ ] Vercel project imported from GitHub.
 - [ ] Supabase Site URL updated to the Vercel URL.
@@ -61,8 +61,8 @@ DB_POOL_MAX=3
 
 ## Notes
 
-- Railway logs showing `GET /register.html 404` are expected. Frontend pages are served by Vercel, not Railway.
+- Render logs showing `GET /register.html 404` are expected. Frontend pages are served by Vercel, not Render.
 - If Supabase auth redirects fail, update **Authentication -> URL Configuration** in Supabase.
-- If database connection timeouts return, verify Railway uses the Supabase pooler/session connection string.
+- If database connection timeouts return, verify Render uses the Supabase pooler/session connection string.
 
-Last updated: July 10, 2026.
+Last updated: August 12, 2026.
