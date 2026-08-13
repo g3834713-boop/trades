@@ -815,50 +815,37 @@
             progress: 0
         };
 
-        // Initialize page
+        // Initialize page - everything fires in parallel immediately, each section
+        // renders itself the moment its own data arrives instead of waiting in waves.
         async function initializePage() {
-            try {
-                // PRIORITY 1: Load and show balance immediately (users care most about this)
-                await updateBalance();
-                updateAward();
-                document.querySelector('.balance-section').classList.add('loaded');
-                document.querySelector('.award-section').classList.add('loaded');
-                document.querySelector('.filter-buttons').classList.add('loaded');
-                
-                // PRIORITY 2: Load tasks and beginner tasks in PARALLEL (not sequential)
-                const [tasksLoaded, beginnerLoaded, catalogLoaded] = await Promise.allSettled([
-                    loadUserTasks(),
-                    loadBeginnerTasks(),
-                    loadCatalog()
-                ]);
-                
-                // Display tasks once loaded
-                displayTasks('pending');
-                document.querySelector('.task-list').classList.add('loaded');
-                
-                const beginnerSection = document.getElementById('beginnerTasksSection');
-                if (beginnerSection && beginnerSection.innerHTML.trim()) {
-                    beginnerSection.classList.add('loaded');
-                }
-                
-                // Hide loading spinner
-                const pageLoading = document.getElementById('pageLoading');
-                if (pageLoading) {
-                    pageLoading.style.display = 'none';
-                }
-                
-                // Check for pending orders in background (non-blocking)
-                resumePendingOrders().catch(err => {
-                    console.error('Error resuming pending orders:', err);
-                });
-            } catch (error) {
-                console.error('Error initializing page:', error);
-                // Hide loading spinner even on error
-                const pageLoading = document.getElementById('pageLoading');
-                if (pageLoading) {
-                    pageLoading.style.display = 'none';
-                }
+            // The page shell (tabs, filter buttons, section titles) is already visible -
+            // don't gate it behind a spinner. Drop the spinner immediately.
+            const pageLoading = document.getElementById('pageLoading');
+            if (pageLoading) pageLoading.style.display = 'none';
+            document.querySelector('.filter-buttons').classList.add('loaded');
+
+            const balanceReady = updateBalance();
+            const tasksReady = loadUserTasks();
+            const beginnerReady = loadBeginnerTasks();
+            const catalogReady = loadCatalog();
+
+            await Promise.allSettled([balanceReady, tasksReady, beginnerReady, catalogReady]);
+
+            refreshTaskStats();
+            updateAward();
+            document.querySelector('.award-section').classList.add('loaded');
+            displayTasks('pending');
+            document.querySelector('.task-list').classList.add('loaded');
+
+            const beginnerSection = document.getElementById('beginnerTasksSection');
+            if (beginnerSection && beginnerSection.innerHTML.trim()) {
+                beginnerSection.classList.add('loaded');
             }
+
+            // Check for pending orders in background (non-blocking)
+            resumePendingOrders().catch(err => {
+                console.error('Error resuming pending orders:', err);
+            });
         }
 
         async function resumePendingOrders() {
@@ -1395,10 +1382,17 @@
 
         async function updateBalance() {
             try {
-                // Get wallet data from backend
-                const wallet = await window.API.getWallet();
+                // Wallet and check-in status are independent - fetch both at once instead of
+                // one after the other.
+                const [walletResult, checkinResult] = await Promise.allSettled([
+                    window.API.getWallet(),
+                    window.API.getDailyCheckin()
+                ]);
+                const wallet = walletResult.status === 'fulfilled' ? walletResult.value : { balance: 0, bonus: 0 };
+                const checkin = checkinResult.status === 'fulfilled' ? checkinResult.value : { checkedIn: false, amount: 0 };
 
-                // Count tasks
+                // Count tasks (tasksData may still be loading in parallel - refreshTaskStats()
+                // fills these in for real once loadUserTasks() resolves)
                 const totalTasks = Object.values(tasksData).flat().length;
                 const completedTasks = (tasksData.completed || []).length;
                 const totalEarnings = (tasksData.completed || []).reduce((sum, t) => sum + t.amount, 0);
@@ -1417,11 +1411,11 @@
                         </div>
                         <div class="balance-item">
                             <div class="balance-item-label">Quantity of Tasks</div>
-                            <div class="balance-item-value">${completedTasks}/${totalTasks}</div>
+                            <div class="balance-item-value" id="taskCountValue">${completedTasks}/${totalTasks}</div>
                         </div>
                         <div class="balance-item">
                             <div class="balance-item-label">Return Commission (GHC)</div>
-                            <div class="balance-item-value">${totalEarnings.toFixed(2)}</div>
+                            <div class="balance-item-value" id="commissionValue">${totalEarnings.toFixed(2)}</div>
                         </div>
                         <div class="balance-item balance-highlight">
                             <div class="balance-item-label">My Balance</div>
@@ -1431,33 +1425,42 @@
                 `;
 
                 // Add task ideas entry and daily check-in button/status below the balance
-                try {
-                    const balanceCard = document.querySelector('.balance-section');
-                    const ideasContainer = document.createElement('div');
-                    ideasContainer.style.marginTop = '12px';
-                    ideasContainer.innerHTML = `
-                        <button class="task-action-btn" onclick="window.location.href='task-ideas.html'" style="background: #2d9cdb; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                            <i class="las la-lightbulb"></i>
-                            Open Easy Earns
-                        </button>
-                    `;
-                    balanceCard.appendChild(ideasContainer);
+                const balanceCard = document.querySelector('.balance-section');
+                const ideasContainer = document.createElement('div');
+                ideasContainer.style.marginTop = '12px';
+                ideasContainer.innerHTML = `
+                    <button class="task-action-btn" onclick="window.location.href='task-ideas.html'" style="background: #2d9cdb; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="las la-lightbulb"></i>
+                        Open Easy Earns
+                    </button>
+                `;
+                balanceCard.appendChild(ideasContainer);
 
-                    const checkin = await window.API.getDailyCheckin().catch(() => ({ checkedIn: false, amount: 0 }));
-                    const btnContainer = document.createElement('div');
-                    btnContainer.style.marginTop = '12px';
-                    if (checkin && checkin.checkedIn) {
-                        btnContainer.innerHTML = `<button class="task-action-btn" disabled style="background: #6c757d;">Checked in today (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`;
-                    } else {
-                        btnContainer.innerHTML = `<button class="task-action-btn" onclick="doDailyCheckin(this)">Daily Check-in (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`;
-                    }
-                    balanceCard.appendChild(btnContainer);
-                } catch (err) {
-                    console.warn('Failed to load checkin status', err);
+                const btnContainer = document.createElement('div');
+                btnContainer.style.marginTop = '12px';
+                if (checkin && checkin.checkedIn) {
+                    btnContainer.innerHTML = `<button class="task-action-btn" disabled style="background: #6c757d;">Checked in today (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`;
+                } else {
+                    btnContainer.innerHTML = `<button class="task-action-btn" onclick="doDailyCheckin(this)">Daily Check-in (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`;
                 }
+                balanceCard.appendChild(btnContainer);
+
+                balanceCard.classList.add('loaded');
             } catch (error) {
                 console.error('Error updating balance:', error);
             }
+        }
+
+        // Called after tasks finish loading (in parallel with everything else) to fill in
+        // the task-count fields on the already-visible balance card, without re-fetching.
+        function refreshTaskStats() {
+            const totalTasks = Object.values(tasksData).flat().length;
+            const completedTasks = (tasksData.completed || []).length;
+            const totalEarnings = (tasksData.completed || []).reduce((sum, t) => sum + t.amount, 0);
+            const taskCountEl = document.getElementById('taskCountValue');
+            const commissionEl = document.getElementById('commissionValue');
+            if (taskCountEl) taskCountEl.textContent = `${completedTasks}/${totalTasks}`;
+            if (commissionEl) commissionEl.textContent = totalEarnings.toFixed(2);
         }
 
         async function doDailyCheckin(btn) {
@@ -1784,29 +1787,35 @@
         window.addEventListener('DOMContentLoaded', async function() {
             applyLanguage();
 
-            // === Instantly show cached balance so it never flashes blank ===
+            // Paint the balance card instantly from cache - real data replaces it a
+            // moment later once the network call resolves, so the page never looks empty.
             const cachedProfile = localStorage.getItem('cachedUserProfile');
             if (cachedProfile) {
                 try {
                     const cached = JSON.parse(cachedProfile);
-                    const balanceDisplay = document.getElementById('balanceDisplay');
-                    if (balanceDisplay) {
-                        balanceDisplay.textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
-                    }
+                    const balanceSection = document.querySelector('.balance-section');
+                    balanceSection.innerHTML = `
+                        <div class="balance-title">My Tasks</div>
+                        <div class="balance-grid">
+                            <div class="balance-item balance-highlight">
+                                <div class="balance-item-label">My Balance</div>
+                                <div class="balance-item-value">GHC ${parseFloat(cached.balance || 0).toFixed(2)}</div>
+                            </div>
+                        </div>
+                    `;
+                    balanceSection.classList.add('loaded');
                 } catch (e) {
                     console.warn('Failed to parse cached profile:', e);
                 }
             }
 
             try {
-                // Wait for AuthService to load (module might load async)
+                // Wait briefly for auth.js's module script to finish loading
                 let retries = 0;
-                while (typeof window.AuthService === 'undefined' && retries < 10) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                while (typeof window.AuthService === 'undefined' && retries < 20) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
                     retries++;
                 }
-                
-                // Check if user is authenticated
                 if (typeof window.AuthService === 'undefined') {
                     window.location.href = 'index.html';
                     return;
@@ -1814,6 +1823,7 @@
 
                 let session = await window.AuthService.getSession();
                 if (!session) {
+                    // Rare race right after a login redirect - give the session one moment to restore
                     await new Promise(resolve => setTimeout(resolve, 500));
                     session = await window.AuthService.getSession();
                 }
@@ -1822,47 +1832,15 @@
                     return;
                 }
 
-                // Sync user to backend (fire and forget)
+                // Fire and forget - doesn't block anything below it
                 window.API.call('/users/sync', { method: 'POST' }).catch(e => console.warn('User sync failed:', e));
-                
-                // Load user wallet with retry
-                let wallet = null;
-                let walletRetries = 0;
-                while (!wallet && walletRetries < 3) {
-                    try {
-                        wallet = await window.API.getWallet();
-                    } catch (walletError) {
-                        console.warn(`Wallet load attempt ${walletRetries + 1} failed:`, walletError);
-                        walletRetries++;
-                        if (walletRetries < 3) {
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                        }
-                    }
-                }
-                
-                const balanceDisplay = document.getElementById('balanceDisplay');
-                if (balanceDisplay) {
-                    balanceDisplay.textContent = wallet ? `GHC ${parseFloat(wallet.balance || 0).toFixed(2)}` : (cachedProfile ? balanceDisplay.textContent : 'GHC 0.00');
-                }
 
-                // Initialize tasks (non-blocking)
-                try {
-                    await initializePage();
-                } catch (taskError) {
-                    console.error('Error initializing tasks:', taskError);
-                }
+                // Wallet, tasks, beginner tasks, and catalog all load in parallel from here
+                await initializePage();
             } catch (error) {
                 console.error('Error loading tasks page:', error);
-                // Only redirect on authentication errors
                 if (error.message && (error.message.includes('No authentication token') || error.message.includes('Invalid token'))) {
                     window.location.href = 'index.html';
-                } else if (!cachedProfile) {
-                    // Stay on page with default values only if no cache
-                    const balanceDisplay = document.getElementById('balanceDisplay');
-                    if (balanceDisplay) {
-                        balanceDisplay.textContent = 'GHC 0.00';
-                    }
-                    console.error('Non-critical error, staying on page');
                 }
             }
         });
