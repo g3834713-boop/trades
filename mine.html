@@ -819,20 +819,18 @@
                 Get in touch with our support team for assistance.
             </div>
             <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="padding: 16px; background: var(--surface-alt); border-radius: 8px; border-left: 4px solid var(--brand);">
+                <div id="supportPhoneBlock" style="display: none; padding: 16px; background: var(--surface-alt); border-radius: 8px; border-left: 4px solid var(--brand);">
                     <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text-primary);"><i class="las la-phone" style="margin-right: 6px;"></i>Phone Support</div>
-                    <div style="font-size: 13px; color: var(--text-secondary);">+233 XXX XXX XXX</div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Mon-Fri: 9AM-6PM GMT</div>
+                    <a id="supportPhoneValue" href="#" style="font-size: 13px; color: var(--brand); text-decoration: none;"></a>
                 </div>
                 <div style="padding: 16px; background: var(--surface-alt); border-radius: 8px; border-left: 4px solid var(--brand);">
                     <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text-primary);"><i class="las la-envelope" style="margin-right: 6px;"></i>Email Support</div>
-                    <div style="font-size: 13px; color: var(--text-secondary);">support@dailytrade.com</div>
+                    <a id="supportEmailValue" href="#" style="font-size: 13px; color: var(--brand); text-decoration: none;"></a>
                     <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Response time: 24 hours</div>
                 </div>
-                <div style="padding: 16px; background: var(--surface-alt); border-radius: 8px; border-left: 4px solid var(--brand);">
-                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text-primary);"><i class="las la-comments" style="margin-right: 6px;"></i>Live Chat</div>
-                    <div style="font-size: 13px; color: var(--text-secondary);">Available on our website</div>
-                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Mon-Fri: 10AM-8PM GMT</div>
+                <div id="supportTelegramBlock" style="display: none; padding: 16px; background: var(--surface-alt); border-radius: 8px; border-left: 4px solid var(--brand);">
+                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text-primary);"><i class="las la-paper-plane" style="margin-right: 6px;"></i>Telegram Support</div>
+                    <a id="supportTelegramValue" href="#" target="_blank" rel="noopener" style="font-size: 13px; color: var(--brand); text-decoration: none;"></a>
                 </div>
             </div>
             <div class="modal-buttons">
@@ -1343,6 +1341,7 @@
                     break;
                 case 'support':
                     openActionModal('supportModal');
+                    loadSupportInfo();
                     break;
                 case 'about':
                     openActionModal('aboutModal');
@@ -1994,6 +1993,45 @@
                         <div style="font-size: 12px; margin-top: 8px; color: var(--text-muted);">Please try again later</div>
                     </div>
                 `;
+            }
+        }
+
+        // Customer Service - pulls real, admin-configured contact info from the server
+        // (not hardcoded placeholders), and hides any channel the admin hasn't set up.
+        async function loadSupportInfo() {
+            let settings;
+            try {
+                settings = await window.API.call('/settings');
+            } catch (err) {
+                console.warn('Failed to load support settings from server, falling back to local cache:', err);
+                settings = getAppSettings();
+            }
+            const support = settings.support || {};
+
+            const phoneBlock = document.getElementById('supportPhoneBlock');
+            const phoneValue = document.getElementById('supportPhoneValue');
+            if (support.supportPhone && support.supportPhone.trim()) {
+                phoneValue.textContent = support.supportPhone;
+                phoneValue.href = 'tel:' + support.supportPhone.replace(/[^+\d]/g, '');
+                phoneBlock.style.display = 'block';
+            } else {
+                phoneBlock.style.display = 'none';
+            }
+
+            const email = support.supportEmail || DEFAULT_SETTINGS.support.supportEmail;
+            const emailValue = document.getElementById('supportEmailValue');
+            emailValue.textContent = email;
+            emailValue.href = 'mailto:' + email;
+
+            const telegramBlock = document.getElementById('supportTelegramBlock');
+            const telegramValue = document.getElementById('supportTelegramValue');
+            const telegramHandle = support.generalSupportTelegram || support.financeTelegram || '';
+            if (telegramHandle && telegramHandle.trim()) {
+                telegramValue.textContent = telegramHandle;
+                telegramValue.href = 'https://t.me/' + telegramHandle.trim().replace(/^@/, '');
+                telegramBlock.style.display = 'block';
+            } else {
+                telegramBlock.style.display = 'none';
             }
         }
 

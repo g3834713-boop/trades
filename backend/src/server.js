@@ -157,7 +157,7 @@ async function getAllAppSettings() {
       cfoTelegram: '@DailyTrader',
       generalSupportTelegram: '@DailyTrader',
       supportEmail: 'support@dailytrade.com',
-      supportPhone: '+233 XXX XXX XXX',
+      supportPhone: '',
       supportLiveChat: 'Telegram: @DailyTrader'
     },
     dailyCheckinAmount: 5

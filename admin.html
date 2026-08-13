@@ -1000,6 +1000,10 @@
                         <input type="email" class="form-input" id="supportEmail" value="support@dailytrade.com">
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Support Phone</label>
+                        <input type="tel" class="form-input" id="supportPhone" placeholder="+233 XXX XXX XXX">
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">Daily Check-in Amount (GHC)</label>
                         <input type="number" class="form-input" id="dailyCheckinAmount" value="5" min="0" step="0.01">
                     </div>
@@ -3443,15 +3447,25 @@
             }
         }
 
-        function loadAdminSettings() {
-            const settings = getAppSettings();
+        // Loads real, server-authoritative settings (GET /settings) so the form shows
+        // what's actually live, not just whatever's cached in this browser's localStorage.
+        // Falls back to the local cache if the server call fails (e.g. not logged in yet).
+        async function loadAdminSettings() {
+            let settings;
+            try {
+                settings = await window.API.call('/settings');
+            } catch (err) {
+                console.warn('Failed to load settings from server, falling back to local cache:', err);
+                settings = getAppSettings();
+            }
             document.getElementById('commissionRate').value = settings.commissionRate;
             document.getElementById('minWithdrawal').value = settings.minWithdrawal;
             document.getElementById('platformName').value = settings.platformName;
-            document.getElementById('supportTelegram').value = settings.support.supportTelegram;
+            document.getElementById('supportTelegram').value = settings.support.financeTelegram;
             document.getElementById('financeManagerTelegram').value = settings.support.financeManagerTelegram;
             document.getElementById('cfoTelegram').value = settings.support.cfoTelegram;
             document.getElementById('supportEmail').value = settings.support.supportEmail;
+            document.getElementById('supportPhone').value = settings.support.supportPhone || '';
             document.getElementById('dailyCheckinAmount').value = settings.dailyCheckinAmount || DEFAULT_SETTINGS.dailyCheckinAmount;
         }
 
@@ -3459,40 +3473,38 @@
             const commissionRate = parseFloat(document.getElementById('commissionRate').value) || DEFAULT_SETTINGS.commissionRate;
             const minWithdrawal = parseFloat(document.getElementById('minWithdrawal').value) || DEFAULT_SETTINGS.minWithdrawal;
             const platformName = document.getElementById('platformName').value.trim() || DEFAULT_SETTINGS.platformName;
-            const supportTelegram = document.getElementById('supportTelegram').value.trim() || DEFAULT_SETTINGS.support.financeTelegram;
+            const financeTelegram = document.getElementById('supportTelegram').value.trim() || DEFAULT_SETTINGS.support.financeTelegram;
             const financeManagerTelegram = document.getElementById('financeManagerTelegram').value.trim() || DEFAULT_SETTINGS.support.financeManagerTelegram;
             const cfoTelegram = document.getElementById('cfoTelegram').value.trim() || DEFAULT_SETTINGS.support.cfoTelegram;
             const supportEmail = document.getElementById('supportEmail').value.trim() || DEFAULT_SETTINGS.support.supportEmail;
+            const supportPhone = document.getElementById('supportPhone').value.trim();
             const dailyCheckinAmount = parseFloat(document.getElementById('dailyCheckinAmount').value) || DEFAULT_SETTINGS.dailyCheckinAmount;
 
-            saveAppSettings({
-                commissionRate,
-                minWithdrawal,
-                platformName,
-                support: {
-                    supportTelegram,
-                    financeManagerTelegram,
-                    cfoTelegram,
-                    supportEmail
-                }
-                ,
-                dailyCheckinAmount
-            });
-            // Try to persist to server-side settings as well
+            const support = {
+                financeTelegram,
+                financeManagerTelegram,
+                cfoTelegram,
+                supportEmail,
+                supportPhone
+            };
+
+            saveAppSettings({ commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount });
+
+            // Persist to the real server-side settings - this is what every page (Customer
+            // Service, home.html's support notices, etc.) actually reads from, not the
+            // local cache above.
             (async () => {
                 try {
                     await window.API.call('/admin/settings', {
                         method: 'POST',
-                        body: JSON.stringify({ dailyCheckinAmount })
+                        body: JSON.stringify({ commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount })
                     });
-                    // Save local copy and reload values
-                    loadAdminSettings();
+                    await loadAdminSettings();
                     alert('Settings saved and persisted to server.');
                 } catch (err) {
-                    // Fallback to local save only
                     console.warn('Failed to persist settings to server:', err);
-                    loadAdminSettings();
-                    alert('Settings saved locally but failed to persist to server.');
+                    await loadAdminSettings();
+                    alert('Settings saved locally but failed to persist to server: ' + (err.message || 'Unknown error'));
                 }
             })();
         }
