@@ -42,20 +42,22 @@ async function handleTestSend(req, res, state) {
     return;
   }
 
-  const type = new URL(req.url, 'http://internal').searchParams.get('type') || 'ok';
+  const params = new URL(req.url, 'http://internal').searchParams;
+  const type = params.get('type') || 'ok';
+  const taskNumber = parseInt(params.get('number'), 10) || 1;
   try {
     let card, caption;
     if (type === 'teller') {
       const tellerProducts = await getTellerProducts();
-      card = renderTellerPackageCard('T', tellerProducts);
-      caption = formatTellerTaskMessage('T', tellerProducts);
+      card = renderTellerPackageCard(taskNumber, tellerProducts);
+      caption = formatTellerTaskMessage(taskNumber, tellerProducts);
     } else if (type === 'beginner') {
       const products = await getBeginnerTaskProducts();
       const product = products[0] || { title: 'Sample Product' };
-      card = renderTaskNumberCard('B', 'Product Link Task');
-      caption = formatBeginnerTaskMessage('B', product);
+      card = renderTaskNumberCard(taskNumber, 'Product Link Task');
+      caption = formatBeginnerTaskMessage(taskNumber, product);
     } else {
-      card = renderTaskNumberCard('OK', 'Connection Test');
+      card = renderTaskNumberCard(taskNumber, 'Connection Test');
       caption = '*DailyTrade Bot* debug test send - real announcements post at the next scheduled slot.';
     }
     const result = await state.sock.sendMessage(TARGET_JID, { image: card, caption });
