@@ -4,12 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DailyTrade - Home</title>
+    <script src="theme.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script type="module" src="auth.js"></script>
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
+        :root {
+            --bg: #f5f5f5;
+            --surface: #ffffff;
+            --surface-alt: #f9f9f9;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --text-faint: #888888;
+            --border: #e0e0e0;
+            --border-light: #dddddd;
+            --divider: #f0f0f0;
+            --brand: #4361ee;
+            --brand-hover: #3451d4;
+            --brand-soft: #f0f4ff;
+            --shadow: rgba(0, 0, 0, 0.05);
+            --shadow-strong: rgba(0, 0, 0, 0.1);
+            --notify-red: #e74c3c;
+            --notify-red-hover: #c0392b;
+            --notify-red-soft: #fef5f5;
+            --gold: #ffc107;
+            --pending-bg: #fff3cd; --pending-text: #856404;
+            --success-soft-bg: #f0f8f5; --success-text: #27ae60;
+            --bonus-bg: #f39c12;
+            --available-bg: #e8f5e9;
+            --success-info-bg: #d4edda; --success-info-border: #c3e6cb; --success-info-text: #155724;
+            --warning-info-bg: #fff3cd; --warning-info-border: #ffeaa7; --warning-info-text: #856404;
+            --restriction-bg: #fff7ed; --restriction-border: #fdba74; --restriction-text: #9a2c00;
+            --amber-text: #f39c12;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f1115;
+            --surface: #1a1d24;
+            --surface-alt: #20242c;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --text-faint: #6b7280;
+            --border: #2d3139;
+            --border-light: #2d3139;
+            --divider: #20242c;
+            --brand: #6b83ff;
+            --brand-hover: #8299ff;
+            --brand-soft: #232a4a;
+            --shadow: rgba(0, 0, 0, 0.3);
+            --shadow-strong: rgba(0, 0, 0, 0.45);
+            --notify-red: #ef5350;
+            --notify-red-hover: #d32f2f;
+            --notify-red-soft: #2a1616;
+            --gold: #ffc107;
+            --pending-bg: #3a2c0f; --pending-text: #fbbf24;
+            --success-soft-bg: #10261c; --success-text: #4ade80;
+            --bonus-bg: #b8720d;
+            --available-bg: #10261c;
+            --success-info-bg: #10261c; --success-info-border: #1f4a2b; --success-info-text: #4ade80;
+            --warning-info-bg: #3a2c0f; --warning-info-border: #5c4712; --warning-info-text: #fbbf24;
+            --restriction-bg: #3a2c0f; --restriction-border: #92610f; --restriction-text: #fbbf24;
+            --amber-text: #fbbf24;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -23,19 +84,21 @@
 
         body {
             font-family: 'Roboto', sans-serif;
-            background: #f5f5f5;
+            background: var(--bg);
+            color: var(--text-primary);
             padding-bottom: 80px;
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
 
         /* Header */
         .header {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
             padding: 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px var(--shadow-strong);
         }
 
         .header-left {
@@ -90,7 +153,7 @@
             right: -4px;
             width: 10px;
             height: 10px;
-            background: #e74c3c;
+            background: var(--notify-red);
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
@@ -118,21 +181,21 @@
         }
 
         .notifications-modal-content {
-            background: white;
+            background: var(--surface);
             margin: 20px auto;
             border-radius: 12px;
             width: 90%;
             max-width: 600px;
             max-height: 80vh;
             overflow-y: auto;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 40px var(--shadow-strong);
         }
 
         .notifications-modal-header {
             position: sticky;
             top: 0;
             padding: 16px;
-            background: #e74c3c;
+            background: var(--notify-red);
             color: white;
             display: flex;
             align-items: center;
@@ -183,8 +246,8 @@
 
         /* Notice Bar */
         .notice-bar {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
+            background: var(--pending-bg);
+            border-left: 4px solid var(--gold);
             padding: 12px 16px;
             display: flex;
             align-items: center;
@@ -192,17 +255,17 @@
             margin: 12px;
             border-radius: 8px;
             font-size: 13px;
-            color: #856404;
+            color: var(--pending-text);
         }
 
         .notice-bar i {
             font-size: 18px;
-            color: #ffc107;
+            color: var(--gold);
         }
 
         /* Commission Section */
         .commission-card {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
             margin: 12px;
             padding: 24px;
@@ -231,32 +294,32 @@
         }
 
         .action-btn {
-            background: white;
-            border: 1px solid #e0e0e0;
+            background: var(--surface);
+            border: 1px solid var(--border);
             padding: 20px;
             border-radius: 12px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px var(--shadow);
         }
 
         .action-btn:hover {
             transform: translateY(-4px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-            border-color: #4361ee;
+            box-shadow: 0 6px 16px var(--shadow-strong);
+            border-color: var(--brand);
         }
 
         .action-btn i {
             font-size: 28px;
-            color: #4361ee;
+            color: var(--brand);
             display: block;
             margin-bottom: 8px;
         }
 
         .action-btn-text {
             font-size: 12px;
-            color: #333;
+            color: var(--text-primary);
             font-weight: 500;
         }
 
@@ -264,7 +327,7 @@
         .section-title {
             font-size: 16px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             padding: 16px 12px 8px 12px;
             margin-top: 16px;
         }
@@ -282,7 +345,7 @@
             border-radius: 12px;
             overflow: hidden;
             cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px var(--shadow-strong);
             transition: transform 0.3s;
             padding: 20px 14px;
             display: flex;
@@ -296,6 +359,16 @@
         .gallery-item:hover {
             transform: scale(1.03);
         }
+
+        .gallery-item.tint-green { background: #f0faf0; }
+        .gallery-item.tint-blue { background: #eef4fb; }
+        .gallery-item.tint-orange { background: #fef7ec; }
+        .gallery-item.tint-red { background: #fdeef0; }
+
+        [data-theme="dark"] .gallery-item.tint-green { background: #14261a; }
+        [data-theme="dark"] .gallery-item.tint-blue { background: #16212e; }
+        [data-theme="dark"] .gallery-item.tint-orange { background: #2a2013; }
+        [data-theme="dark"] .gallery-item.tint-red { background: #2a1a1c; }
 
         .gallery-item .opp-icon {
             width: 48px;
@@ -312,29 +385,29 @@
         .gallery-item .opp-title {
             font-size: 13px;
             font-weight: 700;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 4px;
         }
 
         .gallery-item .opp-desc {
             font-size: 11px;
-            color: #888;
+            color: var(--text-faint);
             line-height: 1.4;
         }
 
         /* Hall of Fame Section */
         .hall-of-fame {
-            background: white;
+            background: var(--surface);
             margin: 16px 12px;
             padding: 16px;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px var(--shadow);
         }
 
         .hall-of-fame-title {
             font-size: 16px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 16px;
             display: flex;
             align-items: center;
@@ -342,7 +415,7 @@
         }
 
         .hall-of-fame-title i {
-            color: #ffc107;
+            color: var(--gold);
             font-size: 20px;
         }
 
@@ -357,15 +430,15 @@
             align-items: center;
             gap: 12px;
             padding: 12px;
-            background: #f9f9f9;
+            background: var(--surface-alt);
             border-radius: 8px;
-            border-left: 4px solid #4361ee;
+            border-left: 4px solid var(--brand);
         }
 
         .fame-rank {
             width: 32px;
             height: 32px;
-            background: #4361ee;
+            background: var(--brand);
             color: white;
             border-radius: 50%;
             display: flex;
@@ -391,13 +464,13 @@
         .fame-name {
             font-size: 13px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
         }
 
         .fame-earnings {
             font-size: 18px;
             font-weight: 700;
-            color: #2d3436;
+            color: var(--text-primary);
             margin-top: 4px;
         }
 
@@ -405,7 +478,7 @@
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            background: #e0e0e0;
+            background: var(--border);
             flex-shrink: 0;
         }
 
@@ -413,18 +486,18 @@
         .empty-state {
             text-align: center;
             padding: 40px 16px;
-            color: #999;
+            color: var(--text-muted);
         }
 
         .empty-state i {
             font-size: 48px;
-            color: #ddd;
+            color: var(--border-light);
             margin-bottom: 16px;
         }
 
         .empty-state-text {
             font-size: 14px;
-            color: #999;
+            color: var(--text-muted);
         }
 
         /* Bottom Navigation */
@@ -433,12 +506,12 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: white;
-            border-top: 1px solid #e0e0e0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: space-around;
             padding-top: 8px;
-            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 -2px 12px var(--shadow);
             z-index: 100;
         }
 
@@ -448,7 +521,7 @@
             align-items: center;
             padding: 8px 0 12px 0;
             cursor: pointer;
-            color: #999;
+            color: var(--text-muted);
             text-decoration: none;
             transition: color 0.3s;
             min-width: 60px;
@@ -461,32 +534,32 @@
         }
 
         .nav-item.active {
-            color: #4361ee;
+            color: var(--brand);
         }
 
         .nav-item:hover {
-            color: #4361ee;
+            color: var(--brand);
         }
 
         /* Divider */
         .divider {
             height: 8px;
-            background: #f0f0f0;
+            background: var(--divider);
             margin: 16px 0;
         }
 
         /* Notifications */
         .notifications-section {
-            background: white;
+            background: var(--surface);
             margin: 16px 12px;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px var(--shadow);
             overflow: hidden;
         }
 
         .notifications-header {
             padding: 16px;
-            background: #e74c3c;
+            background: var(--notify-red);
             color: white;
             display: flex;
             align-items: center;
@@ -496,7 +569,7 @@
         }
 
         .notifications-header:hover {
-            background: #c0392b;
+            background: var(--notify-red-hover);
         }
 
         .notifications-header-left {
@@ -556,7 +629,7 @@
             display: flex;
             gap: 12px;
             padding-bottom: 12px;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid var(--divider);
         }
 
         .notification-item:last-child {
@@ -567,7 +640,7 @@
         .notification-number {
             min-width: 24px;
             height: 24px;
-            background: #e74c3c;
+            background: var(--notify-red);
             color: white;
             border-radius: 50%;
             display: flex;
@@ -580,76 +653,76 @@
 
         .notification-text {
             font-size: 13px;
-            color: #333;
+            color: var(--text-primary);
             line-height: 1.5;
         }
 
         .notification-highlight {
-            color: #e74c3c;
+            color: var(--notify-red);
             font-weight: 600;
         }
 
         .notification-support {
-            background: #fef5f5;
+            background: var(--notify-red-soft);
             padding: 12px;
             border-radius: 8px;
-            border-left: 4px solid #e74c3c;
+            border-left: 4px solid var(--notify-red);
             font-size: 13px;
-            color: #555;
+            color: var(--text-secondary);
             margin-top: 8px;
         }
 
         .notification-support strong {
-            color: #e74c3c;
+            color: var(--notify-red);
         }
 
         .notification-section-title {
             font-weight: 600;
             font-size: 14px;
-            color: #333;
+            color: var(--text-primary);
             margin-top: 16px;
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 2px solid #e74c3c;
+            border-bottom: 2px solid var(--notify-red);
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
         .notification-section-title i {
-            color: #e74c3c;
+            color: var(--notify-red);
             font-size: 16px;
         }
 
         .notification-paragraph {
             font-size: 13px;
-            color: #555;
+            color: var(--text-secondary);
             line-height: 1.6;
             margin-bottom: 12px;
         }
 
         .notification-warning {
-            background: #fff5f5;
-            border-left: 4px solid #e74c3c;
+            background: var(--notify-red-soft);
+            border-left: 4px solid var(--notify-red);
             padding: 12px;
             border-radius: 6px;
             font-size: 13px;
-            color: #555;
+            color: var(--text-secondary);
             margin-bottom: 12px;
         }
 
         .notification-success {
-            background: #f0f8f5;
-            border-left: 4px solid #27ae60;
+            background: var(--success-soft-bg);
+            border-left: 4px solid var(--success-text);
             padding: 12px;
             border-radius: 6px;
             font-size: 13px;
-            color: #27ae60;
+            color: var(--success-text);
             margin-bottom: 12px;
         }
 
         .notification-bonus {
-            background: #f39c12;
+            background: var(--bonus-bg);
             color: white;
             padding: 16px;
             border-radius: 8px;
@@ -685,12 +758,13 @@
         }
 
         .modal-container {
-            background: white;
+            background: var(--surface);
+            color: var(--text-primary);
             border-radius: 16px;
             width: 90%;
             max-width: 400px;
             padding: 24px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 40px var(--shadow-strong);
             animation: slideUp 0.3s ease;
         }
 
@@ -711,22 +785,22 @@
             gap: 12px;
             font-size: 18px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 16px;
         }
 
         .modal-header i {
-            color: #4361ee;
+            color: var(--brand);
             font-size: 24px;
         }
 
         .info-box {
-            background: #f0f4ff;
-            border-left: 4px solid #4361ee;
+            background: var(--brand-soft);
+            border-left: 4px solid var(--brand);
             padding: 12px;
             border-radius: 8px;
             font-size: 13px;
-            color: #555;
+            color: var(--text-secondary);
             margin-bottom: 16px;
         }
 
@@ -738,7 +812,7 @@
             display: block;
             font-size: 13px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 6px;
         }
 
@@ -746,17 +820,19 @@
         .form-select {
             width: 100%;
             padding: 10px 12px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--border-light);
             border-radius: 8px;
             font-size: 13px;
             font-family: inherit;
+            background: var(--surface);
+            color: var(--text-primary);
             transition: border-color 0.3s;
         }
 
         .form-input:focus,
         .form-select:focus {
             outline: none;
-            border-color: #4361ee;
+            border-color: var(--brand);
             box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
         }
 
@@ -779,33 +855,33 @@
         }
 
         .btn-cancel {
-            background: #f0f0f0;
-            color: #333;
+            background: var(--divider);
+            color: var(--text-primary);
         }
 
         .btn-cancel:hover {
-            background: #e0e0e0;
+            background: var(--border);
         }
 
         .btn-submit {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
         }
 
         .btn-submit:hover {
-            background: #3451d4;
+            background: var(--brand-hover);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(67, 97, 238, 0.3);
         }
 
         .available-balance {
-            background: #e8f5e9;
-            border-left: 4px solid #27ae60;
+            background: var(--available-bg);
+            border-left: 4px solid var(--success-text);
             padding: 12px;
             border-radius: 8px;
             margin-bottom: 16px;
             font-size: 13px;
-            color: #27ae60;
+            color: var(--success-text);
             font-weight: 600;
         }
     </style>
@@ -922,7 +998,7 @@
                     </div>
 
                     <div class="notification-paragraph">
-                        <strong style="color: #e74c3c;">⚠️ BEWARE OF SCAMMERS:</strong> Anyone who privately provides you with bank or e-wallet information and requests payments is a scammer. Your funds can only be transferred to the account displayed on the store page!
+                        <strong style="color: var(--notify-red);">⚠️ BEWARE OF SCAMMERS:</strong> Anyone who privately provides you with bank or e-wallet information and requests payments is a scammer. Your funds can only be transferred to the account displayed on the store page!
                     </div>
 
                     <div class="notification-paragraph">
@@ -1009,22 +1085,22 @@
         <!-- Gallery Section -->
         <div class="section-title">Featured Opportunities</div>
         <div class="gallery-container">
-            <a class="gallery-item" style="background: #f0faf0;" href="tasks.html">
+            <a class="gallery-item tint-green" href="tasks.html">
                 <div class="opp-icon" style="background: #27ae60;"><i class="las la-graduation-cap"></i></div>
                 <div class="opp-title">Beginner Tasks</div>
                 <div class="opp-desc">Start earning today with simple tasks</div>
             </a>
-            <a class="gallery-item" style="background: #eef4fb;" href="teller.html">
+            <a class="gallery-item tint-blue" href="teller.html">
                 <div class="opp-icon" style="background: #3498db;"><i class="las la-layer-group"></i></div>
                 <div class="opp-title">Teller Tasks</div>
                 <div class="opp-desc">Complete product orders & earn commission</div>
             </a>
-            <a class="gallery-item" style="background: #fef7ec;" onclick="navigateTo('recharge')" href="#">
+            <a class="gallery-item tint-orange" onclick="navigateTo('recharge')" href="#">
                 <div class="opp-icon" style="background: #f39c12;"><i class="las la-wallet"></i></div>
                 <div class="opp-title">Recharge & Earn</div>
                 <div class="opp-desc">Top up your balance to unlock premium tasks</div>
             </a>
-            <a class="gallery-item" style="background: #fdeef0;" href="mine.html">
+            <a class="gallery-item tint-red" href="mine.html">
                 <div class="opp-icon" style="background: #e74c3c;"><i class="las la-user-friends"></i></div>
                 <div class="opp-title">Invite & Earn</div>
                 <div class="opp-desc">Invite a friend and earn GHC 2.00 bonus</div>
@@ -1113,13 +1189,13 @@
                 <i class="las la-check-circle"></i>
                 Payment Details
             </div>
-            <div class="info-box" style="background: #d4edda; border-color: #c3e6cb; color: #155724;">
+            <div class="info-box" style="background: var(--success-info-bg); border-color: var(--success-info-border); color: var(--success-info-text);">
                 Your payment request has been received. Use the payment number below to complete your transfer.
             </div>
             <div class="form-group" style="text-align: center;">
                 <label class="form-label">Payment Number</label>
-                <div style="padding: 15px; background: #f0f4ff; border: 2px dashed #4361ee; border-radius: 8px; margin: 10px 0;">
-                    <div style="font-size: 24px; font-weight: bold; color: #4361ee; font-family: monospace;" id="displayPaymentNumber">PENDING...</div>
+                <div style="padding: 15px; background: var(--brand-soft); border: 2px dashed var(--brand); border-radius: 8px; margin: 10px 0;">
+                    <div style="font-size: 24px; font-weight: bold; color: var(--brand); font-family: monospace;" id="displayPaymentNumber">PENDING...</div>
                 </div>
                 <button class="btn-submit" onclick="copyPaymentNumber()" style="width: 100%; margin-top: 10px;">
                     <i class="las la-copy"></i> Copy Payment Number
@@ -1127,10 +1203,10 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Transfer Details</label>
-                <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; font-size: 13px; line-height: 1.8;">
+                <div style="padding: 12px; background: var(--surface-alt); border-radius: 6px; font-size: 13px; line-height: 1.8;">
                     <strong>Amount:</strong> GHC <span id="displayAmount">0.00</span><br>
                     <strong>Payment Method:</strong> <span id="displayMethod">-</span><br>
-                    <strong>Status:</strong> <span style="color: #f39c12; font-weight: bold;">Awaiting Payment</span>
+                    <strong>Status:</strong> <span style="color: var(--amber-text); font-weight: bold;">Awaiting Payment</span>
                 </div>
             </div>
             <div class="form-group">
@@ -1140,7 +1216,7 @@
                     <i class="las la-paper-plane"></i> Submit Transaction ID
                 </button>
             </div>
-            <div class="info-box" style="background: #fff3cd; border-color: #ffeaa7; color: #856404; font-size: 12px;">
+            <div class="info-box" style="background: var(--warning-info-bg); border-color: var(--warning-info-border); color: var(--warning-info-text); font-size: 12px;">
                 <strong>⚠️ Important:</strong> Make a manual transfer to the payment number above, then submit the transaction ID. Your balance will be updated once the transfer is verified.
             </div>
             <div class="modal-buttons">
@@ -1159,7 +1235,7 @@
             <div class="available-balance">
                 Available Balance: <span id="availableBalance">GHC 0.00</span>
             </div>
-            <div class="info-box" id="withdrawRestrictionNotice" style="display:none; background:#fff7ed; border-color:#fdba74; color:#9a2c00; font-size:12px;"></div>
+            <div class="info-box" id="withdrawRestrictionNotice" style="display:none; background:var(--restriction-bg); border-color:var(--restriction-border); color:var(--restriction-text); font-size:12px;"></div>
             <div class="form-group">
                 <label class="form-label">Withdrawal Method</label>
                 <select class="form-select" id="withdrawMethod">
@@ -1206,7 +1282,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label">User ID</label>
-                <input type="text" class="form-input" id="accountId" readonly style="background: #f5f5f5;">
+                <input type="text" class="form-input" id="accountId" readonly style="background: var(--surface-alt);">
             </div>
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closeActionModal('accountModal')">Cancel</button>
@@ -1434,7 +1510,7 @@
             const button = event.target;
             const originalText = button.innerHTML;
             button.innerHTML = '<i class="las la-check"></i> Copied!';
-            button.style.background = '#27ae60';
+            button.style.background = 'var(--success-text)';
             
             setTimeout(() => {
                 button.innerHTML = originalText;

@@ -4,16 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DailyTrade - Easy Earns</title>
+    <script src="theme.js"></script>
     <script src="config.js"></script>
     <script type="module" src="auth.js"></script>
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
+        :root {
+            --bg: #f5f7fb;
+            --surface: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #374151;
+            --text-muted: #6b7280;
+            --text-faint: #9ca3af;
+            --border: #e5e7eb;
+            --brand: #4361ee;
+            --brand-soft: #e8eefc;
+            --shadow: rgba(15, 23, 42, 0.06);
+            --success-bg: #e7f7ed; --success-text: #2f855a;
+            --locked-bg: #f3f4f6; --locked-text: #9ca3af;
+            --danger-text: #ef4444;
+            --warning-text: #b7791f;
+        }
+        [data-theme="dark"] {
+            --bg: #0f1115;
+            --surface: #1a1d24;
+            --text-primary: #e5e7eb;
+            --text-secondary: #cbd1db;
+            --text-muted: #9ca3af;
+            --text-faint: #6b7280;
+            --border: #2d3139;
+            --brand: #6b83ff;
+            --brand-soft: #1e2544;
+            --shadow: rgba(0, 0, 0, 0.4);
+            --success-bg: #16321f; --success-text: #4ade80;
+            --locked-bg: #20242c; --locked-text: #6b7280;
+            --danger-text: #f87171;
+            --warning-text: #fbbf24;
+        }
         * { box-sizing: border-box; }
         body {
             margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fb;
-            color: #1f2937;
+            background: var(--bg);
+            color: var(--text-primary);
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
 
         .page {
@@ -43,12 +77,12 @@
         }
 
         .back-btn {
-            background: #e8eefc;
-            color: #4361ee;
+            background: var(--brand-soft);
+            color: var(--brand);
         }
 
         .primary-btn {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
         }
 
@@ -58,7 +92,7 @@
         }
 
         .hero {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
             border-radius: 24px;
             padding: 24px;
@@ -86,10 +120,10 @@
         }
 
         .card {
-            background: white;
+            background: var(--surface);
             border-radius: 18px;
             padding: 18px;
-            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            box-shadow: 0 8px 24px var(--shadow);
         }
 
         .card h3 {
@@ -105,11 +139,11 @@
             font-weight: 700;
         }
 
-        .status.ready { background: #e7f7ed; color: #2f855a; }
-        .status.locked { background: #f3f4f6; color: #9ca3af; }
+        .status.ready { background: var(--success-bg); color: var(--success-text); }
+        .status.locked { background: var(--locked-bg); color: var(--locked-text); }
 
         .empty-state-text {
-            color: #6b7280;
+            color: var(--text-muted);
             padding: 20px;
             text-align: center;
         }
@@ -126,7 +160,7 @@
         <div class="topbar">
             <a href="tasks.html" class="back-btn"><i class="las la-arrow-left"></i> Back</a>
             <div style="display:flex; gap:8px; align-items:center;">
-                <span style="font-weight:700; color:#374151;">Easy Earns</span>
+                <span style="font-weight:700; color:var(--text-secondary);">Easy Earns</span>
             </div>
         </div>
 
@@ -135,7 +169,7 @@
             <p style="margin:0; color:rgba(255,255,255,0.95);">Pick one task category to complete today. Finish it to earn your reward - the other categories unlock again tomorrow.</p>
         </section>
 
-        <div id="easyEarnsList"><div style="color:#6b7280">Loading tasks...</div></div>
+        <div id="easyEarnsList"><div style="color:var(--text-muted)">Loading tasks...</div></div>
     </div>
 
     <script>
@@ -187,11 +221,11 @@
                 return `
                     <div class="card">
                         <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                            <i class="las ${meta.icon}" style="font-size:20px; color:#4361ee;"></i>
+                            <i class="las ${meta.icon}" style="font-size:20px; color:var(--brand);"></i>
                             <h3 style="margin:0;">${escapeHtml(meta.label)}</h3>
                         </div>
-                        <p style="color:#6b7280; font-size:14px; margin-bottom:8px;">${escapeHtml(task.description || '')}</p>
-                        <div style="font-size:13px; font-weight:600; color:#374151;">Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}</div>
+                        <p style="color:var(--text-muted); font-size:14px; margin-bottom:8px;">${escapeHtml(task.description || '')}</p>
+                        <div style="font-size:13px; font-weight:600; color:var(--text-secondary);">Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}</div>
                         ${actionHtml}
                     </div>
                 `;
@@ -203,7 +237,7 @@
             if (!task) return;
             const meta = CATEGORY_META[task.category];
             if (!meta || !meta.render) {
-                document.getElementById('categoryDetail').innerHTML = '<div class="card"><p style="color:#ef4444;">Unknown task type.</p></div>';
+                document.getElementById('categoryDetail').innerHTML = '<div class="card"><p style="color:var(--danger-text);">Unknown task type.</p></div>';
                 return;
             }
             meta.render(task);
@@ -214,7 +248,7 @@
         // --- Watch & Earn (video) ---
         async function renderVideoCategory(task) {
             const container = document.getElementById('categoryDetail');
-            container.innerHTML = '<div class="card"><p style="color:#6b7280;">Loading videos...</p></div>';
+            container.innerHTML = '<div class="card"><p style="color:var(--text-muted);">Loading videos...</p></div>';
 
             try {
                 const vids = await window.API.getEasyEarnVideos(task.id);
@@ -239,9 +273,9 @@
                 container.innerHTML = `
                     <div class="card">
                         <h3>${escapeHtml(task.title)}</h3>
-                        <p style="color:#6b7280; margin-bottom:10px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}</p>
+                        <p style="color:var(--text-muted); margin-bottom:10px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}</p>
                         <div id="videoContainer"></div>
-                        <div id="videoProgress" style="font-size:13px; color:#9ca3af; margin-top:8px;">0/${vids.length} watched</div>
+                        <div id="videoProgress" style="font-size:13px; color:var(--text-faint); margin-top:8px;">0/${vids.length} watched</div>
                     </div>
                 `;
 
@@ -271,14 +305,14 @@
                         progress.textContent = 'All videos watched - claiming reward...';
                         try {
                             const resp = await window.API.claimEasyEarn(task.id);
-                            progress.style.color = '#2f855a';
+                            progress.style.color = 'var(--success-text)';
                             progress.textContent = `Reward credited: GHC ${parseFloat(resp.earned || 0).toFixed(2)}`;
                             await refreshTodayStatus();
                             renderCategoryGrid();
                             await window.API.getWallet().catch(() => {});
                             window.dispatchEvent(new Event('userFinanceUpdated'));
                         } catch (err) {
-                            progress.style.color = '#ef4444';
+                            progress.style.color = 'var(--danger-text)';
                             progress.textContent = err.message || 'Claim failed';
                         }
                     })();
@@ -343,14 +377,14 @@
                 }
             } catch (err) {
                 console.error('Failed to load videos for task', task.id, err);
-                container.innerHTML = '<div class="card"><p style="color:#ef4444;">Failed to load videos</p></div>';
+                container.innerHTML = '<div class="card"><p style="color:var(--danger-text);">Failed to load videos</p></div>';
             }
         }
 
         // --- Quick Quiz ---
         async function renderQuizCategory(task) {
             const container = document.getElementById('categoryDetail');
-            container.innerHTML = '<div class="card"><p style="color:#6b7280;">Loading quiz...</p></div>';
+            container.innerHTML = '<div class="card"><p style="color:var(--text-muted);">Loading quiz...</p></div>';
 
             try {
                 const questions = await window.API.getQuizQuestions(task.id);
@@ -362,7 +396,7 @@
                 container.innerHTML = `
                     <div class="card">
                         <h3>${escapeHtml(task.title)}</h3>
-                        <p style="color:#6b7280; margin-bottom:14px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)} (all answers must be correct)</p>
+                        <p style="color:var(--text-muted); margin-bottom:14px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)} (all answers must be correct)</p>
                         <form id="quizForm">
                             ${questions.map((q, qi) => `
                                 <div style="margin-bottom:16px;">
@@ -395,13 +429,13 @@
 
                     try {
                         const res = await window.API.submitQuiz(task.id, answers);
-                        resultEl.style.color = '#2f855a';
+                        resultEl.style.color = 'var(--success-text)';
                         resultEl.textContent = `Correct! You earned GHC ${parseFloat(res.earned || 0).toFixed(2)}.`;
                         await refreshTodayStatus();
                         renderCategoryGrid();
                         window.dispatchEvent(new Event('userFinanceUpdated'));
                     } catch (err) {
-                        resultEl.style.color = '#ef4444';
+                        resultEl.style.color = 'var(--danger-text)';
                         resultEl.textContent = err.message || 'Submission failed';
                     } finally {
                         btn.disabled = false;
@@ -410,14 +444,14 @@
                 });
             } catch (err) {
                 console.error('Failed to load quiz', err);
-                container.innerHTML = '<div class="card"><p style="color:#ef4444;">Failed to load quiz.</p></div>';
+                container.innerHTML = '<div class="card"><p style="color:var(--danger-text);">Failed to load quiz.</p></div>';
             }
         }
 
         // --- Quick Poll ---
         async function renderPollCategory(task) {
             const container = document.getElementById('categoryDetail');
-            container.innerHTML = '<div class="card"><p style="color:#6b7280;">Loading poll...</p></div>';
+            container.innerHTML = '<div class="card"><p style="color:var(--text-muted);">Loading poll...</p></div>';
 
             try {
                 const options = await window.API.getPollOptions(task.id);
@@ -429,7 +463,7 @@
                 container.innerHTML = `
                     <div class="card">
                         <h3>${escapeHtml(task.title)}</h3>
-                        <p style="color:#6b7280; margin-bottom:14px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}</p>
+                        <p style="color:var(--text-muted); margin-bottom:14px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}</p>
                         <form id="pollForm">
                             ${options.map(opt => `
                                 <label style="display:block; margin-bottom:8px; font-size:14px; cursor:pointer;">
@@ -454,13 +488,13 @@
 
                     try {
                         const res = await window.API.submitPoll(task.id, selected.value);
-                        resultEl.style.color = '#2f855a';
+                        resultEl.style.color = 'var(--success-text)';
                         resultEl.textContent = `Thanks! You earned GHC ${parseFloat(res.earned || 0).toFixed(2)}.`;
                         await refreshTodayStatus();
                         renderCategoryGrid();
                         window.dispatchEvent(new Event('userFinanceUpdated'));
                     } catch (err) {
-                        resultEl.style.color = '#ef4444';
+                        resultEl.style.color = 'var(--danger-text)';
                         resultEl.textContent = err.message || 'Submission failed';
                     } finally {
                         btn.disabled = false;
@@ -469,14 +503,14 @@
                 });
             } catch (err) {
                 console.error('Failed to load poll', err);
-                container.innerHTML = '<div class="card"><p style="color:#ef4444;">Failed to load poll.</p></div>';
+                container.innerHTML = '<div class="card"><p style="color:var(--danger-text);">Failed to load poll.</p></div>';
             }
         }
 
         // --- Photo Survey ---
         async function renderPhotoSurveyCategory(task) {
             const container = document.getElementById('categoryDetail');
-            container.innerHTML = '<div class="card"><p style="color:#6b7280;">Loading photo survey...</p></div>';
+            container.innerHTML = '<div class="card"><p style="color:var(--text-muted);">Loading photo survey...</p></div>';
             if (photoSurveyCountdownInterval) { clearInterval(photoSurveyCountdownInterval); photoSurveyCountdownInterval = null; }
 
             try {
@@ -490,7 +524,7 @@
                     container.innerHTML = `
                         <div class="card">
                             <h3>${escapeHtml(task.title)}</h3>
-                            <p style="color:#2f855a; margin-top:10px;">You've completed all ${status.total} photos for today. Come back tomorrow for more!</p>
+                            <p style="color:var(--success-text); margin-top:10px;">You've completed all ${status.total} photos for today. Come back tomorrow for more!</p>
                         </div>
                     `;
                     return;
@@ -503,9 +537,9 @@
                 container.innerHTML = `
                     <div class="card">
                         <h3>${escapeHtml(task.title)}</h3>
-                        <p style="color:#6b7280; margin-bottom:14px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)} for all ${status.total} photos.</p>
+                        <p style="color:var(--text-muted); margin-bottom:14px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)} for all ${status.total} photos.</p>
                         <div style="font-weight:600; margin-bottom:10px;">Progress: ${status.completedCount}/${status.total} photos</div>
-                        <div id="photoWaitNotice" style="display:none; color:#b7791f; font-size:13px; margin-bottom:10px;"></div>
+                        <div id="photoWaitNotice" style="display:none; color:var(--warning-text); font-size:13px; margin-bottom:10px;"></div>
                         <div id="photoPromptSection"></div>
                         <div id="photoResult" style="margin-top:12px; font-size:14px;"></div>
                     </div>
@@ -514,15 +548,15 @@
                 function renderPromptForm() {
                     const promptSection = document.getElementById('photoPromptSection');
                     if (!nextPrompt) {
-                        promptSection.innerHTML = '<p style="color:#ef4444;">No prompt available for your next photo. Contact support.</p>';
+                        promptSection.innerHTML = '<p style="color:var(--danger-text);">No prompt available for your next photo. Contact support.</p>';
                         return;
                     }
                     promptSection.innerHTML = `
-                        <div style="border:1px solid #e5e7eb; border-radius:12px; padding:14px;">
-                            <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.04em; color:#9ca3af; margin-bottom:6px;">${escapeHtml(nextPrompt.prompt_category || 'object')}</div>
+                        <div style="border:1px solid var(--border); border-radius:12px; padding:14px;">
+                            <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); margin-bottom:6px;">${escapeHtml(nextPrompt.prompt_category || 'object')}</div>
                             <div style="font-weight:600; margin-bottom:12px;">${escapeHtml(nextPrompt.prompt_text)}</div>
                             <input type="file" id="photoFileInput" accept="image/*" capture="environment" style="margin-bottom:10px; display:block;">
-                            <input type="text" id="photoCaptionInput" placeholder="Caption: location, object name, or description" style="padding:10px; border:1px solid #e5e7eb; border-radius:8px; width:100%; margin-bottom:10px; box-sizing:border-box;">
+                            <input type="text" id="photoCaptionInput" placeholder="Caption: location, object name, or description" style="padding:10px; border:1px solid var(--border); border-radius:8px; width:100%; margin-bottom:10px; box-sizing:border-box;">
                             <button type="button" class="primary-btn" id="photoSubmitBtn">Upload Photo</button>
                         </div>
                     `;
@@ -534,12 +568,12 @@
                         resultEl.textContent = '';
 
                         if (!fileInput.files || !fileInput.files[0]) {
-                            resultEl.style.color = '#ef4444';
+                            resultEl.style.color = 'var(--danger-text)';
                             resultEl.textContent = 'Please choose or take a photo first.';
                             return;
                         }
                         if (!caption) {
-                            resultEl.style.color = '#ef4444';
+                            resultEl.style.color = 'var(--danger-text)';
                             resultEl.textContent = 'Please add a caption.';
                             return;
                         }
@@ -556,18 +590,18 @@
                             });
 
                             if (res.rewardCredited) {
-                                resultEl.style.color = '#2f855a';
+                                resultEl.style.color = 'var(--success-text)';
                                 resultEl.textContent = `All ${res.total} photos done! You earned GHC ${parseFloat(res.earned || 0).toFixed(2)}.`;
                                 await refreshTodayStatus();
                                 renderCategoryGrid();
                                 window.dispatchEvent(new Event('userFinanceUpdated'));
                             } else {
-                                resultEl.style.color = '#2f855a';
+                                resultEl.style.color = 'var(--success-text)';
                                 resultEl.textContent = `Photo ${res.completedCount}/${res.total} saved. Next photo unlocks in 3 minutes.`;
                                 startWaitCountdown(new Date(res.next_available_at));
                             }
                         } catch (err) {
-                            resultEl.style.color = '#ef4444';
+                            resultEl.style.color = 'var(--danger-text)';
                             resultEl.textContent = err.message || 'Upload failed';
                         } finally {
                             btn.disabled = false;
@@ -607,20 +641,20 @@
                 }
             } catch (err) {
                 console.error('Failed to load photo survey', err);
-                container.innerHTML = '<div class="card"><p style="color:#ef4444;">Failed to load photo survey.</p></div>';
+                container.innerHTML = '<div class="card"><p style="color:var(--danger-text);">Failed to load photo survey.</p></div>';
             }
         }
 
         async function loadEasyEarns() {
             const listEl = document.getElementById('easyEarnsList');
-            listEl.innerHTML = '<div style="color:#6b7280">Loading tasks...</div>';
+            listEl.innerHTML = '<div style="color:var(--text-muted)">Loading tasks...</div>';
             try {
                 const [tasks] = await Promise.all([window.API.getEasyEarns(), refreshTodayStatus()]);
                 easyEarnTasksData = Array.isArray(tasks) ? tasks : [];
                 renderCategoryGrid();
             } catch (err) {
                 console.error('Failed to load Easy Earns tasks', err);
-                listEl.innerHTML = '<div style="color:#ef4444">Failed to load tasks. Please try again later.</div>';
+                listEl.innerHTML = '<div style="color:var(--danger-text)">Failed to load tasks. Please try again later.</div>';
             }
         }
 

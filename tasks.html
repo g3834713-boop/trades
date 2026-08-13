@@ -4,12 +4,57 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DailyTrade - Tasks</title>
+    <script src="theme.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script type="module" src="auth.js"></script>
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
+        :root {
+            --bg: #f5f5f5;
+            --surface: #ffffff;
+            --surface-alt: #f9f9f9;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border: #e0e0e0;
+            --border-light: #dddddd;
+            --brand: #4361ee;
+            --brand-hover: #3451d4;
+            --brand-soft: #f0f4ff;
+            --shadow: rgba(0, 0, 0, 0.08);
+            --shadow-strong: rgba(0, 0, 0, 0.1);
+            --spinner-track: #f3f3f3;
+            --pending-bg: #fff3cd; --pending-text: #856404;
+            --frozen-bg: #f8d7da; --frozen-text: #721c24;
+            --completed-bg: #d4edda; --completed-text: #155724;
+            --danger-text: #ef4444;
+            --processing-accent: #00b894;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f1115;
+            --surface: #1a1d24;
+            --surface-alt: #20242c;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --border: #2d3139;
+            --border-light: #2d3139;
+            --brand: #6b83ff;
+            --brand-hover: #8299ff;
+            --brand-soft: #232a4a;
+            --shadow: rgba(0, 0, 0, 0.35);
+            --shadow-strong: rgba(0, 0, 0, 0.45);
+            --spinner-track: #2d3139;
+            --pending-bg: #3a2c0f; --pending-text: #fbbf24;
+            --frozen-bg: #3a1414; --frozen-text: #f87171;
+            --completed-bg: #16321f; --completed-text: #4ade80;
+            --danger-text: #f87171;
+            --processing-accent: #10d9a3;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -23,19 +68,21 @@
 
         body {
             font-family: 'Roboto', sans-serif;
-            background: #f5f5f5;
+            background: var(--bg);
+            color: var(--text-primary);
             padding-bottom: 100px;
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
 
         /* Header */
         .header {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
             padding: 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px var(--shadow-strong);
         }
 
         .header-left {
@@ -58,8 +105,8 @@
         .tabs {
             display: flex;
             gap: 0;
-            background: white;
-            border-bottom: 1px solid #e0e0e0;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
             padding: 0 12px;
         }
 
@@ -70,18 +117,18 @@
             cursor: pointer;
             font-size: 13px;
             font-weight: 600;
-            color: #999;
+            color: var(--text-muted);
             border-bottom: 3px solid transparent;
             transition: all 0.3s;
         }
 
         .tab.active {
-            color: #4361ee;
-            border-bottom-color: #4361ee;
+            color: var(--brand);
+            border-bottom-color: var(--brand);
         }
 
         .tab:hover {
-            color: #4361ee;
+            color: var(--brand);
         }
 
         /* Task Container */
@@ -91,17 +138,17 @@
 
         /* Balance Section */
         .balance-section {
-            background: white;
+            background: var(--surface);
             border-radius: 16px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 16px var(--shadow);
         }
 
         .balance-title {
             font-size: 16px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 16px;
         }
 
@@ -115,20 +162,20 @@
         .balance-item {
             text-align: center;
             padding: 12px;
-            background: #f9f9f9;
+            background: var(--surface-alt);
             border-radius: 12px;
         }
 
         .balance-item-label {
             font-size: 12px;
-            color: #999;
+            color: var(--text-muted);
             margin-bottom: 6px;
         }
 
         .balance-item-value {
             font-size: 18px;
             font-weight: bold;
-            color: #4361ee;
+            color: var(--brand);
         }
 
         .balance-highlight {
@@ -141,7 +188,7 @@
 
         /* Award Section */
         .award-section {
-            background: #4361ee;
+            background: var(--brand);
             border-radius: 16px;
             padding: 20px;
             color: white;
@@ -194,25 +241,25 @@
 
         .filter-btn {
             padding: 12px;
-            border: 2px solid #e0e0e0;
-            background: white;
+            border: 2px solid var(--border);
+            background: var(--surface);
             border-radius: 10px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
-            color: #666;
+            color: var(--text-secondary);
         }
 
         .filter-btn:hover {
-            border-color: #4361ee;
-            color: #4361ee;
+            border-color: var(--brand);
+            color: var(--brand);
         }
 
         .filter-btn.active {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
-            border-color: #4361ee;
+            border-color: var(--brand);
         }
 
         /* Task List */
@@ -223,11 +270,11 @@
         }
 
         .task-item {
-            background: white;
+            background: var(--surface);
             border-radius: 12px;
             padding: 16px;
-            border-left: 4px solid #4361ee;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--brand);
+            box-shadow: 0 2px 8px var(--shadow);
         }
 
         .task-item-header {
@@ -240,7 +287,7 @@
         .task-item-title {
             font-size: 14px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
         }
 
         .task-item-status {
@@ -251,18 +298,18 @@
         }
 
         .task-item-status.pending {
-            background: #fff3cd;
-            color: #856404;
+            background: var(--pending-bg);
+            color: var(--pending-text);
         }
 
         .task-item-status.frozen {
-            background: #f8d7da;
-            color: #721c24;
+            background: var(--frozen-bg);
+            color: var(--frozen-text);
         }
 
         .task-item-status.completed {
-            background: #d4edda;
-            color: #155724;
+            background: var(--completed-bg);
+            color: var(--completed-text);
         }
 
         .task-item-info {
@@ -276,20 +323,20 @@
         .task-item-info-row {
             display: flex;
             justify-content: space-between;
-            color: #666;
+            color: var(--text-secondary);
         }
 
         .task-item-info-row strong {
-            color: #333;
+            color: var(--text-primary);
         }
 
         .task-item-reward {
-            background: #f0f4ff;
+            background: var(--brand-soft);
             padding: 12px;
             border-radius: 8px;
             font-size: 13px;
             font-weight: 600;
-            color: #4361ee;
+            color: var(--brand);
         }
 
         .task-action-btn {
@@ -298,7 +345,7 @@
             padding: 10px;
             border: none;
             border-radius: 8px;
-            background: #4361ee;
+            background: var(--brand);
             color: white;
             font-size: 13px;
             font-weight: 600;
@@ -307,7 +354,7 @@
         }
 
         .task-action-btn:hover {
-            background: #3451d4;
+            background: var(--brand-hover);
             transform: translateY(-1px);
             box-shadow: 0 6px 16px rgba(67, 97, 238, 0.25);
         }
@@ -316,42 +363,42 @@
         .empty-state {
             text-align: center;
             padding: 40px 20px;
-            color: #999;
+            color: var(--text-muted);
         }
 
         .empty-state i {
             font-size: 48px;
-            color: #ddd;
+            color: var(--border-light);
             margin-bottom: 16px;
         }
 
         .empty-state-text {
             font-size: 14px;
-            color: #999;
+            color: var(--text-muted);
         }
 
         /* Empty State */
         .empty-state {
             text-align: center;
             padding: 60px 20px;
-            color: #999;
+            color: var(--text-muted);
         }
 
         .empty-state i {
             font-size: 64px;
-            color: #ddd;
+            color: var(--border-light);
             margin-bottom: 16px;
         }
 
         .empty-state-title {
             font-size: 16px;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 8px;
         }
 
         .empty-state-text {
             font-size: 14px;
-            color: #999;
+            color: var(--text-muted);
         }
 
         /* Modal Styles */
@@ -374,7 +421,7 @@
 
         /* Beginner Tasks Styles */
         .beginner-task-card {
-            background: #4361ee;
+            background: var(--brand);
             border-radius: 16px;
             padding: 20px;
             margin-bottom: 20px;
@@ -430,7 +477,7 @@
             font-size: 14px;
             margin-bottom: 12px;
             background: rgba(255, 255, 255, 0.95);
-            color: #333;
+            color: #333333;
         }
 
         .beginner-task-url-input:focus {
@@ -444,7 +491,7 @@
             border: none;
             border-radius: 8px;
             background: white;
-            color: #4361ee;
+            color: var(--brand);
             font-size: 14px;
             font-weight: bold;
             cursor: pointer;
@@ -473,8 +520,8 @@
         .beginner-task-empty {
             text-align: center;
             padding: 30px 20px;
-            color: #999;
-            background: white;
+            color: var(--text-muted);
+            background: var(--surface);
             border-radius: 12px;
             margin-bottom: 20px;
         }
@@ -485,12 +532,12 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: white;
-            border-top: 1px solid #e0e0e0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: space-around;
             padding-top: 8px;
-            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 -2px 12px var(--shadow);
             z-index: 100;
         }
 
@@ -500,7 +547,7 @@
             align-items: center;
             padding: 8px 0 12px 0;
             cursor: pointer;
-            color: #999;
+            color: var(--text-muted);
             text-decoration: none;
             transition: color 0.3s;
             min-width: 60px;
@@ -513,11 +560,11 @@
         }
 
         .nav-item.active {
-            color: #4361ee;
+            color: var(--brand);
         }
 
         .nav-item:hover {
-            color: #4361ee;
+            color: var(--brand);
         }
 
         .tab-content {
@@ -544,8 +591,8 @@
         .loading-spinner {
             width: 50px;
             height: 50px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #4361ee;
+            border: 4px solid var(--spinner-track);
+            border-top: 4px solid var(--brand);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -601,10 +648,10 @@
         }
 
         .product-card {
-            background: white;
+            background: var(--surface);
             border-radius: 12px;
             padding: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px var(--shadow);
             display: flex;
             flex-direction: column;
             transition: transform 0.3s, box-shadow 0.3s;
@@ -612,7 +659,7 @@
 
         .product-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 6px 16px var(--shadow-strong);
         }
 
         .product-card-image {
@@ -621,13 +668,13 @@
             border-radius: 8px;
             object-fit: cover;
             margin-bottom: 10px;
-            background: #f5f5f5;
+            background: var(--bg);
         }
 
         .product-card-title {
             font-size: 13px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 6px;
             line-height: 1.3;
             min-height: 26px;
@@ -635,7 +682,7 @@
 
         .product-card-description {
             font-size: 11px;
-            color: #666;
+            color: var(--text-secondary);
             margin-bottom: 8px;
             line-height: 1.3;
             min-height: 22px;
@@ -644,13 +691,13 @@
         .product-card-price {
             font-size: 13px;
             font-weight: 600;
-            color: #4361ee;
+            color: var(--brand);
             margin-bottom: 6px;
         }
 
         .product-card-commission {
             font-size: 11px;
-            color: #999;
+            color: var(--text-muted);
             margin-bottom: 8px;
         }
 
@@ -665,18 +712,18 @@
         }
 
         .product-card-status.pending {
-            background: #fff3cd;
-            color: #856404;
+            background: var(--pending-bg);
+            color: var(--pending-text);
         }
 
         .product-card-status.frozen {
-            background: #f8d7da;
-            color: #721c24;
+            background: var(--frozen-bg);
+            color: var(--frozen-text);
         }
 
         .product-card-status.completed {
-            background: #d4edda;
-            color: #155724;
+            background: var(--completed-bg);
+            color: var(--completed-text);
         }
 
         .product-card-button {
@@ -684,7 +731,7 @@
             padding: 8px;
             border: none;
             border-radius: 6px;
-            background: #4361ee;
+            background: var(--brand);
             color: white;
             font-size: 12px;
             font-weight: 600;
@@ -693,13 +740,13 @@
         }
 
         .product-card-button:hover {
-            background: #3451d4;
+            background: var(--brand-hover);
         }
 
         .product-section-title {
             font-size: 14px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
             margin: 20px 0 12px 0;
         }
     </style>
@@ -990,7 +1037,7 @@
 
                 grid.innerHTML = catalog.map(task => `
                     <div class="product-card">
-                        <div style="height:120px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#9ca3af;">Task</div>
+                        <div style="height:120px; background:var(--bg); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--text-muted);">Task</div>
                         <div class="product-card-status ${task.status}">${task.status.charAt(0).toUpperCase() + task.status.slice(1)}</div>
                         <div class="product-card-title">${escapeHtml(task.title)}</div>
                         <div class="product-card-description">${escapeHtml(task.description || '')}</div>
@@ -1001,7 +1048,7 @@
             } catch (err) {
                 console.error('Failed to load catalog:', err);
                 const grid = document.getElementById('catalogGrid');
-                grid.innerHTML = '<div style="color:#ef4444">Failed to load catalog</div>';
+                grid.innerHTML = '<div style="color:var(--danger-text)">Failed to load catalog</div>';
             }
         }
 
@@ -1471,7 +1518,7 @@
                     <div class="product-card">
                         ${product.productImage ? `
                             <img src="${product.productImage}" alt="${product.title}" class="product-card-image" onerror="this.src='https://via.placeholder.com/150'">
-                        ` : `<div class="product-card-image" style="background: #e0e0e0;"></div>`}
+                        ` : `<div class="product-card-image" style="background: var(--bg);"></div>`}
                         <div class="product-card-status ${product.status}">${product.status.charAt(0).toUpperCase() + product.status.slice(1)}</div>
                         <div class="product-card-title">${product.title}</div>
                         <div class="product-card-description">${product.description}</div>
@@ -1513,7 +1560,7 @@
                         <div class="task-item-title">${task.title}</div>
                         <div class="task-item-status ${task.status}">${task.status.charAt(0).toUpperCase() + task.status.slice(1)}</div>
                     </div>
-                    <div class="task-item-description" style="font-size: 13px; color: #666; margin-bottom: 12px;">
+                    <div class="task-item-description" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
                         ${task.description}
                     </div>
                     <div class="task-item-info">
@@ -1829,57 +1876,57 @@
 
     <!-- Order Success Modal -->
     <div id="orderSuccessModal">
-        <div style="background: white; border-radius: 12px; padding: 30px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);">
-            <div id="modalTitle" style="font-size: 28px; font-weight: bold; color: #2d3436; margin-bottom: 16px;">Order Pending</div>
+        <div style="background: var(--surface); color: var(--text-primary); border-radius: 12px; padding: 30px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 4px 20px var(--shadow-strong);">
+            <div id="modalTitle" style="font-size: 28px; font-weight: bold; color: var(--text-primary); margin-bottom: 16px;">Order Pending</div>
             
             <div id="processingSection" style="display: block;">
                 <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin: 12px 0 8px;">
-                    <div style="width: 24px; height: 24px; border: 3px solid #e0e0e0; border-top-color: #00b894; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                    <div id="processingStatus" style="font-size: 15px; font-weight: bold; color: #00b894;">Order placed</div>
+                    <div style="width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--processing-accent); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <div id="processingStatus" style="font-size: 15px; font-weight: bold; color: var(--processing-accent);">Order placed</div>
                 </div>
                 <div style="margin: 10px 0 14px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:12px; color:#636e72;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:12px; color:var(--text-secondary);">
                         <span>Progress</span>
                         <span id="processingPercent">0%</span>
                     </div>
-                    <div style="height: 8px; background: #e9ecef; border-radius: 999px; overflow: hidden;">
-                        <div id="processingProgress" style="height: 100%; width: 0%; background: #00b894; transition: width 0.4s ease;"></div>
+                    <div style="height: 8px; background: var(--border); border-radius: 999px; overflow: hidden;">
+                        <div id="processingProgress" style="height: 100%; width: 0%; background: var(--processing-accent); transition: width 0.4s ease;"></div>
                     </div>
                 </div>
-                <div id="processingNote" style="color: #636e72; margin-bottom: 12px; font-size: 14px; line-height: 1.5;">Please wait while we process your reward.</div>
-                <button onclick="closeProcessingModal()" style="width:100%; background:#f1f2f6; color:#2d3436; border:none; padding:10px 12px; border-radius:8px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:10px;">
+                <div id="processingNote" style="color: var(--text-secondary); margin-bottom: 12px; font-size: 14px; line-height: 1.5;">Please wait while we process your reward.</div>
+                <button onclick="closeProcessingModal()" style="width:100%; background:var(--surface-alt); color:var(--text-primary); border:none; padding:10px 12px; border-radius:8px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:10px;">
                     <i class="las la-minus"></i> Minimize
                 </button>
             </div>
             
             <div id="rewardSection" style="display: none;">
-                <div style="background: #f5f6fa; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left;">
+                <div style="background: var(--surface-alt); border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left;">
                     <div id="costSection" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                        <span style="color: #636e72;">Cost:</span>
+                        <span style="color: var(--text-secondary);">Cost:</span>
                         <span style="font-weight: bold;">GHC <span id="orderCost">0.00</span></span>
                     </div>
                     <div id="interestSection" style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                        <span style="color: #636e72;">Interest:</span>
-                        <span style="font-weight: bold; color: #00b894;">GHC <span id="orderInterest">0.00</span></span>
+                        <span style="color: var(--text-secondary);">Interest:</span>
+                        <span style="font-weight: bold; color: var(--processing-accent);">GHC <span id="orderInterest">0.00</span></span>
                     </div>
                     <div id="profitSection" style="display: none; flex-justify: space-between; margin-bottom: 10px;">
-                        <span style="color: #636e72;">Profit:</span>
-                        <span style="font-weight: bold; color: #00b894;">GHC <span id="orderProfit">0.00</span></span>
+                        <span style="color: var(--text-secondary);">Profit:</span>
+                        <span style="font-weight: bold; color: var(--processing-accent);">GHC <span id="orderProfit">0.00</span></span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-top: 1px solid #dfe6e9; padding-top: 10px; margin-top: 10px;">
-                        <span style="color: #2d3436; font-weight: bold;">Total Reward:</span>
-                        <span style="font-weight: bold; color: #00b894; font-size: 18px;">GHC <span id="orderTotal">0.00</span></span>
+                    <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px;">
+                        <span style="color: var(--text-primary); font-weight: bold;">Total Reward:</span>
+                        <span style="font-weight: bold; color: var(--processing-accent); font-size: 18px;">GHC <span id="orderTotal">0.00</span></span>
                     </div>
                 </div>
                 
-                <button id="claimRewardsBtn" onclick="claimRewards()" style="background: #00b894; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%;">
+                <button id="claimRewardsBtn" onclick="claimRewards()" style="background: var(--processing-accent); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; width: 100%;">
                     Claim Rewards
                 </button>
             </div>
         </div>
     </div>
 
-    <div id="processingBanner" onclick="reopenProcessingModal()" style="display:none; position:fixed; left:12px; right:12px; bottom:84px; z-index:120; background:#4361ee; border:none; border-radius:12px; padding:14px 16px; box-shadow:0 10px 30px rgba(67,97,238,0.25); align-items:center; justify-content:space-between; gap:12px; cursor:pointer; transition:all 0.2s ease;">
+    <div id="processingBanner" onclick="reopenProcessingModal()" style="display:none; position:fixed; left:12px; right:12px; bottom:84px; z-index:120; background:var(--brand); border:none; border-radius:12px; padding:14px 16px; box-shadow:0 10px 30px rgba(67,97,238,0.25); align-items:center; justify-content:space-between; gap:12px; cursor:pointer; transition:all 0.2s ease;">
         <div style="display:flex; align-items:center; gap:10px; flex:1;">
             <div style="width:20px; height:20px; border:2px solid white; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></div>
             <div style="display:flex; flex-direction:column; gap:2px;">

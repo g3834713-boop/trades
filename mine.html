@@ -4,12 +4,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DailyTrade - My Profile</title>
+    <script src="theme.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script type="module" src="auth.js"></script>
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
+        :root {
+            --bg: #f5f5f5;
+            --surface: #ffffff;
+            --surface-alt: #f9f9f9;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border: #e0e0e0;
+            --border-light: #cccccc;
+            --divider: #f0f0f0;
+            --brand: #4361ee;
+            --brand-hover: #3451d4;
+            --brand-soft: #f0f4ff;
+            --shadow: rgba(0, 0, 0, 0.05);
+            --shadow-strong: rgba(0, 0, 0, 0.1);
+            --avatar-bg: #f5f6ff;
+            --verify-bg: #eef4ff; --verify-border: #dce7ff; --verify-text: #2740d4;
+            --success-text: #27ae60; --success-bg: #e8f8ef;
+            --danger-text: #e74c3c; --danger-bg: #fdeaea; --danger-hover: #c0392b;
+            --success-info-bg: #d4edda; --success-info-border: #c3e6cb; --success-info-text: #155724;
+            --warning-info-bg: #fff3cd; --warning-info-border: #ffeaa7; --warning-info-text: #856404;
+            --restriction-bg: #fff7ed; --restriction-border: #fdba74; --restriction-text: #9a2c00;
+            --amber-text: #f39c12;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f1115;
+            --surface: #1a1d24;
+            --surface-alt: #20242c;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --border: #2d3139;
+            --border-light: #3a3f4b;
+            --divider: #20242c;
+            --brand: #6b83ff;
+            --brand-hover: #8299ff;
+            --brand-soft: #232a4a;
+            --shadow: rgba(0, 0, 0, 0.3);
+            --shadow-strong: rgba(0, 0, 0, 0.45);
+            --avatar-bg: #1e2340;
+            --verify-bg: #1a2140; --verify-border: #2c3968; --verify-text: #8ea1ff;
+            --success-text: #4ade80; --success-bg: #16321f;
+            --danger-text: #f87171; --danger-bg: #3a1414; --danger-hover: #d32f2f;
+            --success-info-bg: #10261c; --success-info-border: #1f4a2b; --success-info-text: #4ade80;
+            --warning-info-bg: #3a2c0f; --warning-info-border: #5c4712; --warning-info-text: #fbbf24;
+            --restriction-bg: #3a2c0f; --restriction-border: #92610f; --restriction-text: #fbbf24;
+            --amber-text: #fbbf24;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -23,19 +74,21 @@
 
         body {
             font-family: 'Roboto', sans-serif;
-            background: #f5f5f5;
+            background: var(--bg);
+            color: var(--text-primary);
             padding-bottom: 100px;
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
 
         /* Header */
         .header {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
             padding: 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px var(--shadow-strong);
         }
 
         .header-title {
@@ -52,23 +105,23 @@
 
         /* Profile Section */
         .profile-section {
-            background: white;
+            background: var(--surface);
             padding: 24px 16px;
             text-align: center;
-            border-bottom: 8px solid #f0f0f0;
+            border-bottom: 8px solid var(--divider);
         }
 
         .profile-avatar {
             width: 100px;
             height: 100px;
             border-radius: 50%;
-            background: #f5f6ff;
+            background: var(--avatar-bg);
             margin: 0 auto 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 40px;
-            color: #4361ee;
+            color: var(--brand);
             box-shadow: 0 4px 12px rgba(67, 97, 238, 0.15);
             position: relative;
             overflow: hidden;
@@ -85,9 +138,9 @@
         .verification-badge {
             margin-top: 10px;
             font-size: 13px;
-            color: #555;
-            background: #eef4ff;
-            border: 1px solid #dce7ff;
+            color: var(--text-secondary);
+            background: var(--verify-bg);
+            border: 1px solid var(--verify-border);
             padding: 8px 12px;
             border-radius: 12px;
             display: inline-flex;
@@ -97,19 +150,19 @@
 
         .verification-badge span {
             font-weight: 700;
-            color: #2740d4;
+            color: var(--verify-text);
         }
 
         .profile-name {
             font-size: 20px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 4px;
         }
 
         .profile-id {
             font-size: 13px;
-            color: #999;
+            color: var(--text-muted);
         }
 
         /* Balance Cards Section */
@@ -121,24 +174,24 @@
         }
 
         .balance-card {
-            background: white;
+            background: var(--surface);
             padding: 16px;
             border-radius: 12px;
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            border-top: 3px solid #4361ee;
+            box-shadow: 0 2px 8px var(--shadow);
+            border-top: 3px solid var(--brand);
         }
 
         .balance-label {
             font-size: 12px;
-            color: #999;
+            color: var(--text-muted);
             margin-bottom: 8px;
         }
 
         .balance-value {
             font-size: 18px;
             font-weight: bold;
-            color: #4361ee;
+            color: var(--brand);
         }
 
         /* Action Buttons Section */
@@ -150,7 +203,7 @@
         }
 
         .action-button {
-            background: white;
+            background: var(--surface);
             border: none;
             padding: 16px;
             border-radius: 12px;
@@ -160,32 +213,32 @@
             gap: 8px;
             cursor: pointer;
             transition: all 0.3s;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e0e0e0;
+            box-shadow: 0 2px 8px var(--shadow);
+            border: 1px solid var(--border);
         }
 
         .action-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            border-color: #4361ee;
+            box-shadow: 0 4px 12px var(--shadow-strong);
+            border-color: var(--brand);
         }
 
         .action-button i {
             font-size: 24px;
-            color: #4361ee;
+            color: var(--brand);
         }
 
         .action-button span {
             font-size: 12px;
-            color: #333;
+            color: var(--text-primary);
             font-weight: 500;
         }
         .menu-section {
-            background: white;
+            background: var(--surface);
             margin: 12px;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px var(--shadow);
         }
 
         .menu-item {
@@ -193,7 +246,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 16px 16px;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid var(--divider);
             cursor: pointer;
             transition: all 0.3s;
             user-select: none;
@@ -204,7 +257,7 @@
         }
 
         .menu-item:hover {
-            background: #f9f9f9;
+            background: var(--surface-alt);
             transform: translateX(4px);
         }
 
@@ -217,18 +270,18 @@
 
         .menu-item-left i {
             font-size: 20px;
-            color: #4361ee;
+            color: var(--brand);
         }
 
         .menu-item-left span {
             font-size: 14px;
-            color: #333;
+            color: var(--text-primary);
             font-weight: 500;
         }
 
         .menu-item i.la-chevron-right {
             font-size: 18px;
-            color: #ccc;
+            color: var(--border-light);
         }
 
         /* Bottom Navigation */
@@ -237,12 +290,12 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: white;
-            border-top: 1px solid #e0e0e0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: space-around;
             padding-top: 8px;
-            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 -2px 12px var(--shadow);
             z-index: 100;
         }
 
@@ -252,7 +305,7 @@
             align-items: center;
             padding: 8px 0 12px 0;
             cursor: pointer;
-            color: #999;
+            color: var(--text-muted);
             text-decoration: none;
             transition: color 0.3s;
             min-width: 60px;
@@ -265,11 +318,11 @@
         }
 
         .nav-item.active {
-            color: #4361ee;
+            color: var(--brand);
         }
 
         .nav-item:hover {
-            color: #4361ee;
+            color: var(--brand);
         }
 
         /* Modal */
@@ -291,24 +344,25 @@
         }
 
         .modal-content {
-            background: white;
+            background: var(--surface);
+            color: var(--text-primary);
             padding: 24px;
             border-radius: 12px;
             max-width: 400px;
             width: 90%;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 40px var(--shadow-strong);
         }
 
         .modal-title {
             font-size: 18px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 16px;
         }
 
         .modal-text {
             font-size: 14px;
-            color: #666;
+            color: var(--text-secondary);
             margin-bottom: 20px;
             line-height: 1.6;
         }
@@ -330,12 +384,12 @@
         }
 
         .modal-btn.cancel {
-            background: #f0f0f0;
-            color: #333;
+            background: var(--divider);
+            color: var(--text-primary);
         }
 
         .modal-btn.confirm {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
         }
 
@@ -362,7 +416,8 @@
         }
 
         .modal-container {
-            background: white;
+            background: var(--surface);
+            color: var(--text-primary);
             padding: 24px;
             border-radius: 12px;
             max-width: 400px;
@@ -374,7 +429,7 @@
         .modal-header {
             font-size: 18px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 20px;
             display: flex;
             align-items: center;
@@ -383,7 +438,7 @@
 
         .modal-header i {
             font-size: 24px;
-            color: #4361ee;
+            color: var(--brand);
         }
 
         .form-group {
@@ -394,7 +449,7 @@
             display: block;
             font-size: 13px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 6px;
         }
 
@@ -402,16 +457,18 @@
         .form-select {
             width: 100%;
             padding: 10px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--border);
             border-radius: 6px;
             font-size: 14px;
             font-family: 'Roboto', sans-serif;
+            background: var(--surface);
+            color: var(--text-primary);
         }
 
         .form-input:focus,
         .form-select:focus {
             outline: none;
-            border-color: #4361ee;
+            border-color: var(--brand);
             box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
         }
 
@@ -449,27 +506,27 @@
         }
 
         .modal-buttons .btn-cancel {
-            background: #f0f0f0;
-            color: #333;
+            background: var(--divider);
+            color: var(--text-primary);
         }
 
         .modal-buttons .btn-submit {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
         }
 
         .modal-buttons .btn-submit:hover {
-            background: #3451d4;
+            background: var(--brand-hover);
         }
 
         .info-box {
-            background: #f0f4ff;
+            background: var(--brand-soft);
             padding: 12px;
             border-radius: 8px;
             font-size: 13px;
-            color: #666;
+            color: var(--text-secondary);
             margin-bottom: 16px;
-            border-left: 4px solid #4361ee;
+            border-left: 4px solid var(--brand);
         }
     </style>
 </head>
@@ -478,7 +535,7 @@
     <div class="header">
         <div class="header-title">Mine</div>
         <div class="header-icons">
-            <i class="las la-cog" title="Settings" onclick="openActionModal('settingsModal')"></i>
+            <i class="las la-cog" title="Settings" onclick="openSettingsModal()"></i>
         </div>
     </div>
 
@@ -612,7 +669,7 @@
                 View all your deposits, withdrawals, bonuses, and task records.
             </div>
             <div id="fundingList" style="max-height: 400px; overflow-y: auto;">
-                <div style="text-align: center; padding: 20px; color: #999;">
+                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
                     <i class="las la-inbox" style="font-size: 32px; margin-bottom: 10px; display: block;"></i>
                     Loading records...
                 </div>
@@ -636,20 +693,20 @@
             <div style="margin-bottom: 16px;">
                 <label class="form-label">Your Referral Code</label>
                 <div style="display: flex; gap: 8px;">
-                    <input type="text" class="form-input" id="referralCode" readonly style="background: #f9f9f9; flex: 1; font-weight: 700; letter-spacing: 2px; text-align: center;">
-                    <button style="padding: 10px 16px; background: #4361ee; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="copyReferralCode()">Copy</button>
+                    <input type="text" class="form-input" id="referralCode" readonly style="background: var(--surface-alt); flex: 1; font-weight: 700; letter-spacing: 2px; text-align: center;">
+                    <button style="padding: 10px 16px; background: var(--brand); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="copyReferralCode()">Copy</button>
                 </div>
             </div>
             <div style="margin-bottom: 16px;">
                 <label class="form-label">Share Link</label>
                 <div style="display: flex; gap: 8px;">
-                    <input type="text" class="form-input" id="referralLink" readonly style="background: #f9f9f9; flex: 1; font-size: 12px;">
-                    <button style="padding: 10px 16px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="copyReferralLink()">Share</button>
+                    <input type="text" class="form-input" id="referralLink" readonly style="background: var(--surface-alt); flex: 1; font-size: 12px;">
+                    <button style="padding: 10px 16px; background: var(--success-text); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="copyReferralLink()">Share</button>
                 </div>
             </div>
             <div style="margin-bottom: 16px;">
                 <label class="form-label">Referral Statistics</label>
-                <div style="background: #f9f9f9; padding: 12px; border-radius: 8px; font-size: 13px;">
+                <div style="background: var(--surface-alt); padding: 12px; border-radius: 8px; font-size: 13px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                         <span>Friends Invited:</span>
                         <strong id="friendsInvited">0</strong>
@@ -726,20 +783,20 @@
                 Select your preferred language for the platform.
             </div>
             <div style="display: flex; flex-direction: column; gap: 8px;">
-                <div style="padding: 12px; border: 2px solid #4361ee; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'en')">
+                <div style="padding: 12px; border: 2px solid var(--brand); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'en')">
                     <input type="radio" name="language" value="en" checked style="cursor: pointer;">
                     <span style="flex: 1;">English</span>
-                    <i class="las la-check" style="color: #4361ee;"></i>
+                    <i class="las la-check" style="color: var(--brand);"></i>
                 </div>
-                <div style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'fr')">
+                <div style="padding: 12px; border: 1px solid var(--border-light); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'fr')">
                     <input type="radio" name="language" value="fr" style="cursor: pointer;">
                     <span style="flex: 1;">Français</span>
                 </div>
-                <div style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'es')">
+                <div style="padding: 12px; border: 1px solid var(--border-light); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'es')">
                     <input type="radio" name="language" value="es" style="cursor: pointer;">
                     <span style="flex: 1;">Español</span>
                 </div>
-                <div style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'pt')">
+                <div style="padding: 12px; border: 1px solid var(--border-light); border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="selectLanguage(event, 'pt')">
                     <input type="radio" name="language" value="pt" style="cursor: pointer;">
                     <span style="flex: 1;">Português</span>
                 </div>
@@ -762,20 +819,20 @@
                 Get in touch with our support team for assistance.
             </div>
             <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4361ee;">
-                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #333;"><i class="las la-phone" style="margin-right: 6px;"></i>Phone Support</div>
-                    <div style="font-size: 13px; color: #666;">+233 XXX XXX XXX</div>
-                    <div style="font-size: 12px; color: #999; margin-top: 4px;">Mon-Fri: 9AM-6PM GMT</div>
+                <div style="padding: 16px; background: var(--surface-alt); border-radius: 8px; border-left: 4px solid var(--brand);">
+                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text-primary);"><i class="las la-phone" style="margin-right: 6px;"></i>Phone Support</div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">+233 XXX XXX XXX</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Mon-Fri: 9AM-6PM GMT</div>
                 </div>
-                <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4361ee;">
-                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #333;"><i class="las la-envelope" style="margin-right: 6px;"></i>Email Support</div>
-                    <div style="font-size: 13px; color: #666;">support@dailytrade.com</div>
-                    <div style="font-size: 12px; color: #999; margin-top: 4px;">Response time: 24 hours</div>
+                <div style="padding: 16px; background: var(--surface-alt); border-radius: 8px; border-left: 4px solid var(--brand);">
+                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text-primary);"><i class="las la-envelope" style="margin-right: 6px;"></i>Email Support</div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">support@dailytrade.com</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Response time: 24 hours</div>
                 </div>
-                <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4361ee;">
-                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #333;"><i class="las la-comments" style="margin-right: 6px;"></i>Live Chat</div>
-                    <div style="font-size: 13px; color: #666;">Available on our website</div>
-                    <div style="font-size: 12px; color: #999; margin-top: 4px;">Mon-Fri: 10AM-8PM GMT</div>
+                <div style="padding: 16px; background: var(--surface-alt); border-radius: 8px; border-left: 4px solid var(--brand);">
+                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--text-primary);"><i class="las la-comments" style="margin-right: 6px;"></i>Live Chat</div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">Available on our website</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Mon-Fri: 10AM-8PM GMT</div>
                 </div>
             </div>
             <div class="modal-buttons">
@@ -793,30 +850,30 @@
             </div>
             <div style="overflow-y: auto; max-height: 400px; padding-right: 8px;">
                 <div style="margin-bottom: 16px;">
-                    <div style="font-weight: 600; color: #333; margin-bottom: 8px; font-size: 14px;">About Us</div>
-                    <div style="font-size: 13px; color: #666; line-height: 1.6;">
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px; font-size: 14px;">About Us</div>
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
                         DailyTrade is a trusted platform connecting users with daily earning opportunities. We provide a secure, transparent, and user-friendly environment for members to complete tasks and earn commissions.
                     </div>
                 </div>
                 <div style="margin-bottom: 16px;">
-                    <div style="font-weight: 600; color: #333; margin-bottom: 8px; font-size: 14px;">Our Mission</div>
-                    <div style="font-size: 13px; color: #666; line-height: 1.6;">
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px; font-size: 14px;">Our Mission</div>
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
                         To empower individuals by providing legitimate opportunities to earn income through flexible work options.
                     </div>
                 </div>
                 <div style="margin-bottom: 16px;">
-                    <div style="font-weight: 600; color: #333; margin-bottom: 8px; font-size: 14px;">Version</div>
-                    <div style="font-size: 13px; color: #666;">v2.1.0</div>
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px; font-size: 14px;">Version</div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">v2.1.0</div>
                 </div>
                 <div style="margin-bottom: 16px;">
-                    <div style="font-weight: 600; color: #333; margin-bottom: 8px; font-size: 14px;">Legal</div>
+                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px; font-size: 14px;">Legal</div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <a href="#" style="font-size: 13px; color: #4361ee; text-decoration: none; cursor: pointer;">Terms & Conditions</a>
-                        <a href="#" style="font-size: 13px; color: #4361ee; text-decoration: none; cursor: pointer;">Privacy Policy</a>
-                        <a href="#" style="font-size: 13px; color: #4361ee; text-decoration: none; cursor: pointer;">Contact Us</a>
+                        <a href="#" style="font-size: 13px; color: var(--brand); text-decoration: none; cursor: pointer;">Terms & Conditions</a>
+                        <a href="#" style="font-size: 13px; color: var(--brand); text-decoration: none; cursor: pointer;">Privacy Policy</a>
+                        <a href="#" style="font-size: 13px; color: var(--brand); text-decoration: none; cursor: pointer;">Contact Us</a>
                     </div>
                 </div>
-                <div style="padding: 12px; background: #f0f4ff; border-radius: 8px; border-left: 4px solid #4361ee; font-size: 12px; color: #555;">
+                <div style="padding: 12px; background: var(--brand-soft); border-radius: 8px; border-left: 4px solid var(--brand); font-size: 12px; color: var(--text-secondary);">
                     <strong>© 2024 DailyTrade.</strong> All rights reserved. Built with care for our community.
                 </div>
             </div>
@@ -880,16 +937,16 @@
                 <i class="las la-check-circle"></i>
                 Payment Details
             </div>
-            <div class="info-box" style="background: #d4edda; border-color: #c3e6cb; color: #155724;">
+            <div class="info-box" style="background: var(--success-info-bg); border-color: var(--success-info-border); color: var(--success-info-text);">
                 Your payment request has been received. Use the payment number below to complete your transfer.
             </div>
             <div class="form-group" style="text-align: center;">
-                <div id="displayMethodTopContainer" style="font-size: 13px; color: #4a5bdc; font-weight: 600; margin-bottom: 8px;">
+                <div id="displayMethodTopContainer" style="font-size: 13px; color: var(--brand); font-weight: 600; margin-bottom: 8px;">
                     Provider: <span id="displayMethodTop">-</span>
                 </div>
                 <label class="form-label">Payment Number</label>
-                <div style="padding: 15px; background: #f0f4ff; border: 2px dashed #4361ee; border-radius: 8px; margin: 10px 0;">
-                    <div style="font-size: 24px; font-weight: bold; color: #4361ee; font-family: monospace;" id="displayPaymentNumber">PENDING...</div>
+                <div style="padding: 15px; background: var(--brand-soft); border: 2px dashed var(--brand); border-radius: 8px; margin: 10px 0;">
+                    <div style="font-size: 24px; font-weight: bold; color: var(--brand); font-family: monospace;" id="displayPaymentNumber">PENDING...</div>
                 </div>
                 <button class="btn-submit" onclick="copyPaymentNumber()" style="width: 100%; margin-top: 10px;">
                     <i class="las la-copy"></i> Copy Payment Number
@@ -897,10 +954,10 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Transfer Details</label>
-                <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; font-size: 13px; line-height: 1.8;">
+                <div style="padding: 12px; background: var(--surface-alt); border-radius: 6px; font-size: 13px; line-height: 1.8;">
                     <strong>Amount:</strong> GHC <span id="displayAmount">0.00</span><br>
                     <strong>Payment Method:</strong> <span id="displayMethod">-</span><br>
-                    <strong>Status:</strong> <span style="color: #f39c12; font-weight: bold;">Awaiting Payment</span>
+                    <strong>Status:</strong> <span style="color: var(--amber-text); font-weight: bold;">Awaiting Payment</span>
                 </div>
             </div>
             <div class="form-group">
@@ -910,7 +967,7 @@
                     <i class="las la-paper-plane"></i> Submit Transaction ID
                 </button>
             </div>
-            <div class="info-box" style="background: #fff3cd; border-color: #ffeaa7; color: #856404; font-size: 12px;">
+            <div class="info-box" style="background: var(--warning-info-bg); border-color: var(--warning-info-border); color: var(--warning-info-text); font-size: 12px;">
                 <strong>⚠️ Important:</strong> Make a manual transfer to the payment number above, then submit the transaction ID. Your balance will be updated once the transfer is verified.
             </div>
             <div class="modal-buttons">
@@ -931,7 +988,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Available Bonus</label>
-                <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; color: #4361ee; font-weight: bold;" id="availableBonus">GHC 0.00</div>
+                <div style="padding: 10px; background: var(--surface-alt); border-radius: 6px; color: var(--brand); font-weight: bold;" id="availableBonus">GHC 0.00</div>
             </div>
             <div class="form-group">
                 <label class="form-label">Amount to Transfer (GHC)</label>
@@ -954,10 +1011,10 @@
             <div class="info-box">
                 Withdraw your earnings to your mobile money or bank account.
             </div>
-            <div class="info-box" id="withdrawRestrictionNotice" style="display:none; background:#fff7ed; border-color:#fdba74; color:#9a2c00; font-size:12px;"></div>
+            <div class="info-box" id="withdrawRestrictionNotice" style="display:none; background:var(--restriction-bg); border-color:var(--restriction-border); color:var(--restriction-text); font-size:12px;"></div>
             <div class="form-group">
                 <label class="form-label">Available Balance</label>
-                <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; color: #4361ee; font-weight: bold;" id="availableBalance">GHC 0.00</div>
+                <div style="padding: 10px; background: var(--surface-alt); border-radius: 6px; color: var(--brand); font-weight: bold;" id="availableBalance">GHC 0.00</div>
             </div>
             <div class="form-group">
                 <label class="form-label">Withdrawal Method</label>
@@ -1002,7 +1059,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label">User ID</label>
-                <input type="text" class="form-input" id="accountId" placeholder="ID-000000" readonly style="background: #f9f9f9; cursor: not-allowed;">
+                <input type="text" class="form-input" id="accountId" placeholder="ID-000000" readonly style="background: var(--surface-alt); cursor: not-allowed;">
             </div>
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closeActionModal('accountModal')">Close</button>
@@ -1019,7 +1076,7 @@
                 Security Center
             </div>
             <div style="margin-bottom: 20px;">
-                <h4 style="margin-bottom: 12px; color: #333; font-size: 14px; font-weight: 600;">Change Password</h4>
+                <h4 style="margin-bottom: 12px; color: var(--text-primary); font-size: 14px; font-weight: 600;">Change Password</h4>
                 <div class="form-group">
                     <label class="form-label">Current Password</label>
                     <input type="password" class="form-input" placeholder="Enter current password">
@@ -1033,7 +1090,7 @@
                     <input type="password" class="form-input" placeholder="Confirm new password">
                 </div>
             </div>
-            <div style="padding: 12px; background: #fff3cd; border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: #856404;">
+            <div style="padding: 12px; background: var(--warning-info-bg); border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: var(--warning-info-text);">
                 <i class="las la-exclamation-circle"></i> Keep your password safe and never share it with anyone.
             </div>
             <div class="modal-buttons">
@@ -1051,15 +1108,23 @@
                 Settings
             </div>
             <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4361ee; cursor: pointer;" onclick="window.open('terms.html', '_blank')">
-                    <div style="font-weight: 600; font-size: 13px; color: #333;"><i class="las la-file-alt" style="margin-right: 6px;"></i>Terms of Service</div>
+                <div style="padding: 16px; background: var(--surface-alt); border-radius: 8px;">
+                    <div style="font-weight: 600; font-size: 13px; color: var(--text-primary); margin-bottom: 10px;"><i class="las la-adjust" style="margin-right: 6px;"></i>Appearance</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="theme-option-btn" data-theme-choice="light" onclick="setThemeChoice('light')" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-primary); cursor:pointer; font-size:12px; font-weight:600;"><i class="las la-sun"></i> Light</button>
+                        <button type="button" class="theme-option-btn" data-theme-choice="dark" onclick="setThemeChoice('dark')" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-primary); cursor:pointer; font-size:12px; font-weight:600;"><i class="las la-moon"></i> Dark</button>
+                        <button type="button" class="theme-option-btn" data-theme-choice="system" onclick="setThemeChoice('system')" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-primary); cursor:pointer; font-size:12px; font-weight:600;"><i class="las la-desktop"></i> System</button>
+                    </div>
                 </div>
-                <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4361ee; cursor: pointer;" onclick="window.open('privacy.html', '_blank')">
-                    <div style="font-weight: 600; font-size: 13px; color: #333;"><i class="las la-user-shield" style="margin-right: 6px;"></i>Privacy Policy</div>
+                <div style="padding: 16px; background: var(--surface-alt); border-radius: 8px; border-left: 4px solid var(--brand); cursor: pointer;" onclick="window.open('terms.html', '_blank')">
+                    <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);"><i class="las la-file-alt" style="margin-right: 6px;"></i>Terms of Service</div>
                 </div>
-                <div style="padding: 16px; background: #fff5f5; border-radius: 8px; border-left: 4px solid #e74c3c; cursor: pointer;" onclick="requestAccountDeletion()">
-                    <div style="font-weight: 600; font-size: 13px; color: #c0392b;"><i class="las la-user-times" style="margin-right: 6px;"></i>Request Account Deletion</div>
-                    <div style="font-size: 12px; color: #999; margin-top: 4px;">Sends a deletion request to our support team</div>
+                <div style="padding: 16px; background: var(--surface-alt); border-radius: 8px; border-left: 4px solid var(--brand); cursor: pointer;" onclick="window.open('privacy.html', '_blank')">
+                    <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);"><i class="las la-user-shield" style="margin-right: 6px;"></i>Privacy Policy</div>
+                </div>
+                <div style="padding: 16px; background: var(--danger-bg); border-radius: 8px; border-left: 4px solid var(--danger-text); cursor: pointer;" onclick="requestAccountDeletion()">
+                    <div style="font-weight: 600; font-size: 13px; color: var(--danger-hover);"><i class="las la-user-times" style="margin-right: 6px;"></i>Request Account Deletion</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Sends a deletion request to our support team</div>
                 </div>
             </div>
             <div class="modal-buttons">
@@ -1401,7 +1466,7 @@
             const button = event.target;
             const originalText = button.innerHTML;
             button.innerHTML = '<i class="las la-check"></i> Copied!';
-            button.style.background = '#27ae60';
+            button.style.background = 'var(--success-text)';
             
             setTimeout(() => {
                 button.innerHTML = originalText;
@@ -1661,6 +1726,26 @@
             }
         }
 
+        function openSettingsModal() {
+            openActionModal('settingsModal');
+            updateThemeButtons();
+        }
+
+        function setThemeChoice(choice) {
+            window.ThemeService.set(choice);
+            updateThemeButtons();
+        }
+
+        function updateThemeButtons() {
+            const current = window.ThemeService.get();
+            document.querySelectorAll('.theme-option-btn').forEach(btn => {
+                const isActive = btn.dataset.themeChoice === current;
+                btn.style.background = isActive ? 'var(--brand)' : 'var(--surface)';
+                btn.style.color = isActive ? '#ffffff' : 'var(--text-primary)';
+                btn.style.borderColor = isActive ? 'var(--brand)' : 'var(--border)';
+            });
+        }
+
         async function requestAccountDeletion() {
             if (!confirm('This sends an account deletion request to our support team. Your account and wallet balance are not deleted automatically - our team will contact you to confirm and resolve any pending balance first. Continue?')) {
                 return;
@@ -1831,8 +1916,8 @@
 
                 if (!transactions || transactions.length === 0) {
                     fundingList.innerHTML = `
-                        <div style="text-align: center; padding: 30px; color: #999;">
-                            <i class="las la-inbox" style="font-size: 48px; margin-bottom: 10px; display: block; color: #ddd;"></i>
+                        <div style="text-align: center; padding: 30px; color: var(--text-muted);">
+                            <i class="las la-inbox" style="font-size: 48px; margin-bottom: 10px; display: block; color: var(--border-light);"></i>
                             <div>No funding records yet</div>
                             <div style="font-size: 12px; margin-top: 8px;">Your deposit and withdrawal history will appear here</div>
                         </div>
@@ -1843,21 +1928,21 @@
                 // Map transaction types to display info
                 function getTxDisplay(type) {
                     const map = {
-                        'deposit':            { label: 'Deposit',              icon: 'la-arrow-down',       color: '#27ae60', sign: '+', bg: '#e8f8ef' },
-                        'bonus':              { label: 'Bonus',                icon: 'la-gift',             color: '#27ae60', sign: '+', bg: '#e8f8ef' },
+                        'deposit':            { label: 'Deposit',              icon: 'la-arrow-down',       color: 'var(--success-text)', sign: '+', bg: 'var(--success-bg)' },
+                        'bonus':              { label: 'Bonus',                icon: 'la-gift',             color: 'var(--success-text)', sign: '+', bg: 'var(--success-bg)' },
                         'bonus_transfer':     { label: 'Bonus → Balance',      icon: 'la-exchange-alt',     color: '#3498db', sign: '',  bg: '#eaf2fb' },
-                        'credit':             { label: 'Credit',               icon: 'la-plus-circle',      color: '#27ae60', sign: '+', bg: '#e8f8ef' },
-                        'withdrawal':         { label: 'Withdrawal',           icon: 'la-arrow-up',         color: '#e74c3c', sign: '-', bg: '#fdeaea' },
+                        'credit':             { label: 'Credit',               icon: 'la-plus-circle',      color: 'var(--success-text)', sign: '+', bg: 'var(--success-bg)' },
+                        'withdrawal':         { label: 'Withdrawal',           icon: 'la-arrow-up',         color: 'var(--danger-text)', sign: '-', bg: 'var(--danger-bg)' },
                         'withdrawal_request': { label: 'Withdrawal Request',   icon: 'la-clock',            color: '#f39c12', sign: '-', bg: '#fef6e6' },
-                        'withdrawal_rejected':{ label: 'Withdrawal Rejected',  icon: 'la-times-circle',     color: '#e74c3c', sign: '',  bg: '#fdeaea' },
-                        'task_cost':          { label: 'Task Cost',            icon: 'la-tasks',            color: '#e74c3c', sign: '-', bg: '#fdeaea' },
-                        'teller_task_cost':   { label: 'Teller Task Cost',     icon: 'la-layer-group',      color: '#e74c3c', sign: '-', bg: '#fdeaea' },
-                        'teller_task_reward': { label: 'Teller Task Reward',   icon: 'la-trophy',           color: '#27ae60', sign: '+', bg: '#e8f8ef' },
-                        'teller_withdraw':    { label: 'Teller Withdrawal',    icon: 'la-wallet',           color: '#27ae60', sign: '+', bg: '#e8f8ef' },
-                        'referral_bonus':     { label: 'Referral Bonus',       icon: 'la-user-friends',     color: '#27ae60', sign: '+', bg: '#e8f8ef' },
+                        'withdrawal_rejected':{ label: 'Withdrawal Rejected',  icon: 'la-times-circle',     color: 'var(--danger-text)', sign: '',  bg: 'var(--danger-bg)' },
+                        'task_cost':          { label: 'Task Cost',            icon: 'la-tasks',            color: 'var(--danger-text)', sign: '-', bg: 'var(--danger-bg)' },
+                        'teller_task_cost':   { label: 'Teller Task Cost',     icon: 'la-layer-group',      color: 'var(--danger-text)', sign: '-', bg: 'var(--danger-bg)' },
+                        'teller_task_reward': { label: 'Teller Task Reward',   icon: 'la-trophy',           color: 'var(--success-text)', sign: '+', bg: 'var(--success-bg)' },
+                        'teller_withdraw':    { label: 'Teller Withdrawal',    icon: 'la-wallet',           color: 'var(--success-text)', sign: '+', bg: 'var(--success-bg)' },
+                        'referral_bonus':     { label: 'Referral Bonus',       icon: 'la-user-friends',     color: 'var(--success-text)', sign: '+', bg: 'var(--success-bg)' },
                         'adjustment':         { label: 'Adjustment',           icon: 'la-sliders-h',        color: '#8e44ad', sign: '',  bg: '#f3eaf8' },
                     };
-                    return map[type] || { label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), icon: 'la-receipt', color: '#666', sign: '', bg: '#f0f0f0' };
+                    return map[type] || { label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), icon: 'la-receipt', color: 'var(--text-secondary)', sign: '', bg: 'var(--divider)' };
                 }
 
                 fundingList.innerHTML = transactions.map(tx => {
@@ -1867,14 +1952,14 @@
                     const info = getTxDisplay(tx.type);
 
                     return `
-                        <div style="padding: 14px 12px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px;">
+                        <div style="padding: 14px 12px; border-bottom: 1px solid var(--divider); display: flex; align-items: center; gap: 12px;">
                             <div style="width: 40px; height: 40px; border-radius: 10px; background: ${info.bg}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                                 <i class="las ${info.icon}" style="font-size: 20px; color: ${info.color};"></i>
                             </div>
                             <div style="flex: 1; min-width: 0;">
-                                <div style="font-weight: 600; font-size: 13px; color: #333;">${info.label}</div>
-                                <div style="font-size: 11px; color: #999; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${tx.reason || ''}</div>
-                                <div style="font-size: 11px; color: #bbb; margin-top: 2px;">${date} · ${time}</div>
+                                <div style="font-weight: 600; font-size: 13px; color: var(--text-primary);">${info.label}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${tx.reason || ''}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${date} · ${time}</div>
                             </div>
                             <div style="font-weight: 700; font-size: 14px; color: ${info.color}; white-space: nowrap;">
                                 ${info.sign}GHC ${amount.toFixed(2)}
@@ -1886,10 +1971,10 @@
                 console.error('Error loading transactions:', error);
                 const fundingList = document.getElementById('fundingList');
                 fundingList.innerHTML = `
-                    <div style="text-align: center; padding: 30px; color: #e74c3c;">
+                    <div style="text-align: center; padding: 30px; color: var(--danger-text);">
                         <i class="las la-exclamation-circle" style="font-size: 48px; margin-bottom: 10px; display: block;"></i>
                         <div>Failed to load records</div>
-                        <div style="font-size: 12px; margin-top: 8px; color: #999;">Please try again later</div>
+                        <div style="font-size: 12px; margin-top: 8px; color: var(--text-muted);">Please try again later</div>
                     </div>
                 `;
             }
@@ -2041,15 +2126,15 @@
             if (!badge) return;
 
             const icon = verified
-                ? '<i class="las la-check-circle" style="color:#2369c9;font-size:16px"></i>'
+                ? '<i class="las la-check-circle" style="color:var(--verify-text);font-size:16px"></i>'
                 : required
-                    ? '<i class="las la-exclamation-circle" style="color:#c0392b;font-size:16px"></i>'
-                    : '<i class="las la-clock" style="color:#2740d4;font-size:16px"></i>';
+                    ? '<i class="las la-exclamation-circle" style="color:var(--danger-hover);font-size:16px"></i>'
+                    : '<i class="las la-clock" style="color:var(--verify-text);font-size:16px"></i>';
 
             badge.innerHTML = `${icon}<span id="verificationStatusText">${statusText}</span>`;
-            badge.style.background = verified ? '#eef6ff' : required ? '#fff5f5' : '#eef4ff';
-            badge.style.borderColor = verified ? '#cce2ff' : required ? '#f5c6cb' : '#dce7ff';
-            badge.style.color = verified ? '#1f4db0' : required ? '#c0392b' : '#2740d4';
+            badge.style.background = verified ? 'var(--verify-bg)' : required ? 'var(--danger-bg)' : 'var(--verify-bg)';
+            badge.style.borderColor = verified ? 'var(--verify-border)' : required ? 'var(--danger-text)' : 'var(--verify-border)';
+            badge.style.color = verified ? 'var(--verify-text)' : required ? 'var(--danger-hover)' : 'var(--verify-text)';
             badge.style.fontWeight = verified ? '700' : '600';
             badge.style.padding = '8px 12px';
             badge.style.borderRadius = '12px';
@@ -2065,13 +2150,13 @@
             
             // Update styling
             document.querySelectorAll('#languageModal > .modal-container > div:nth-child(3) > div').forEach(option => {
-                option.style.borderColor = '#ddd';
+                option.style.borderColor = 'var(--border-light)';
                 const icon = option.querySelector('i');
                 if (icon) icon.style.visibility = 'hidden';
             });
             
             const selectedOption = event.currentTarget;
-            selectedOption.style.borderColor = '#4361ee';
+            selectedOption.style.borderColor = 'var(--brand)';
             const icon = selectedOption.querySelector('i');
             if (icon) icon.style.visibility = 'visible';
         }

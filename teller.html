@@ -4,12 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DailyTrade - Become a Teller</title>
+    <script src="theme.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script type="module" src="auth.js"></script>
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
+        :root {
+            --bg: #f5f5f5;
+            --surface: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border: #e0e0e0;
+            --border-light: #dddddd;
+            --brand: #4361ee;
+            --brand-hover: #3451d4;
+            --brand-soft-bg: rgba(67, 97, 238, 0.08);
+            --brand-soft-border: rgba(67, 97, 238, 0.2);
+            --shadow: rgba(0, 0, 0, 0.05);
+            --shadow-strong: rgba(0, 0, 0, 0.1);
+            --success-bg: #e8f5e9; --success-text: #4caf50;
+            --disabled-bg: #cccccc;
+            --image-placeholder-bg: #f0f2f8;
+            --metric-box-bg: #f7f8ff;
+            --metrics-text: #555555;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f1115;
+            --surface: #1a1d24;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --border: #2d3139;
+            --border-light: #2d3139;
+            --brand: #6b83ff;
+            --brand-hover: #8299ff;
+            --brand-soft-bg: rgba(107, 131, 255, 0.12);
+            --brand-soft-border: rgba(107, 131, 255, 0.25);
+            --shadow: rgba(0, 0, 0, 0.3);
+            --shadow-strong: rgba(0, 0, 0, 0.4);
+            --success-bg: #16321f; --success-text: #4ade80;
+            --disabled-bg: #3a3f4b;
+            --image-placeholder-bg: #232733;
+            --metric-box-bg: #1e2130;
+            --metrics-text: #b0b6c0;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -23,19 +66,21 @@
 
         body {
             font-family: 'Roboto', sans-serif;
-            background: #f5f5f5;
+            background: var(--bg);
+            color: var(--text-primary);
             padding-bottom: 100px;
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
 
         /* Header */
         .header {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
             padding: 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px var(--shadow-strong);
         }
 
         .header-left {
@@ -61,24 +106,24 @@
 
         /* Info Card */
         .info-card {
-            background: white;
+            background: var(--surface);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            border-left: 4px solid #4361ee;
+            box-shadow: 0 2px 8px var(--shadow);
+            border-left: 4px solid var(--brand);
         }
 
         .info-card-title {
             font-size: 16px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 12px;
         }
 
         .info-card-text {
             font-size: 13px;
-            color: #666;
+            color: var(--text-secondary);
             line-height: 1.6;
         }
 
@@ -86,7 +131,7 @@
         .tasks-title {
             font-size: 18px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 16px;
             display: flex;
             align-items: center;
@@ -94,17 +139,17 @@
         }
 
         .tasks-title i {
-            color: #4361ee;
+            color: var(--brand);
             font-size: 20px;
         }
 
         /* Task Card */
         .teller-task-card {
-            background: white;
+            background: var(--surface);
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px var(--shadow);
             display: flex;
             align-items: flex-start;
             gap: 12px;
@@ -114,11 +159,11 @@
             width: 24px;
             height: 24px;
             border-radius: 50%;
-            background: #e8f5e9;
+            background: var(--success-bg);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #4caf50;
+            color: var(--success-text);
             font-size: 14px;
             font-weight: bold;
             flex-shrink: 0;
@@ -131,20 +176,20 @@
         .task-name {
             font-size: 14px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 4px;
         }
 
         .task-desc {
             font-size: 12px;
-            color: #999;
+            color: var(--text-muted);
             margin-bottom: 8px;
         }
 
         .task-reward {
             font-size: 12px;
             font-weight: 600;
-            color: #4caf50;
+            color: var(--success-text);
         }
 
         .task-action {
@@ -153,7 +198,7 @@
         }
 
         .btn-start {
-            background: #4361ee;
+            background: var(--brand);
             color: white;
             border: none;
             padding: 8px 16px;
@@ -165,28 +210,28 @@
         }
 
         .btn-start:hover {
-            background: #3451d4;
+            background: var(--brand-hover);
             transform: translateY(-2px);
         }
 
         .btn-start:disabled {
-            background: #ccc;
+            background: var(--disabled-bg);
             cursor: not-allowed;
         }
 
         /* Benefits Section */
         .benefits-section {
-            background: rgba(67, 97, 238, 0.08);
+            background: var(--brand-soft-bg);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            border: 1px solid rgba(67, 97, 238, 0.2);
+            border: 1px solid var(--brand-soft-border);
         }
 
         .benefits-title {
             font-size: 16px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 16px;
             display: flex;
             align-items: center;
@@ -194,7 +239,7 @@
         }
 
         .benefits-title i {
-            color: #4361ee;
+            color: var(--brand);
             font-size: 18px;
         }
 
@@ -203,11 +248,11 @@
             gap: 12px;
             margin-bottom: 12px;
             font-size: 13px;
-            color: #666;
+            color: var(--text-secondary);
         }
 
         .benefit-icon {
-            color: #4361ee;
+            color: var(--brand);
             font-size: 16px;
             flex-shrink: 0;
         }
@@ -222,12 +267,12 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: white;
-            border-top: 1px solid #e0e0e0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: space-around;
             padding-top: 8px;
-            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 -2px 12px var(--shadow);
             z-index: 100;
         }
 
@@ -237,7 +282,7 @@
             align-items: center;
             padding: 8px 0 12px 0;
             cursor: pointer;
-            color: #999;
+            color: var(--text-muted);
             text-decoration: none;
             transition: color 0.3s;
             min-width: 60px;
@@ -250,32 +295,32 @@
         }
 
         .nav-item.active {
-            color: #4361ee;
+            color: var(--brand);
         }
 
         .nav-item:hover {
-            color: #4361ee;
+            color: var(--brand);
         }
 
         /* Empty State */
         .empty-state {
             text-align: center;
             padding: 40px 16px;
-            color: #999;
+            color: var(--text-muted);
         }
 
         .empty-state i {
             font-size: 48px;
-            color: #ddd;
+            color: var(--border-light);
             margin-bottom: 16px;
         }
 
         .account-card {
-            background: white;
+            background: var(--surface);
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px var(--shadow);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -285,20 +330,20 @@
         .account-balance {
             font-size: 18px;
             font-weight: bold;
-            color: #333;
+            color: var(--text-primary);
         }
 
         .account-subtext {
             font-size: 12px;
-            color: #888;
+            color: var(--text-muted);
         }
 
         .level-card {
-            background: #fff;
+            background: var(--surface);
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px var(--shadow);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -307,19 +352,19 @@
         .level-title {
             font-size: 14px;
             font-weight: 600;
-            color: #333;
+            color: var(--text-primary);
         }
 
         .level-status {
             font-size: 12px;
-            color: #666;
+            color: var(--text-secondary);
         }
 
         .task-card {
-            background: #fff;
+            background: var(--surface);
             border-radius: 12px;
             padding: 16px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px var(--shadow);
             margin-bottom: 16px;
         }
 
@@ -335,7 +380,7 @@
             height: 54px;
             border-radius: 10px;
             object-fit: cover;
-            background: #f0f2f8;
+            background: var(--image-placeholder-bg);
         }
 
         .task-metrics {
@@ -344,11 +389,11 @@
             gap: 8px;
             margin-top: 12px;
             font-size: 12px;
-            color: #555;
+            color: var(--metrics-text);
         }
 
         .metric-box {
-            background: #f7f8ff;
+            background: var(--metric-box-bg);
             padding: 8px;
             border-radius: 8px;
         }
@@ -375,7 +420,8 @@
         }
 
         .modal-content {
-            background: white;
+            background: var(--surface);
+            color: var(--text-primary);
             padding: 20px;
             border-radius: 12px;
             max-width: 340px;
@@ -390,7 +436,7 @@
 
         .modal-desc {
             font-size: 12px;
-            color: #666;
+            color: var(--text-secondary);
             margin-bottom: 12px;
         }
 
@@ -404,7 +450,7 @@
         .modal-countdown {
             font-size: 18px;
             font-weight: bold;
-            color: #4361ee;
+            color: var(--brand);
         }
     </style>
 </head>
@@ -498,7 +544,7 @@
                 <div class="modal-row"><span>Cost</span><span id="orderCost">0.00</span></div>
                 <div class="modal-row"><span>Interest</span><span id="orderInterest">0.00</span></div>
                 <div class="modal-row"><strong>Total Return</strong><strong id="orderTotal">0.00</strong></div>
-                <div style="background: #d4edda; padding: 12px; margin: 12px 0; border-radius: 8px; font-size: 12px; color: #155724; font-weight: 600;">
+                <div style="background: var(--success-bg); padding: 12px; margin: 12px 0; border-radius: 8px; font-size: 12px; color: var(--success-text); font-weight: 600;">
                     ✓ GHC <span id="tellerCreditAmount">0.00</span> credited to your teller account
                 </div>
                 <button id="claimRewardsBtn" class="btn-start" style="width:100%; margin-top: 12px;" onclick="claimTellerRewards()">Claim Rewards</button>
