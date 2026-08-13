@@ -111,6 +111,18 @@ window.AuthService = {
   async getUser() {
     const { data } = await supabase.auth.getUser();
     return data.user;
+  },
+
+  async resetPasswordForEmail(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password.html`
+    });
+    if (error) throw error;
+  },
+
+  async updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
   }
 };
 

@@ -561,26 +561,6 @@
                 </button>
             </form>
 
-            <!-- Divider -->
-            <div class="divider">
-                <div class="divider-line"></div>
-                <div class="divider-text">or</div>
-                <div class="divider-line"></div>
-            </div>
-
-            <!-- Social Login -->
-            <div class="social-login">
-                <button type="button" class="social-btn" title="Google" onclick="socialLogin('google')">
-                    <i class="lab la-google"></i>
-                </button>
-                <button type="button" class="social-btn" title="Apple" onclick="socialLogin('apple')">
-                    <i class="lab la-apple"></i>
-                </button>
-                <button type="button" class="social-btn" title="Facebook" onclick="socialLogin('facebook')">
-                    <i class="lab la-facebook-f"></i>
-                </button>
-            </div>
-
             <!-- Footer Text -->
             <div class="footer-text">
                 Already have an account? <a href="index.html">Log in</a>
@@ -815,10 +795,6 @@
         });
 
         // Social login handler
-        function socialLogin(provider) {
-            alert(`${provider.charAt(0).toUpperCase() + provider.slice(1)} login would be implemented here`);
-        }
-
         // Auto-populate referral code from URL
         (function() {
             const urlParams = new URLSearchParams(window.location.search);

@@ -341,8 +341,25 @@
                         </span>
                     </div>
                     <div class="forgot-password">
-                        <a href="#forgot">Forgot password?</a>
+                        <a href="#" onclick="toggleForgotPassword(event)">Forgot password?</a>
                     </div>
+                </div>
+
+                <!-- Forgot Password Panel -->
+                <div id="forgotPasswordPanel" style="display: none; margin-bottom: 20px; padding: 16px; background: #f9f9f9; border-radius: 8px;">
+                    <label class="form-label" style="margin-bottom: 8px;">Enter your email to reset your password</label>
+                    <div class="input-container" style="margin-bottom: 10px;">
+                        <i class="las la-envelope input-icon"></i>
+                        <input
+                            type="email"
+                            id="forgotEmailInput"
+                            class="input-box"
+                            placeholder="Enter your email"
+                        >
+                    </div>
+                    <button type="button" class="login-button" id="forgotSubmitBtn" onclick="sendPasswordReset()" style="margin-top: 0;">
+                        Send Reset Link
+                    </button>
                 </div>
 
                 <!-- Login Button -->
@@ -383,6 +400,48 @@
         function hideStatus() {
             const statusEl = document.getElementById('statusMessage');
             statusEl.style.display = 'none';
+        }
+
+        function toggleForgotPassword(e) {
+            e.preventDefault();
+            const panel = document.getElementById('forgotPasswordPanel');
+            const isHidden = panel.style.display === 'none';
+            panel.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) {
+                const emailVal = document.getElementById('emailInput').value.trim();
+                const forgotEmailInput = document.getElementById('forgotEmailInput');
+                if (emailVal) forgotEmailInput.value = emailVal;
+                forgotEmailInput.focus();
+            }
+        }
+
+        async function sendPasswordReset() {
+            const email = document.getElementById('forgotEmailInput').value.trim();
+            hideStatus();
+
+            if (!email) {
+                showStatus('Please enter your email address.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('forgotSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+
+            try {
+                if (typeof window.AuthService === 'undefined') {
+                    throw new Error('Authentication service not loaded. Please refresh the page.');
+                }
+                await window.AuthService.resetPasswordForEmail(email);
+                showStatus('Password reset link sent! Check your email.', 'success');
+                document.getElementById('forgotPasswordPanel').style.display = 'none';
+            } catch (error) {
+                console.error('Reset password error:', error);
+                showStatus(error.message || 'Failed to send reset link. Please try again.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send Reset Link';
+            }
         }
 
         function setLoading(isLoading, text = 'Log in') {
