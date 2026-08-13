@@ -50,6 +50,7 @@ const EASY_EARN_CATEGORIES = {
 
 const PHOTO_SURVEY_TOTAL = 10;
 const PHOTO_SURVEY_INTERVAL_MS = 3 * 60 * 1000;
+const TELLER_PROCESSING_MS = 10 * 1000;
 
 function alreadyClaimedTodayError() {
   const err = new Error("You've already completed today's Easy Earn task. Come back tomorrow.");
@@ -1659,7 +1660,7 @@ app.post('/teller/assignments/:id/start', requireAuth, async (req, res) => {
 
   await query(
     `update teller_product_assignments
-     set status = 'in_progress'
+     set status = 'in_progress', started_at = now()
      where id = $1 and user_id = $2`,
     [assignmentId, userId]
   );
@@ -1683,7 +1684,7 @@ app.post('/teller/assignments/:id/complete', requireAuth, async (req, res) => {
   const { id: userId } = req.user;
 
   const { rows } = await query(
-    `select tpa.id, tpa.status, tpa.level,
+    `select tpa.id, tpa.status, tpa.level, tpa.started_at,
             p.id as product_id, p.name, p.price, p.commission
      from teller_product_assignments tpa
      join products p on p.id = tpa.product_id
@@ -1698,6 +1699,13 @@ app.post('/teller/assignments/:id/complete', requireAuth, async (req, res) => {
   const task = rows[0];
   if (task.status !== 'in_progress') {
     return res.status(400).json({ error: 'Task must be started first' });
+  }
+
+  const startedAt = task.started_at ? new Date(task.started_at) : null;
+  const readyAt = startedAt ? new Date(startedAt.getTime() + TELLER_PROCESSING_MS) : null;
+  if (readyAt && Date.now() < readyAt.getTime()) {
+    const secondsLeft = Math.ceil((readyAt.getTime() - Date.now()) / 1000);
+    return res.status(400).json({ error: `Task is still processing. Try again in ${secondsLeft}s.`, ready_at: readyAt });
   }
 
   const price = Number(task.price || 0);
@@ -2511,9 +2519,11 @@ async function ensureSchema() {
       status text not null default 'pending',
       order_index int not null default 1,
       assigned_at timestamptz default now(),
+      started_at timestamptz,
       completed_at timestamptz
     )
   `);
+  await query('alter table teller_product_assignments add column if not exists started_at timestamptz');
   await query('create index if not exists teller_assignments_user_level_idx on teller_product_assignments(user_id, level, status)');
 
   // Referral system columns and table
