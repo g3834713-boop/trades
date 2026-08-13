@@ -1,4 +1,4 @@
-# Payment System Quick Reference Guide
+                    # Payment System Quick Reference Guide
 
 ## System Overview Diagram
 
