@@ -2124,11 +2124,25 @@ app.delete('/admin/beginner-tasks/submissions/:id', requireAuth, requireAdmin, a
   }
 });
 
-// User: Get active beginner tasks with cooldown info
+// User: Get active beginner tasks with cooldown info. Once the schedule system is
+// live, only the specific product the bot announced for the current slot is shown -
+// not every active beginner task - so users can't submit a link for a different
+// product than the one that was actually posted this round.
 async function getBeginnerTasksForUser(userId) {
-  const { rows: tasks } = await query(
-    `select * from beginner_tasks where status = 'active' order by created_at desc`
-  );
+  let tasks;
+  if (await isScheduleSystemInUse()) {
+    const slot = await getActiveScheduleSlot();
+    const productId = slot && slot.task_type === 'beginner' ? slot.details?.productId : null;
+    if (!productId) return [];
+    ({ rows: tasks } = await query(
+      `select * from beginner_tasks where status = 'active' and id = $1`,
+      [productId]
+    ));
+  } else {
+    ({ rows: tasks } = await query(
+      `select * from beginner_tasks where status = 'active' order by created_at desc`
+    ));
+  }
 
   for (const task of tasks) {
     const { rows: lastSubmission } = await query(
