@@ -731,6 +731,30 @@ app.get('/settings', async (req, res) => {
 
 const VALID_SCHEDULE_TASK_TYPES = ['product', 'beginner', 'teller'];
 
+async function getActiveScheduleSlot() {
+  const { rows } = await query(
+    `select * from schedule_slots where starts_at <= now() and ends_at > now() order by starts_at desc limit 1`
+  );
+  return rows[0] || null;
+}
+
+// The schedule gate only enforces once the bot has actually pushed at least one slot,
+// ever - so product/beginner tasks keep working normally before the bot is connected,
+// and gating switches on by itself the moment it goes live. No manual flag needed.
+async function isScheduleSystemInUse() {
+  const { rows } = await query('select 1 from schedule_slots limit 1');
+  return rows.length > 0;
+}
+
+async function requireActiveScheduleType(taskType, errorMessage) {
+  if (!(await isScheduleSystemInUse())) return null; // not yet enforced
+  const slot = await getActiveScheduleSlot();
+  if (!slot || slot.task_type !== taskType) {
+    return errorMessage;
+  }
+  return null;
+}
+
 function requireSchedulerKey(req, res, next) {
   const key = req.headers['x-scheduler-key'];
   if (!process.env.SCHEDULER_API_KEY || key !== process.env.SCHEDULER_API_KEY) {
@@ -763,12 +787,10 @@ app.post('/schedule/slots', requireSchedulerKey, async (req, res) => {
 // Site reads this to know what's live right now
 app.get('/schedule/current', async (req, res) => {
   try {
-    const { rows } = await query(
-      `select * from schedule_slots where starts_at <= now() and ends_at > now() order by starts_at desc limit 1`
-    );
-    if (rows.length === 0) return res.json({ active: false });
-    const slot = rows[0];
-    res.json({ active: true, task_type: slot.task_type, starts_at: slot.starts_at, ends_at: slot.ends_at, details: slot.details });
+    const everUsed = await isScheduleSystemInUse();
+    const slot = await getActiveScheduleSlot();
+    if (!slot) return res.json({ active: false, everUsed });
+    res.json({ active: true, everUsed, task_type: slot.task_type, starts_at: slot.starts_at, ends_at: slot.ends_at, details: slot.details });
   } catch (err) {
     console.error('Get current schedule error:', err);
     res.status(500).json({ error: 'Failed to load current schedule' });
@@ -2152,7 +2174,12 @@ app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
     if (!url || !url.trim()) {
       return res.status(400).json({ error: 'URL is required' });
     }
-    
+
+    const scheduleError = await requireActiveScheduleType('beginner', 'Beginner tasks are not open right now. Check the WhatsApp announcement for the next open time.');
+    if (scheduleError) {
+      return res.status(400).json({ error: scheduleError });
+    }
+
     // Check if task exists and is active
     const { rows: taskRows } = await query(
       `select * from beginner_tasks where id = $1`,
@@ -2277,6 +2304,11 @@ app.post('/orders/start', requireAuth, async (req, res) => {
 
   if (!taskId && !productId) {
     return res.status(400).json({ error: 'Task ID or Product ID required' });
+  }
+
+  const scheduleError = await requireActiveScheduleType('teller', 'Product tasks are not open right now. Check the WhatsApp announcement for the next open time.');
+  if (scheduleError) {
+    return res.status(400).json({ error: scheduleError });
   }
 
   try {

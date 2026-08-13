@@ -776,6 +776,9 @@
         <!-- Balance Section -->
         <div class="balance-section"></div>
 
+        <!-- Schedule Status Banner -->
+        <div id="scheduleStatusBanner" style="display:none; margin: 10px 0; padding: 12px 14px; border-radius: 10px; font-size: 13px; font-weight: 600;"></div>
+
         <!-- Award Section -->
         <div class="award-section"></div>
 
@@ -805,6 +808,8 @@
         // Task data
         let tasksData = { pending: [], frozen: [], completed: [] };
         let orderPollTimer = null;
+        let scheduleStatus = { active: false, task_type: null, ends_at: null };
+        let scheduleRefreshTimeout = null;
         let processingState = {
             active: false,
             visible: false,
@@ -828,14 +833,18 @@
             const tasksReady = loadUserTasks();
             const beginnerReady = loadBeginnerTasks();
             const catalogReady = loadCatalog();
+            const scheduleReady = refreshSchedule();
 
-            await Promise.allSettled([balanceReady, tasksReady, beginnerReady, catalogReady]);
+            await Promise.allSettled([balanceReady, tasksReady, beginnerReady, catalogReady, scheduleReady]);
 
             refreshTaskStats();
             updateAward();
             document.querySelector('.award-section').classList.add('loaded');
             displayTasks('pending');
             document.querySelector('.task-list').classList.add('loaded');
+            // Re-render with the now-guaranteed-fresh schedule status, in case this
+            // resolved before refreshSchedule() did.
+            if (lastBeginnerTasks) renderBeginnerTasks(lastBeginnerTasks);
 
             const beginnerSection = document.getElementById('beginnerTasksSection');
             if (beginnerSection && beginnerSection.innerHTML.trim()) {
@@ -956,22 +965,34 @@
             orderPollTimer = setInterval(pollOnce, 2000);
         }
 
+        let lastBeginnerTasks = null;
+
         async function loadBeginnerTasks() {
             try {
-                const tasks = await window.API.getUserBeginnerTasks();
-                const container = document.getElementById('beginnerTasksSection');
-                
-                if (tasks.length === 0) {
-                    container.innerHTML = '';
-                    return;
-                }
-                
-                container.innerHTML = tasks.map(task => {
-                    const canSubmit = task.can_submit;
+                lastBeginnerTasks = await window.API.getUserBeginnerTasks();
+                renderBeginnerTasks(lastBeginnerTasks);
+            } catch (error) {
+                console.error('Failed to load beginner tasks:', error);
+            }
+        }
+
+        function renderBeginnerTasks(tasks) {
+            const container = document.getElementById('beginnerTasksSection');
+            if (!container) return;
+
+            if (!tasks || tasks.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const scheduleOpen = isScheduleOpenFor('beginner');
+
+            container.innerHTML = tasks.map(task => {
+                    const canSubmit = task.can_submit && scheduleOpen;
                     const nextAvailable = task.next_available_at ? new Date(task.next_available_at) : null;
                     const timeLeft = nextAvailable ? Math.max(0, nextAvailable - new Date()) : 0;
                     const minutesLeft = Math.ceil(timeLeft / 1000 / 60);
-                    
+
                     return `
                         <div class="beginner-task-card">
                             <div class="beginner-task-header">
@@ -985,31 +1006,32 @@
                                     <div class="beginner-task-info-value">GHC ${parseFloat(task.amount).toFixed(2)}</div>
                                 </div>
                             </div>
-                            ${!canSubmit ? `
+                            ${!task.can_submit ? `
                                 <div class="beginner-task-cooldown">
                                     <i class="las la-clock"></i> Next available in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}
                                 </div>
-                            ` : ''}
-                            <input 
-                                type="url" 
-                                class="beginner-task-url-input" 
-                                id="beginnerTaskUrl_${task.id}" 
+                            ` : (!scheduleOpen ? `
+                                <div class="beginner-task-cooldown">
+                                    <i class="las la-lock"></i> Not open right now - check the WhatsApp group
+                                </div>
+                            ` : '')}
+                            <input
+                                type="url"
+                                class="beginner-task-url-input"
+                                id="beginnerTaskUrl_${task.id}"
                                 placeholder="Paste URL here..."
                                 ${!canSubmit ? 'disabled' : ''}
                             >
-                            <button 
-                                class="beginner-task-submit-btn" 
+                            <button
+                                class="beginner-task-submit-btn"
                                 onclick="submitBeginnerTask('${task.id}')"
                                 ${!canSubmit ? 'disabled' : ''}
                             >
-                                ${canSubmit ? 'Submit Task' : 'On Cooldown'}
+                                ${canSubmit ? 'Submit Task' : (!task.can_submit ? 'On Cooldown' : 'Closed')}
                             </button>
                         </div>
                     `;
                 }).join('');
-            } catch (error) {
-                console.error('Failed to load beginner tasks:', error);
-            }
         }
 
         // Load public Easy Earns catalog
@@ -1503,6 +1525,80 @@
             }
         }
 
+        // Fetches what the WhatsApp bot currently has open, renders the status banner,
+        // and re-renders the gated sections. Re-checks itself exactly when the current
+        // slot ends (setTimeout keyed to its real end time), plus a 45s fallback poll -
+        // no WebSocket needed, slots last 30-50 minutes so this is effectively instant
+        // from a user's perspective.
+        async function refreshSchedule() {
+            if (scheduleRefreshTimeout) {
+                clearTimeout(scheduleRefreshTimeout);
+                scheduleRefreshTimeout = null;
+            }
+
+            try {
+                scheduleStatus = await window.API.getScheduleCurrent();
+            } catch (err) {
+                console.warn('Failed to load schedule status:', err);
+                scheduleStatus = { active: false };
+            }
+
+            renderScheduleBanner();
+
+            // Re-render the sections that depend on schedule status, using data already
+            // loaded - no extra network calls.
+            const currentFilterBtn = document.querySelector('.filter-btn.active');
+            const currentFilter = currentFilterBtn ? currentFilterBtn.textContent.trim() === 'Frozen' ? 'frozen' : currentFilterBtn.textContent.trim() === 'Completed' ? 'completed' : 'pending' : 'pending';
+            if (document.querySelector('.task-list').classList.contains('loaded')) {
+                displayTasks(currentFilter);
+            }
+            if (typeof renderBeginnerTasks === 'function' && lastBeginnerTasks) {
+                renderBeginnerTasks(lastBeginnerTasks);
+            }
+
+            if (scheduleStatus.active && scheduleStatus.ends_at) {
+                const msLeft = new Date(scheduleStatus.ends_at).getTime() - Date.now();
+                scheduleRefreshTimeout = setTimeout(refreshSchedule, Math.max(2000, msLeft + 1000));
+            } else {
+                scheduleRefreshTimeout = setTimeout(refreshSchedule, 45000);
+            }
+        }
+
+        function renderScheduleBanner() {
+            const banner = document.getElementById('scheduleStatusBanner');
+            if (!banner) return;
+
+            // Nothing has ever been announced yet - schedule gating isn't active, don't
+            // show a status banner at all.
+            if (!scheduleStatus || !scheduleStatus.everUsed) {
+                banner.style.display = 'none';
+                return;
+            }
+
+            if (!scheduleStatus.active) {
+                banner.style.display = 'block';
+                banner.style.background = '#f3f4f6';
+                banner.style.color = '#6b7280';
+                banner.innerHTML = '<i class="las la-lock"></i> No scheduled tasks are open right now. Check the WhatsApp group for the next announcement.';
+                return;
+            }
+
+            const label = scheduleStatus.task_type === 'beginner' ? 'Beginner (product-link) tasks' : 'Product tasks';
+            const endsAt = new Date(scheduleStatus.ends_at);
+            banner.style.display = 'block';
+            banner.style.background = '#e7f7ed';
+            banner.style.color = '#2f855a';
+            banner.innerHTML = `<i class="las la-unlock"></i> ${label} are open now, until ${endsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+        }
+
+        // Is the given task type currently allowed? Before the bot has ever pushed a
+        // slot (everUsed === false), nothing is gated - matches the backend's own
+        // self-activating enforcement in requireActiveScheduleType().
+        function isScheduleOpenFor(taskType) {
+            if (!scheduleStatus || !scheduleStatus.everUsed) return true;
+            return !!scheduleStatus.active && scheduleStatus.task_type === taskType;
+        }
+
         function displayTasks(filter) {
             const tasks = tasksData[filter] || [];
             const taskList = document.querySelector('.task-list');
@@ -1527,9 +1623,11 @@
                         <div class="product-card-description">${product.description}</div>
                         <div class="product-card-price">GHC ${product.amount.toFixed(2)}</div>
                         ${product.commission > 0 ? `<div class="product-card-commission">Interest: ${product.commission}%</div>` : ''}
-                        ${product.status === 'pending' ? `
-                            <button class="product-card-button" onclick="completeTask('${product.id}', 'true')">Place Order</button>
-                        ` : `<button class="product-card-button" disabled style="opacity: 0.6; cursor: not-allowed;">${product.status === 'completed' ? 'Completed' : 'Frozen'}</button>`}
+                        ${product.status === 'pending' ? (
+                            isScheduleOpenFor('teller')
+                                ? `<button class="product-card-button" onclick="completeTask('${product.id}', 'true')">Place Order</button>`
+                                : `<button class="product-card-button" disabled style="opacity: 0.6; cursor: not-allowed;" title="Not open right now">Not Open Yet</button>`
+                        ) : `<button class="product-card-button" disabled style="opacity: 0.6; cursor: not-allowed;">${product.status === 'completed' ? 'Completed' : 'Frozen'}</button>`}
                     </div>
                 `).join('');
                 productGrid.style.display = 'grid';

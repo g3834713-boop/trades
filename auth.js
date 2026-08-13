@@ -571,6 +571,10 @@ window.API = {
     return this.call('/easy-earns/status/today');
   },
 
+  async getScheduleCurrent() {
+    return this.call('/schedule/current');
+  },
+
   // Quiz category
   async getQuizQuestions(taskId) {
     return this.call(`/easy-earns/quiz/${taskId}/questions`);
