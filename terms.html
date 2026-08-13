@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">Terms of Service</title>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+            line-height: 1.65;
+        }
+        .page {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 24px 20px 60px;
+        }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            border-radius: 999px;
+            padding: 10px 16px;
+            font-weight: 600;
+            text-decoration: none;
+            background: #e8eefc;
+            color: #4361ee;
+            margin-bottom: 20px;
+        }
+        .doc-card {
+            background: white;
+            border-radius: 18px;
+            padding: 32px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        }
+        h1 {
+            font-size: 24px;
+            margin: 0 0 6px;
+            color: #1f2937;
+        }
+        .updated {
+            font-size: 13px;
+            color: #9ca3af;
+            margin-bottom: 24px;
+        }
+        h2 {
+            font-size: 17px;
+            color: #4361ee;
+            margin: 28px 0 8px;
+        }
+        p, li {
+            font-size: 14.5px;
+            color: #374151;
+        }
+        ul { padding-left: 20px; margin: 8px 0; }
+        .notice {
+            background: #fff7ed;
+            border: 1px solid #fdba74;
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-size: 14px;
+            color: #9a3412;
+            margin: 10px 0;
+        }
+        .contact-box {
+            background: #f9fafb;
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 28px;
+            font-size: 14px;
+        }
+        @media (max-width: 600px) {
+            .doc-card { padding: 22px 18px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <a href="register.html" class="back-btn"><i class="las la-arrow-left"></i> Back</a>
+        <div class="doc-card">
+            <h1><span id="platformNameHeading">DailyTrade</span> Terms of Service</h1>
+            <div class="updated">Last updated: August 2026</div>
+
+            <p>These Terms of Service ("Terms") govern your access to and use of <span class="platform-name">DailyTrade</span> (the "Platform"). By creating an account, you agree to these Terms.</p>
+
+            <h2>1. What the Platform Offers</h2>
+            <p><span class="platform-name">DailyTrade</span> provides three related services:</p>
+            <ul>
+                <li><strong>Task Earning</strong> — completing simple, verifiable in-app activities (such as watching videos, quizzes, polls, and photo surveys) in exchange for rewards credited to your account balance.</li>
+                <li><strong>Amazon Affiliate Program</strong> — as an Amazon Associate, <span class="platform-name">DailyTrade</span> earns from qualifying purchases made through Amazon product links and promotions shared on the Platform.</li>
+                <li><strong>Teller Recruit Program</strong> — an optional product-processing activity where users commit funds from their wallet to process assigned products and earn a return, and may invite others to join.</li>
+            </ul>
+
+            <div class="notice">
+                <strong>Important:</strong> The Teller program is a task-based reward mechanic, not a financial investment, security, or savings product. Amounts described as "interest" or "return" refer to task rewards, not investment yield, and are not guaranteed by any regulated financial institution. Only commit funds you are comfortable using within the Platform.
+            </div>
+
+            <h2>2. Eligibility and Your Account</h2>
+            <p>You must provide accurate registration information and are responsible for keeping your login credentials secure. You are responsible for all activity under your account. Accounts found to be fraudulent, duplicated to abuse rewards, or used to submit false task proof may be suspended or terminated.</p>
+
+            <h2>3. Rewards, Payments, and Withdrawals</h2>
+            <ul>
+                <li>Task and Teller rewards are credited to your in-app wallet balance, not paid directly as cash.</li>
+                <li>Withdrawal requests are reviewed and approved by our team before funds are released.</li>
+                <li>Withdrawals above the identity verification threshold require a completed and approved identity verification.</li>
+                <li>We reserve the right to reverse rewards obtained through fraudulent, automated, or abusive activity.</li>
+            </ul>
+
+            <h2>4. Prohibited Conduct</h2>
+            <p>You agree not to: use bots, scripts, or automation to complete tasks; create multiple accounts to claim rewards more than once; submit false or misleading task proof; or attempt to interfere with the Platform's normal operation.</p>
+
+            <h2>5. Referrals and Recruitment</h2>
+            <p>Referral and recruitment bonuses are paid only for genuine, active participants. Bonuses obtained through fake accounts or incentivized false referrals may be reversed.</p>
+
+            <h2>6. Limitation of Liability</h2>
+            <p>The Platform is provided "as is." We are not liable for indirect or incidental losses arising from your use of the Platform, to the fullest extent permitted by law.</p>
+
+            <h2>7. Changes to These Terms</h2>
+            <p>We may update these Terms from time to time. Continued use of the Platform after changes take effect constitutes acceptance of the updated Terms.</p>
+
+            <h2>8. Contact</h2>
+            <div class="contact-box">
+                Questions about these Terms can be sent to <span id="supportEmail">our support team</span>.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (async function() {
+            try {
+                const res = await fetch(`${CONFIG.API_URL}/settings`);
+                const settings = await res.json();
+                const name = settings.platformName || 'DailyTrade';
+                document.querySelectorAll('.platform-name').forEach(el => el.textContent = name);
+                document.getElementById('platformNameHeading').textContent = name;
+                document.getElementById('pageTitle').textContent = name + ' - Terms of Service';
+                const email = settings.support && settings.support.supportEmail;
+                if (email) {
+                    const emailEl = document.getElementById('supportEmail');
+                    emailEl.innerHTML = `<a href="mailto:${email}" style="color:#4361ee;">${email}</a>`;
+                }
+            } catch (err) {
+                console.warn('Could not load platform settings', err);
+            }
+        })();
+    </script>
+</body>
+</html>
