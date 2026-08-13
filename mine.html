@@ -1615,33 +1615,50 @@
         }
 
         // Change password
-        function changePassword() {
+        async function changePassword() {
             const currentPassword = document.querySelector('#securityModal input[type="password"]').value;
             const newPassword = document.querySelectorAll('#securityModal input[type="password"]')[1].value;
             const confirmPassword = document.querySelectorAll('#securityModal input[type="password"]')[2].value;
-            
+
             if (!currentPassword || !newPassword || !confirmPassword) {
                 alert('Please fill in all password fields');
                 return;
             }
-            
+
             if (newPassword.length < 8) {
                 alert('New password must be at least 8 characters long');
                 return;
             }
-            
+
             if (newPassword !== confirmPassword) {
                 alert('Passwords do not match');
                 return;
             }
-            
-            alert('Password changed successfully!');
-            closeActionModal('securityModal');
-            
-            // Clear the form
-            document.querySelectorAll('#securityModal input[type="password"]').forEach(input => {
-                input.value = '';
-            });
+
+            try {
+                const user = await window.AuthService.getUser();
+                if (!user || !user.email) {
+                    throw new Error('Could not verify your account. Please log in again.');
+                }
+
+                // Verify the current password is correct before changing anything
+                await window.AuthService.login(user.email, currentPassword);
+
+                // Current password confirmed - now set the new one
+                await window.AuthService.updatePassword(newPassword);
+
+                alert('Password changed successfully!');
+                closeActionModal('securityModal');
+
+                // Clear the form
+                document.querySelectorAll('#securityModal input[type="password"]').forEach(input => {
+                    input.value = '';
+                });
+            } catch (error) {
+                console.error('Change password error:', error);
+                const isWrongCurrentPassword = (error.message || '').toLowerCase().includes('invalid');
+                alert(isWrongCurrentPassword ? 'Current password is incorrect' : (error.message || 'Failed to change password'));
+            }
         }
 
         async function requestAccountDeletion() {
