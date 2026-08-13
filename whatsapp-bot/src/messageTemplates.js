@@ -8,27 +8,11 @@ export function formatBeginnerTaskMessage(taskNumber, product) {
   );
 }
 
-export function formatTellerTaskMessage(taskNumber, tellerProducts) {
-  const header =
+export function formatTellerTaskMessage(taskNumber) {
+  return (
     `*Task #${taskNumber}*\n\n` +
     `📦 Process Teller Packages\n\n` +
-    `Handle and process teller package items as instructed.\n\n` +
-    `⏱ Duration: 50 minutes\n\n`;
-
-  if (!tellerProducts || tellerProducts.length === 0) {
-    return header + '_No packages currently available._';
-  }
-
-  const rows = tellerProducts
-    .map(p => `${String(p.amount).padEnd(9)} ${String(`${p.profit} (${p.commissionPercent}%)`).padEnd(16)} ${p.totalReturn}`)
-    .join('\n');
-
-  const table =
-    '```\n' +
-    '🔵 Teller Network - Task Packages\n' +
-    `${'Amount (GHC)'.padEnd(9)} ${'Profit'.padEnd(16)} Total Return\n` +
-    rows +
-    '\n```';
-
-  return header + table;
+    `See the package list in the image above. Handle and process teller package items as instructed.\n\n` +
+    `⏱ Duration: 50 minutes`
+  );
 }

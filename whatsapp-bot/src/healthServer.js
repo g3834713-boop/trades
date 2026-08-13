@@ -50,7 +50,7 @@ async function handleTestSend(req, res, state) {
     if (type === 'teller') {
       const tellerProducts = await getTellerProducts();
       card = renderTellerPackageCard(taskNumber, tellerProducts);
-      caption = formatTellerTaskMessage(taskNumber, tellerProducts);
+      caption = formatTellerTaskMessage(taskNumber);
     } else if (type === 'beginner') {
       const products = await getBeginnerTaskProducts();
       const product = products[0] || { title: 'Sample Product' };

@@ -42,7 +42,7 @@ async function runSlot(sock, slot) {
     } else {
       const tellerProducts = await getTellerProducts();
       const card = renderTellerPackageCard(taskCounter, tellerProducts);
-      await sock.sendMessage(TARGET_JID, { image: card, caption: formatTellerTaskMessage(taskCounter, tellerProducts) });
+      await sock.sendMessage(TARGET_JID, { image: card, caption: formatTellerTaskMessage(taskCounter) });
       await pushScheduleSlot({
         taskType: 'teller',
         startsAt: slot.startsAt.toISOString(),
