@@ -3,7 +3,7 @@ import { connectWhatsApp } from './whatsapp.js';
 import { generateDailySchedule } from './scheduler.js';
 import { pushScheduleSlot, getBeginnerTaskProducts, getTellerProducts } from './apiClient.js';
 import { formatBeginnerTaskMessage, formatTellerTaskMessage } from './messageTemplates.js';
-import { renderTaskNumberCard } from './cardImage.js';
+import { renderTaskNumberCard, renderTellerPackageCard } from './cardImage.js';
 import { startHealthServer } from './healthServer.js';
 
 const TARGET_JID = process.env.WHATSAPP_TARGET_JID;
@@ -41,7 +41,7 @@ async function runSlot(sock, slot) {
       });
     } else {
       const tellerProducts = await getTellerProducts();
-      const card = renderTaskNumberCard(taskCounter, 'Teller Package Task');
+      const card = renderTellerPackageCard(taskCounter, tellerProducts);
       await sock.sendMessage(TARGET_JID, { image: card, caption: formatTellerTaskMessage(taskCounter, tellerProducts) });
       await pushScheduleSlot({
         taskType: 'teller',
