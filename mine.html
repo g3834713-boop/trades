@@ -478,7 +478,7 @@
     <div class="header">
         <div class="header-title">Mine</div>
         <div class="header-icons">
-            <i class="las la-cog" title="Settings" onclick="alert('Settings coming soon')"></i>
+            <i class="las la-cog" title="Settings" onclick="openActionModal('settingsModal')"></i>
         </div>
     </div>
 
@@ -1039,6 +1039,31 @@
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closeActionModal('securityModal')">Close</button>
                 <button class="btn-submit" onclick="changePassword()">Update Password</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="action-modal" id="settingsModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-cog"></i>
+                Settings
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4361ee; cursor: pointer;" onclick="window.open('terms.html', '_blank')">
+                    <div style="font-weight: 600; font-size: 13px; color: #333;"><i class="las la-file-alt" style="margin-right: 6px;"></i>Terms of Service</div>
+                </div>
+                <div style="padding: 16px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #4361ee; cursor: pointer;" onclick="window.open('privacy.html', '_blank')">
+                    <div style="font-weight: 600; font-size: 13px; color: #333;"><i class="las la-user-shield" style="margin-right: 6px;"></i>Privacy Policy</div>
+                </div>
+                <div style="padding: 16px; background: #fff5f5; border-radius: 8px; border-left: 4px solid #e74c3c; cursor: pointer;" onclick="requestAccountDeletion()">
+                    <div style="font-weight: 600; font-size: 13px; color: #c0392b;"><i class="las la-user-times" style="margin-right: 6px;"></i>Request Account Deletion</div>
+                    <div style="font-size: 12px; color: #999; margin-top: 4px;">Sends a deletion request to our support team</div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('settingsModal')">Close</button>
             </div>
         </div>
     </div>
@@ -1617,6 +1642,26 @@
             document.querySelectorAll('#securityModal input[type="password"]').forEach(input => {
                 input.value = '';
             });
+        }
+
+        async function requestAccountDeletion() {
+            if (!confirm('This sends an account deletion request to our support team. Your account and wallet balance are not deleted automatically - our team will contact you to confirm and resolve any pending balance first. Continue?')) {
+                return;
+            }
+            try {
+                const settingsRes = await fetch(`${CONFIG.API_URL}/settings`);
+                const settings = await settingsRes.json();
+                const supportEmail = (settings.support && settings.support.supportEmail) || 'support@dailytrade.com';
+                const user = await (window.AuthService ? window.AuthService.getUser().catch(() => null) : null);
+                const userEmail = user?.email || '';
+                const subject = encodeURIComponent('Account Deletion Request');
+                const body = encodeURIComponent(`I would like to request deletion of my account.\n\nAccount email: ${userEmail}`);
+                window.location.href = `mailto:${supportEmail}?subject=${subject}&body=${body}`;
+                closeActionModal('settingsModal');
+            } catch (error) {
+                console.error('Failed to prepare deletion request:', error);
+                alert('Could not open the deletion request. Please contact support directly.');
+            }
         }
 
         function confirmLogout() {
