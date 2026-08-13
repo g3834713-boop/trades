@@ -12,6 +12,7 @@
     "test-send": "node test-send.js"
   },
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@whiskeysockets/baileys": "^6.7.9",
     "dotenv": "^16.4.5",
     "pg": "^8.11.5",

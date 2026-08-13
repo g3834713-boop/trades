@@ -3,6 +3,7 @@ import { connectWhatsApp } from './whatsapp.js';
 import { generateDailySchedule } from './scheduler.js';
 import { pushScheduleSlot, getBeginnerTaskProducts, getTellerProducts } from './apiClient.js';
 import { formatBeginnerTaskMessage, formatTellerTaskMessage } from './messageTemplates.js';
+import { renderTaskNumberCard } from './cardImage.js';
 import { startHealthServer } from './healthServer.js';
 
 const TARGET_JID = process.env.WHATSAPP_TARGET_JID;
@@ -30,7 +31,8 @@ async function runSlot(sock, slot) {
         return;
       }
       const product = pickBeginnerProduct(products);
-      await sock.sendMessage(TARGET_JID, { text: formatBeginnerTaskMessage(taskCounter, product) });
+      const card = renderTaskNumberCard(taskCounter, 'Product Link Task');
+      await sock.sendMessage(TARGET_JID, { image: card, caption: formatBeginnerTaskMessage(taskCounter, product) });
       await pushScheduleSlot({
         taskType: 'beginner',
         startsAt: slot.startsAt.toISOString(),
@@ -39,7 +41,8 @@ async function runSlot(sock, slot) {
       });
     } else {
       const tellerProducts = await getTellerProducts();
-      await sock.sendMessage(TARGET_JID, { text: formatTellerTaskMessage(taskCounter, tellerProducts) });
+      const card = renderTaskNumberCard(taskCounter, 'Teller Package Task');
+      await sock.sendMessage(TARGET_JID, { image: card, caption: formatTellerTaskMessage(taskCounter, tellerProducts) });
       await pushScheduleSlot({
         taskType: 'teller',
         startsAt: slot.startsAt.toISOString(),
