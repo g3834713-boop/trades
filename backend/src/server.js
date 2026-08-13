@@ -712,6 +712,71 @@ app.get('/settings', async (req, res) => {
   res.json(settings);
 });
 
+// --- WhatsApp bot schedule ---
+// The bot decides the daily schedule and pushes it here; the site only reads it to know
+// which task type ('product' | 'beginner' | 'teller') is currently allowed.
+
+const VALID_SCHEDULE_TASK_TYPES = ['product', 'beginner', 'teller'];
+
+function requireSchedulerKey(req, res, next) {
+  const key = req.headers['x-scheduler-key'];
+  if (!process.env.SCHEDULER_API_KEY || key !== process.env.SCHEDULER_API_KEY) {
+    return res.status(401).json({ error: 'Invalid or missing scheduler key' });
+  }
+  next();
+}
+
+// Bot pushes a new slot here as it decides/announces one
+app.post('/schedule/slots', requireSchedulerKey, async (req, res) => {
+  try {
+    const { task_type, starts_at, ends_at, details } = req.body || {};
+    if (!VALID_SCHEDULE_TASK_TYPES.includes(task_type)) {
+      return res.status(400).json({ error: `task_type must be one of ${VALID_SCHEDULE_TASK_TYPES.join(', ')}` });
+    }
+    if (!starts_at || !ends_at || isNaN(Date.parse(starts_at)) || isNaN(Date.parse(ends_at))) {
+      return res.status(400).json({ error: 'Valid starts_at and ends_at are required' });
+    }
+    const { rows } = await query(
+      `insert into schedule_slots (task_type, starts_at, ends_at, details) values ($1, $2, $3, $4) returning *`,
+      [task_type, starts_at, ends_at, details ? JSON.stringify(details) : null]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Push schedule slot error:', err);
+    res.status(500).json({ error: 'Failed to save schedule slot' });
+  }
+});
+
+// Site reads this to know what's live right now
+app.get('/schedule/current', async (req, res) => {
+  try {
+    const { rows } = await query(
+      `select * from schedule_slots where starts_at <= now() and ends_at > now() order by starts_at desc limit 1`
+    );
+    if (rows.length === 0) return res.json({ active: false });
+    const slot = rows[0];
+    res.json({ active: true, task_type: slot.task_type, starts_at: slot.starts_at, ends_at: slot.ends_at, details: slot.details });
+  } catch (err) {
+    console.error('Get current schedule error:', err);
+    res.status(500).json({ error: 'Failed to load current schedule' });
+  }
+});
+
+// Full day view, mainly for admin/debugging
+app.get('/schedule/today', async (req, res) => {
+  try {
+    const { rows } = await query(
+      `select id, task_type, starts_at, ends_at, details from schedule_slots
+       where starts_at >= date_trunc('day', now()) and starts_at < date_trunc('day', now()) + interval '1 day'
+       order by starts_at asc`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Get today schedule error:', err);
+    res.status(500).json({ error: 'Failed to load today\'s schedule' });
+  }
+});
+
 app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
   const {
     commissionRate,
@@ -2500,6 +2565,20 @@ async function ensureSchema() {
       unique (task_id, user_id, submit_date, prompt_index)
     )
   `);
+
+  // Daily broadcast schedule - pushed by the WhatsApp bot, read by the site to know
+  // which task type ('product' | 'beginner' | 'teller') is currently allowed.
+  await query(`
+    create table if not exists schedule_slots (
+      id uuid primary key default gen_random_uuid(),
+      task_type text not null,
+      starts_at timestamptz not null,
+      ends_at timestamptz not null,
+      details jsonb,
+      created_at timestamptz default now()
+    )
+  `);
+  await query('create index if not exists schedule_slots_time_idx on schedule_slots(starts_at, ends_at)');
 
   await query(`
     create table if not exists teller_wallets (
