@@ -709,23 +709,28 @@
                     <div class="easy-earns-panel">
                         <div class="easy-earns-panel-header">
                             <div>
-                                <h3 id="easyEarnVideosTitle" style="font-size: 16px; color: #333;">Videos</h3>
-                                <div id="easyEarnVideosSubtitle" style="font-size: 12px; color: #777; margin-top: 4px;">No Easy Earn task selected</div>
+                                <h3 id="easyEarnDetailTitle" style="font-size: 16px; color: #333;">Details</h3>
+                                <div id="easyEarnDetailSubtitle" style="font-size: 12px; color: #777; margin-top: 4px;">No Easy Earn task selected</div>
                             </div>
-                            <button class="btn btn-primary" id="addEasyEarnVideoBtn" onclick="openEasyEarnVideoModal()" disabled>
-                                <i class="las la-plus"></i> Add Video
-                            </button>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" id="editEasyEarnTaskBtn" onclick="openEditEasyEarnTaskModal()" disabled>
+                                    <i class="las la-pen"></i> Edit Task
+                                </button>
+                                <button class="btn btn-primary" id="addEasyEarnItemBtn" onclick="openAddEasyEarnItemModal()" disabled>
+                                    <i class="las la-plus"></i> Add
+                                </button>
+                            </div>
                         </div>
                         <div class="table-container" style="box-shadow: none; border-radius: 0;">
-                            <div class="table-header" style="grid-template-columns: 0.5fr 1.1fr 2fr 0.8fr 1fr;">
+                            <div id="easyEarnDetailTableHeader" class="table-header" style="grid-template-columns: 0.5fr 1.1fr 2fr 0.8fr 1fr;">
                                 <div>#</div>
                                 <div>Title</div>
                                 <div>URL</div>
                                 <div>Duration</div>
                                 <div>Actions</div>
                             </div>
-                            <div id="easyEarnVideosTableBody">
-                                <div class="empty-state"><p>No videos loaded</p></div>
+                            <div id="easyEarnDetailTableBody">
+                                <div class="empty-state"><p>Select a task to manage its content</p></div>
                             </div>
                         </div>
                     </div>
@@ -1276,6 +1281,117 @@
         </div>
     </div>
 
+    <!-- Edit Easy Earn Task Modal (title/description/pricing/status - works for any category) -->
+    <div class="modal" id="editEasyEarnTaskModal">
+        <div class="modal-content">
+            <div class="modal-title">Edit Easy Earn Task</div>
+            <input type="hidden" id="editEasyEarnTaskId">
+            <div class="form-group">
+                <label class="form-label">Title</label>
+                <input type="text" class="form-input" id="editEasyEarnTaskTitleInput">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-input" id="editEasyEarnTaskDescriptionInput" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reward (GHC)</label>
+                <input type="number" class="form-input" id="editEasyEarnTaskAmountInput" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Status</label>
+                <select class="form-input" id="editEasyEarnTaskStatusInput">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeEditEasyEarnTaskModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEditEasyEarnTask()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Quiz Question Modal -->
+    <div class="modal" id="quizQuestionModal">
+        <div class="modal-content">
+            <div class="modal-title" id="quizQuestionModalTitle">Add Quiz Question</div>
+            <input type="hidden" id="quizQuestionTaskId">
+            <input type="hidden" id="quizQuestionId">
+            <div class="form-group">
+                <label class="form-label">Question</label>
+                <textarea class="form-input" id="quizQuestionTextInput" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Options (select the correct one)</label>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:8px;"><input type="radio" name="quizCorrectOption" value="0" checked><input type="text" class="form-input" id="quizOptionInput0" placeholder="Option 1"></div>
+                    <div style="display:flex; align-items:center; gap:8px;"><input type="radio" name="quizCorrectOption" value="1"><input type="text" class="form-input" id="quizOptionInput1" placeholder="Option 2"></div>
+                    <div style="display:flex; align-items:center; gap:8px;"><input type="radio" name="quizCorrectOption" value="2"><input type="text" class="form-input" id="quizOptionInput2" placeholder="Option 3 (optional)"></div>
+                    <div style="display:flex; align-items:center; gap:8px;"><input type="radio" name="quizCorrectOption" value="3"><input type="text" class="form-input" id="quizOptionInput3" placeholder="Option 4 (optional)"></div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Display Order</label>
+                <input type="number" class="form-input" id="quizQuestionIndexInput" min="1" step="1" value="1">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeQuizQuestionModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveQuizQuestion()">Save Question</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Poll Option Modal -->
+    <div class="modal" id="pollOptionModal">
+        <div class="modal-content">
+            <div class="modal-title" id="pollOptionModalTitle">Add Poll Option</div>
+            <input type="hidden" id="pollOptionTaskId">
+            <input type="hidden" id="pollOptionId">
+            <div class="form-group">
+                <label class="form-label">Option Text</label>
+                <input type="text" class="form-input" id="pollOptionTextInput" placeholder="e.g., Very satisfied">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Display Order</label>
+                <input type="number" class="form-input" id="pollOptionIndexInput" min="1" step="1" value="1">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closePollOptionModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="savePollOption()">Save Option</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Photo Prompt Modal -->
+    <div class="modal" id="photoPromptModal">
+        <div class="modal-content">
+            <div class="modal-title" id="photoPromptModalTitle">Add Photo Prompt</div>
+            <input type="hidden" id="photoPromptTaskId">
+            <input type="hidden" id="photoPromptId">
+            <div class="form-group">
+                <label class="form-label">Prompt Text</label>
+                <textarea class="form-input" id="photoPromptTextInput" rows="2" placeholder="e.g., Take a photo of something on your desk right now"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select class="form-input" id="photoPromptCategoryInput">
+                    <option value="object">Object</option>
+                    <option value="person">Person</option>
+                    <option value="random">Random</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Display Order</label>
+                <input type="number" class="form-input" id="photoPromptIndexInput" min="1" step="1" value="1">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closePhotoPromptModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="savePhotoPrompt()">Save Prompt</button>
+            </div>
+        </div>
+    </div>
+
     <!-- View Submissions Modal -->
     <div class="modal" id="submissionsModal">
         <div class="modal-content" style="max-width: 700px;">
@@ -1298,6 +1414,9 @@
     <script>
         let easyEarnTasksCache = [];
         let easyEarnVideosCache = [];
+        let easyEarnQuizQuestionsCache = [];
+        let easyEarnPollOptionsCache = [];
+        let easyEarnPhotoPromptsCache = [];
         let selectedEasyEarnTaskId = null;
 
         function escapeHtml(value) {
@@ -1538,13 +1657,20 @@
             }
         }
 
+        const EASY_EARN_CATEGORY_LABELS = {
+            video: { name: 'Videos', addLabel: 'Add Video', header: ['#', 'Title', 'URL', 'Duration', 'Actions'], cols: '0.5fr 1.1fr 2fr 0.8fr 1fr' },
+            quiz: { name: 'Quiz Questions', addLabel: 'Add Question', header: ['#', 'Question', 'Options', 'Correct', 'Actions'], cols: '0.5fr 1.6fr 1.6fr 0.8fr 1fr' },
+            poll: { name: 'Poll Options', addLabel: 'Add Option', header: ['#', 'Option', 'Actions'], cols: '0.5fr 2fr 1fr' },
+            photo_survey: { name: 'Photo Prompts', addLabel: 'Add Prompt', header: ['#', 'Prompt', 'Category', 'Actions'], cols: '0.5fr 2.2fr 1fr 1fr' }
+        };
+
         async function loadEasyEarns() {
             const tasksList = document.getElementById('easyEarnTasksList');
-            const videosBody = document.getElementById('easyEarnVideosTableBody');
-            if (!tasksList || !videosBody) return;
+            const detailBody = document.getElementById('easyEarnDetailTableBody');
+            if (!tasksList || !detailBody) return;
 
             tasksList.innerHTML = '<div class="empty-state"><p>Loading Easy Earn tasks...</p></div>';
-            videosBody.innerHTML = '<div class="empty-state"><p>Loading videos...</p></div>';
+            detailBody.innerHTML = '<div class="empty-state"><p>Loading...</p></div>';
 
             try {
                 const tasks = await window.API.getAdminEasyEarns();
@@ -1553,7 +1679,7 @@
                 if (easyEarnTasksCache.length === 0) {
                     selectedEasyEarnTaskId = null;
                     renderEasyEarnTasks();
-                    clearEasyEarnVideos('No Easy Earn tasks found', 'Create an Easy Earn task from the backend first');
+                    clearEasyEarnDetail('No Easy Earn tasks found', 'Create an Easy Earn task from the backend first');
                     return;
                 }
 
@@ -1563,11 +1689,11 @@
                 }
 
                 renderEasyEarnTasks();
-                await loadEasyEarnVideos(selectedEasyEarnTaskId);
+                await loadEasyEarnDetail(selectedEasyEarnTaskId);
             } catch (error) {
                 console.error('Failed to load Easy Earns:', error);
                 tasksList.innerHTML = '<div class="empty-state"><p>Failed to load Easy Earn tasks</p></div>';
-                clearEasyEarnVideos('Videos unavailable', 'Easy Earn tasks could not be loaded');
+                clearEasyEarnDetail('Details unavailable', 'Easy Earn tasks could not be loaded');
             }
         }
 
@@ -1584,9 +1710,10 @@
                 const activeClass = task.id === selectedEasyEarnTaskId ? 'active' : '';
                 const amount = parseFloat(task.amount || 0).toFixed(2);
                 const status = task.status || 'active';
+                const categoryLabel = (EASY_EARN_CATEGORY_LABELS[task.category] || {}).name || task.category || '';
                 return `<button type="button" class="easy-earn-task-item ${activeClass}" onclick="selectEasyEarnTask('${task.id}')">
                     <span class="easy-earn-task-title">${escapeHtml(task.title || 'Untitled Easy Earn')}</span>
-                    <span class="easy-earn-task-meta">GHC ${amount} - ${escapeHtml(status)}</span>
+                    <span class="easy-earn-task-meta">GHC ${amount} - ${escapeHtml(status)} - ${escapeHtml(categoryLabel)}</span>
                 </button>`;
             }).join('');
         }
@@ -1594,45 +1721,85 @@
         async function selectEasyEarnTask(taskId) {
             selectedEasyEarnTaskId = taskId;
             renderEasyEarnTasks();
-            await loadEasyEarnVideos(taskId);
+            await loadEasyEarnDetail(taskId);
         }
 
-        function clearEasyEarnVideos(title, subtitle) {
-            document.getElementById('easyEarnVideosTitle').textContent = title;
-            document.getElementById('easyEarnVideosSubtitle').textContent = subtitle;
-            document.getElementById('addEasyEarnVideoBtn').disabled = true;
-            document.getElementById('easyEarnVideosTableBody').innerHTML = '<div class="empty-state"><p>No videos loaded</p></div>';
+        function clearEasyEarnDetail(title, subtitle) {
+            document.getElementById('easyEarnDetailTitle').textContent = title;
+            document.getElementById('easyEarnDetailSubtitle').textContent = subtitle;
+            document.getElementById('addEasyEarnItemBtn').disabled = true;
+            document.getElementById('editEasyEarnTaskBtn').disabled = true;
+            document.getElementById('easyEarnDetailTableBody').innerHTML = '<div class="empty-state"><p>Select a task to manage its content</p></div>';
             easyEarnVideosCache = [];
+            easyEarnQuizQuestionsCache = [];
+            easyEarnPollOptionsCache = [];
+            easyEarnPhotoPromptsCache = [];
         }
 
-        async function loadEasyEarnVideos(taskId) {
+        // Dispatches to the right loader/renderer based on the selected task's category
+        async function loadEasyEarnDetail(taskId) {
             const task = easyEarnTasksCache.find(item => item.id === taskId);
-            const videosBody = document.getElementById('easyEarnVideosTableBody');
+            const detailBody = document.getElementById('easyEarnDetailTableBody');
+            const headerEl = document.getElementById('easyEarnDetailTableHeader');
 
             if (!task) {
-                clearEasyEarnVideos('No Easy Earn task selected', 'Choose a task to manage videos');
+                clearEasyEarnDetail('No Easy Earn task selected', 'Choose a task to manage its content');
                 return;
             }
 
-            document.getElementById('easyEarnVideosTitle').textContent = `${task.title || 'Easy Earn'} Videos`;
-            document.getElementById('easyEarnVideosSubtitle').textContent = `Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}`;
-            document.getElementById('addEasyEarnVideoBtn').disabled = false;
-            videosBody.innerHTML = '<div class="empty-state"><p>Loading videos...</p></div>';
+            const meta = EASY_EARN_CATEGORY_LABELS[task.category] || EASY_EARN_CATEGORY_LABELS.video;
+            document.getElementById('easyEarnDetailTitle').textContent = `${task.title || 'Easy Earn'} - ${meta.name}`;
+            document.getElementById('easyEarnDetailSubtitle').textContent = `Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}`;
+            document.getElementById('addEasyEarnItemBtn').textContent = meta.addLabel;
+            document.getElementById('addEasyEarnItemBtn').disabled = false;
+            document.getElementById('editEasyEarnTaskBtn').disabled = false;
+            headerEl.style.gridTemplateColumns = meta.cols;
+            headerEl.innerHTML = meta.header.map(h => `<div>${escapeHtml(h)}</div>`).join('');
+            detailBody.innerHTML = '<div class="empty-state"><p>Loading...</p></div>';
 
             try {
-                const videos = await window.API.getEasyEarnVideos(taskId);
-                easyEarnVideosCache = Array.isArray(videos)
-                    ? videos.sort((a, b) => (parseInt(a.video_index || 0, 10) || 0) - (parseInt(b.video_index || 0, 10) || 0))
-                    : [];
-                renderEasyEarnVideos();
+                if (task.category === 'quiz') {
+                    const questions = await window.API.getAdminQuizQuestions(taskId);
+                    easyEarnQuizQuestionsCache = Array.isArray(questions)
+                        ? questions.sort((a, b) => (a.question_index || 0) - (b.question_index || 0))
+                        : [];
+                    renderEasyEarnQuizQuestions();
+                } else if (task.category === 'poll') {
+                    const options = await window.API.getAdminPollOptions(taskId);
+                    easyEarnPollOptionsCache = Array.isArray(options)
+                        ? options.sort((a, b) => (a.option_index || 0) - (b.option_index || 0))
+                        : [];
+                    renderEasyEarnPollOptions();
+                } else if (task.category === 'photo_survey') {
+                    const prompts = await window.API.getAdminPhotoPrompts(taskId);
+                    easyEarnPhotoPromptsCache = Array.isArray(prompts)
+                        ? prompts.sort((a, b) => (a.prompt_index || 0) - (b.prompt_index || 0))
+                        : [];
+                    renderEasyEarnPhotoPrompts();
+                } else {
+                    const videos = await window.API.getEasyEarnVideos(taskId);
+                    easyEarnVideosCache = Array.isArray(videos)
+                        ? videos.sort((a, b) => (parseInt(a.video_index || 0, 10) || 0) - (parseInt(b.video_index || 0, 10) || 0))
+                        : [];
+                    renderEasyEarnVideos();
+                }
             } catch (error) {
-                console.error('Failed to load Easy Earn videos:', error);
-                videosBody.innerHTML = '<div class="empty-state"><p>Failed to load videos</p></div>';
+                console.error('Failed to load Easy Earn task detail:', error);
+                detailBody.innerHTML = '<div class="empty-state"><p>Failed to load content</p></div>';
             }
         }
 
+        function openAddEasyEarnItemModal() {
+            const task = easyEarnTasksCache.find(item => item.id === selectedEasyEarnTaskId);
+            if (!task) return alert('Select an Easy Earn task first');
+            if (task.category === 'quiz') openQuizQuestionModal();
+            else if (task.category === 'poll') openPollOptionModal();
+            else if (task.category === 'photo_survey') openPhotoPromptModal();
+            else openEasyEarnVideoModal();
+        }
+
         function renderEasyEarnVideos() {
-            const videosBody = document.getElementById('easyEarnVideosTableBody');
+            const videosBody = document.getElementById('easyEarnDetailTableBody');
             if (!videosBody) return;
 
             if (easyEarnVideosCache.length === 0) {
@@ -1654,6 +1821,74 @@
                     <div class="table-action">
                         <button class="btn btn-secondary" onclick="openEditEasyEarnVideoModal('${video.id}')">Edit</button>
                         <button class="btn btn-danger" onclick="deleteEasyEarnVideo('${video.id}')">Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderEasyEarnQuizQuestions() {
+            const body = document.getElementById('easyEarnDetailTableBody');
+            if (!body) return;
+
+            if (easyEarnQuizQuestionsCache.length === 0) {
+                body.innerHTML = '<div class="empty-state"><p>No quiz questions added yet</p></div>';
+                return;
+            }
+
+            body.innerHTML = easyEarnQuizQuestionsCache.map((q, index) => {
+                const options = Array.isArray(q.options) ? q.options : [];
+                const correctText = options[q.correct_option_index] || '(not set)';
+                return `<div class="table-row" style="grid-template-columns: 0.5fr 1.6fr 1.6fr 0.8fr 1fr;">
+                    <div class="table-cell">${q.question_index || index + 1}</div>
+                    <div class="table-cell">${escapeHtml(q.question_text)}</div>
+                    <div class="table-cell">${escapeHtml(options.join(', '))}</div>
+                    <div class="table-cell">${escapeHtml(correctText)}</div>
+                    <div class="table-action">
+                        <button class="btn btn-secondary" onclick="openEditQuizQuestionModal('${q.id}')">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteQuizQuestion('${q.id}')">Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderEasyEarnPollOptions() {
+            const body = document.getElementById('easyEarnDetailTableBody');
+            if (!body) return;
+
+            if (easyEarnPollOptionsCache.length === 0) {
+                body.innerHTML = '<div class="empty-state"><p>No poll options added yet</p></div>';
+                return;
+            }
+
+            body.innerHTML = easyEarnPollOptionsCache.map((opt, index) => {
+                return `<div class="table-row" style="grid-template-columns: 0.5fr 2fr 1fr;">
+                    <div class="table-cell">${opt.option_index || index + 1}</div>
+                    <div class="table-cell">${escapeHtml(opt.option_text)}</div>
+                    <div class="table-action">
+                        <button class="btn btn-secondary" onclick="openEditPollOptionModal('${opt.id}')">Edit</button>
+                        <button class="btn btn-danger" onclick="deletePollOption('${opt.id}')">Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderEasyEarnPhotoPrompts() {
+            const body = document.getElementById('easyEarnDetailTableBody');
+            if (!body) return;
+
+            if (easyEarnPhotoPromptsCache.length === 0) {
+                body.innerHTML = '<div class="empty-state"><p>No photo prompts added yet</p></div>';
+                return;
+            }
+
+            body.innerHTML = easyEarnPhotoPromptsCache.map((prompt, index) => {
+                return `<div class="table-row" style="grid-template-columns: 0.5fr 2.2fr 1fr 1fr;">
+                    <div class="table-cell">${prompt.prompt_index || index + 1}</div>
+                    <div class="table-cell">${escapeHtml(prompt.prompt_text)}</div>
+                    <div class="table-cell">${escapeHtml(prompt.prompt_category || 'object')}</div>
+                    <div class="table-action">
+                        <button class="btn btn-secondary" onclick="openEditPhotoPromptModal('${prompt.id}')">Edit</button>
+                        <button class="btn btn-danger" onclick="deletePhotoPrompt('${prompt.id}')">Delete</button>
                     </div>
                 </div>`;
             }).join('');
@@ -1732,7 +1967,7 @@
                     alert('Video added successfully');
                 }
                 closeEasyEarnVideoModal();
-                await loadEasyEarnVideos(taskId);
+                await loadEasyEarnDetail(taskId);
             } catch (error) {
                 console.error('Failed to save Easy Earn video:', error);
                 alert('Failed to save video: ' + (error.message || 'Unknown error'));
@@ -1746,10 +1981,273 @@
             try {
                 await window.API.deleteEasyEarnVideo(selectedEasyEarnTaskId, videoId);
                 alert('Video deleted successfully');
-                await loadEasyEarnVideos(selectedEasyEarnTaskId);
+                await loadEasyEarnDetail(selectedEasyEarnTaskId);
             } catch (error) {
                 console.error('Failed to delete Easy Earn video:', error);
                 alert('Failed to delete video: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        // --- Edit Easy Earn Task (title/description/pricing/status) ---
+
+        function openEditEasyEarnTaskModal() {
+            const task = easyEarnTasksCache.find(item => item.id === selectedEasyEarnTaskId);
+            if (!task) return alert('Select an Easy Earn task first');
+
+            document.getElementById('editEasyEarnTaskId').value = task.id;
+            document.getElementById('editEasyEarnTaskTitleInput').value = task.title || '';
+            document.getElementById('editEasyEarnTaskDescriptionInput').value = task.description || '';
+            document.getElementById('editEasyEarnTaskAmountInput').value = parseFloat(task.amount || 0);
+            document.getElementById('editEasyEarnTaskStatusInput').value = task.status || 'active';
+            document.getElementById('editEasyEarnTaskModal').classList.add('show');
+        }
+
+        function closeEditEasyEarnTaskModal() {
+            document.getElementById('editEasyEarnTaskModal').classList.remove('show');
+        }
+
+        async function saveEditEasyEarnTask() {
+            const taskId = document.getElementById('editEasyEarnTaskId').value;
+            const title = document.getElementById('editEasyEarnTaskTitleInput').value.trim();
+            const description = document.getElementById('editEasyEarnTaskDescriptionInput').value.trim();
+            const amount = parseFloat(document.getElementById('editEasyEarnTaskAmountInput').value);
+            const status = document.getElementById('editEasyEarnTaskStatusInput').value;
+
+            if (!taskId) return alert('No task selected');
+            if (!title) return alert('Title is required');
+            if (isNaN(amount) || amount < 0) return alert('Enter a valid reward amount');
+
+            try {
+                await window.API.updateAdminEasyEarn(taskId, { title, description, amount, status });
+                alert('Task updated successfully');
+                closeEditEasyEarnTaskModal();
+                await loadEasyEarns();
+            } catch (error) {
+                console.error('Failed to update Easy Earn task:', error);
+                alert('Failed to update task: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        // --- Quiz Questions ---
+
+        function openQuizQuestionModal() {
+            if (!selectedEasyEarnTaskId) return alert('Select an Easy Earn task first');
+            const nextIndex = easyEarnQuizQuestionsCache.reduce((max, q) => Math.max(max, q.question_index || 0), 0) + 1;
+
+            document.getElementById('quizQuestionModalTitle').textContent = 'Add Quiz Question';
+            document.getElementById('quizQuestionTaskId').value = selectedEasyEarnTaskId;
+            document.getElementById('quizQuestionId').value = '';
+            document.getElementById('quizQuestionTextInput').value = '';
+            for (let i = 0; i < 4; i++) document.getElementById('quizOptionInput' + i).value = '';
+            document.querySelector('input[name="quizCorrectOption"][value="0"]').checked = true;
+            document.getElementById('quizQuestionIndexInput').value = nextIndex;
+            document.getElementById('quizQuestionModal').classList.add('show');
+        }
+
+        function openEditQuizQuestionModal(questionId) {
+            const q = easyEarnQuizQuestionsCache.find(item => item.id === questionId);
+            if (!q) return alert('Question not found');
+            const options = Array.isArray(q.options) ? q.options : [];
+
+            document.getElementById('quizQuestionModalTitle').textContent = 'Edit Quiz Question';
+            document.getElementById('quizQuestionTaskId').value = selectedEasyEarnTaskId;
+            document.getElementById('quizQuestionId').value = q.id;
+            document.getElementById('quizQuestionTextInput').value = q.question_text || '';
+            for (let i = 0; i < 4; i++) document.getElementById('quizOptionInput' + i).value = options[i] || '';
+            const correctRadio = document.querySelector(`input[name="quizCorrectOption"][value="${q.correct_option_index || 0}"]`);
+            if (correctRadio) correctRadio.checked = true;
+            document.getElementById('quizQuestionIndexInput').value = q.question_index || 1;
+            document.getElementById('quizQuestionModal').classList.add('show');
+        }
+
+        function closeQuizQuestionModal() {
+            document.getElementById('quizQuestionModal').classList.remove('show');
+        }
+
+        async function saveQuizQuestion() {
+            const taskId = document.getElementById('quizQuestionTaskId').value;
+            const questionId = document.getElementById('quizQuestionId').value;
+            const questionText = document.getElementById('quizQuestionTextInput').value.trim();
+            const options = [0, 1, 2, 3]
+                .map(i => document.getElementById('quizOptionInput' + i).value.trim())
+                .filter(v => v.length > 0);
+            const correctRadio = document.querySelector('input[name="quizCorrectOption"]:checked');
+            const correctOptionIndex = correctRadio ? parseInt(correctRadio.value, 10) : 0;
+            const questionIndex = parseInt(document.getElementById('quizQuestionIndexInput').value, 10);
+
+            if (!taskId) return alert('No Easy Earn task selected');
+            if (!questionText) return alert('Enter a question');
+            if (options.length < 2) return alert('Enter at least 2 options');
+            if (correctOptionIndex >= options.length) return alert('Select a correct option that has text filled in');
+
+            const payload = { question_text: questionText, options, correct_option_index: correctOptionIndex, question_index: questionIndex };
+
+            try {
+                if (questionId) {
+                    await window.API.updateAdminQuizQuestion(questionId, payload);
+                    alert('Question updated successfully');
+                } else {
+                    await window.API.addAdminQuizQuestion(taskId, payload);
+                    alert('Question added successfully');
+                }
+                closeQuizQuestionModal();
+                await loadEasyEarnDetail(taskId);
+            } catch (error) {
+                console.error('Failed to save quiz question:', error);
+                alert('Failed to save question: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        async function deleteQuizQuestion(questionId) {
+            if (!confirm('Delete this quiz question?')) return;
+            try {
+                await window.API.deleteAdminQuizQuestion(questionId);
+                alert('Question deleted successfully');
+                await loadEasyEarnDetail(selectedEasyEarnTaskId);
+            } catch (error) {
+                console.error('Failed to delete quiz question:', error);
+                alert('Failed to delete question: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        // --- Poll Options ---
+
+        function openPollOptionModal() {
+            if (!selectedEasyEarnTaskId) return alert('Select an Easy Earn task first');
+            const nextIndex = easyEarnPollOptionsCache.reduce((max, opt) => Math.max(max, opt.option_index || 0), 0) + 1;
+
+            document.getElementById('pollOptionModalTitle').textContent = 'Add Poll Option';
+            document.getElementById('pollOptionTaskId').value = selectedEasyEarnTaskId;
+            document.getElementById('pollOptionId').value = '';
+            document.getElementById('pollOptionTextInput').value = '';
+            document.getElementById('pollOptionIndexInput').value = nextIndex;
+            document.getElementById('pollOptionModal').classList.add('show');
+        }
+
+        function openEditPollOptionModal(optionId) {
+            const opt = easyEarnPollOptionsCache.find(item => item.id === optionId);
+            if (!opt) return alert('Option not found');
+
+            document.getElementById('pollOptionModalTitle').textContent = 'Edit Poll Option';
+            document.getElementById('pollOptionTaskId').value = selectedEasyEarnTaskId;
+            document.getElementById('pollOptionId').value = opt.id;
+            document.getElementById('pollOptionTextInput').value = opt.option_text || '';
+            document.getElementById('pollOptionIndexInput').value = opt.option_index || 1;
+            document.getElementById('pollOptionModal').classList.add('show');
+        }
+
+        function closePollOptionModal() {
+            document.getElementById('pollOptionModal').classList.remove('show');
+        }
+
+        async function savePollOption() {
+            const taskId = document.getElementById('pollOptionTaskId').value;
+            const optionId = document.getElementById('pollOptionId').value;
+            const optionText = document.getElementById('pollOptionTextInput').value.trim();
+            const optionIndex = parseInt(document.getElementById('pollOptionIndexInput').value, 10);
+
+            if (!taskId) return alert('No Easy Earn task selected');
+            if (!optionText) return alert('Enter option text');
+
+            const payload = { option_text: optionText, option_index: optionIndex };
+
+            try {
+                if (optionId) {
+                    await window.API.updateAdminPollOption(optionId, payload);
+                    alert('Option updated successfully');
+                } else {
+                    await window.API.addAdminPollOption(taskId, payload);
+                    alert('Option added successfully');
+                }
+                closePollOptionModal();
+                await loadEasyEarnDetail(taskId);
+            } catch (error) {
+                console.error('Failed to save poll option:', error);
+                alert('Failed to save option: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        async function deletePollOption(optionId) {
+            if (!confirm('Delete this poll option?')) return;
+            try {
+                await window.API.deleteAdminPollOption(optionId);
+                alert('Option deleted successfully');
+                await loadEasyEarnDetail(selectedEasyEarnTaskId);
+            } catch (error) {
+                console.error('Failed to delete poll option:', error);
+                alert('Failed to delete option: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        // --- Photo Prompts ---
+
+        function openPhotoPromptModal() {
+            if (!selectedEasyEarnTaskId) return alert('Select an Easy Earn task first');
+            const nextIndex = easyEarnPhotoPromptsCache.reduce((max, p) => Math.max(max, p.prompt_index || 0), 0) + 1;
+
+            document.getElementById('photoPromptModalTitle').textContent = 'Add Photo Prompt';
+            document.getElementById('photoPromptTaskId').value = selectedEasyEarnTaskId;
+            document.getElementById('photoPromptId').value = '';
+            document.getElementById('photoPromptTextInput').value = '';
+            document.getElementById('photoPromptCategoryInput').value = 'object';
+            document.getElementById('photoPromptIndexInput').value = nextIndex;
+            document.getElementById('photoPromptModal').classList.add('show');
+        }
+
+        function openEditPhotoPromptModal(promptId) {
+            const prompt = easyEarnPhotoPromptsCache.find(item => item.id === promptId);
+            if (!prompt) return alert('Prompt not found');
+
+            document.getElementById('photoPromptModalTitle').textContent = 'Edit Photo Prompt';
+            document.getElementById('photoPromptTaskId').value = selectedEasyEarnTaskId;
+            document.getElementById('photoPromptId').value = prompt.id;
+            document.getElementById('photoPromptTextInput').value = prompt.prompt_text || '';
+            document.getElementById('photoPromptCategoryInput').value = prompt.prompt_category || 'object';
+            document.getElementById('photoPromptIndexInput').value = prompt.prompt_index || 1;
+            document.getElementById('photoPromptModal').classList.add('show');
+        }
+
+        function closePhotoPromptModal() {
+            document.getElementById('photoPromptModal').classList.remove('show');
+        }
+
+        async function savePhotoPrompt() {
+            const taskId = document.getElementById('photoPromptTaskId').value;
+            const promptId = document.getElementById('photoPromptId').value;
+            const promptText = document.getElementById('photoPromptTextInput').value.trim();
+            const promptCategory = document.getElementById('photoPromptCategoryInput').value;
+            const promptIndex = parseInt(document.getElementById('photoPromptIndexInput').value, 10);
+
+            if (!taskId) return alert('No Easy Earn task selected');
+            if (!promptText) return alert('Enter prompt text');
+
+            const payload = { prompt_text: promptText, prompt_category: promptCategory, prompt_index: promptIndex };
+
+            try {
+                if (promptId) {
+                    await window.API.updateAdminPhotoPrompt(promptId, payload);
+                    alert('Prompt updated successfully');
+                } else {
+                    await window.API.addAdminPhotoPrompt(taskId, payload);
+                    alert('Prompt added successfully');
+                }
+                closePhotoPromptModal();
+                await loadEasyEarnDetail(taskId);
+            } catch (error) {
+                console.error('Failed to save photo prompt:', error);
+                alert('Failed to save prompt: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        async function deletePhotoPrompt(promptId) {
+            if (!confirm('Delete this photo prompt?')) return;
+            try {
+                await window.API.deleteAdminPhotoPrompt(promptId);
+                alert('Prompt deleted successfully');
+                await loadEasyEarnDetail(selectedEasyEarnTaskId);
+            } catch (error) {
+                console.error('Failed to delete photo prompt:', error);
+                alert('Failed to delete prompt: ' + (error.message || 'Unknown error'));
             }
         }
 

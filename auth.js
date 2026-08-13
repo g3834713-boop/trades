@@ -563,6 +563,89 @@ window.API = {
     });
   },
 
+  async updateAdminEasyEarn(taskId, data) {
+    return this.call(`/admin/easy-earns/${taskId}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+
+  async getEasyEarnStatusToday() {
+    return this.call('/easy-earns/status/today');
+  },
+
+  // Quiz category
+  async getQuizQuestions(taskId) {
+    return this.call(`/easy-earns/quiz/${taskId}/questions`);
+  },
+
+  async submitQuiz(taskId, answers) {
+    return this.call(`/easy-earns/quiz/${taskId}/submit`, { method: 'POST', body: JSON.stringify({ answers }) });
+  },
+
+  async getAdminQuizQuestions(taskId) {
+    return this.call(`/admin/easy-earns/quiz/${taskId}/questions`);
+  },
+
+  async addAdminQuizQuestion(taskId, data) {
+    return this.call(`/admin/easy-earns/quiz/${taskId}/questions`, { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  async updateAdminQuizQuestion(questionId, data) {
+    return this.call(`/admin/easy-earns/quiz/questions/${questionId}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+
+  async deleteAdminQuizQuestion(questionId) {
+    return this.call(`/admin/easy-earns/quiz/questions/${questionId}`, { method: 'DELETE' });
+  },
+
+  // Poll category
+  async getPollOptions(taskId) {
+    return this.call(`/easy-earns/poll/${taskId}/options`);
+  },
+
+  async submitPoll(taskId, optionId) {
+    return this.call(`/easy-earns/poll/${taskId}/submit`, { method: 'POST', body: JSON.stringify({ option_id: optionId }) });
+  },
+
+  async getAdminPollOptions(taskId) {
+    return this.call(`/admin/easy-earns/poll/${taskId}/options`);
+  },
+
+  async addAdminPollOption(taskId, data) {
+    return this.call(`/admin/easy-earns/poll/${taskId}/options`, { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  async updateAdminPollOption(optionId, data) {
+    return this.call(`/admin/easy-earns/poll/options/${optionId}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+
+  async deleteAdminPollOption(optionId) {
+    return this.call(`/admin/easy-earns/poll/options/${optionId}`, { method: 'DELETE' });
+  },
+
+  // Photo Survey category
+  async getPhotoSurveyToday(taskId) {
+    return this.call(`/easy-earns/photo-survey/${taskId}/today`);
+  },
+
+  async submitPhotoSurveyPhoto(taskId, data) {
+    return this.call(`/easy-earns/photo-survey/${taskId}/photos`, { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  async getAdminPhotoPrompts(taskId) {
+    return this.call(`/admin/easy-earns/photo-survey/${taskId}/prompts`);
+  },
+
+  async addAdminPhotoPrompt(taskId, data) {
+    return this.call(`/admin/easy-earns/photo-survey/${taskId}/prompts`, { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  async updateAdminPhotoPrompt(promptId, data) {
+    return this.call(`/admin/easy-earns/photo-survey/prompts/${promptId}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+
+  async deleteAdminPhotoPrompt(promptId) {
+    return this.call(`/admin/easy-earns/photo-survey/prompts/${promptId}`, { method: 'DELETE' });
+  },
+
   // Daily check-in
   async getDailyCheckin() {
     return this.call('/checkin');
@@ -654,6 +737,33 @@ window.API = {
     return this.call(`/orders/${orderId}/status`);
   }
 };
+
+// Uploads a photo straight from the browser to Cloudinary (unsigned preset) and
+// returns the public URL. Used by the Photo Survey Easy Earn category.
+async function uploadToCloudinary(file) {
+  if (!CONFIG.CLOUDINARY_CLOUD_NAME || !CONFIG.CLOUDINARY_UPLOAD_PRESET) {
+    throw new Error('Photo upload is not set up yet. Contact support.');
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CONFIG.CLOUDINARY_UPLOAD_PRESET);
+
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${CONFIG.CLOUDINARY_CLOUD_NAME}/image/upload`, {
+    method: 'POST',
+    body: formData
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error?.error?.message || 'Photo upload failed');
+  }
+
+  const data = await response.json();
+  return data.secure_url;
+}
+
+window.uploadToCloudinary = uploadToCloudinary;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {

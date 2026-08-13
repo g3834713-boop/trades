@@ -10,14 +10,15 @@ import { canWithdrawAmount } from './verificationLimits.js';
 
 const app = express();
 
-const VIDEO_WATCH_TASK_TITLE = 'Video Watch Task';
+const VIDEO_WATCH_TASK_TITLE = 'Watch & Earn';
+const LEGACY_VIDEO_WATCH_TASK_TITLE = 'Video Watch Task';
 const LEGACY_SEEDED_TASK_TITLES = [
   'Follow + Like Campaign',
   'Share & Tag Friends',
   'Mobile App Signup',
   'Website Feedback Form',
   'Product Description',
-  VIDEO_WATCH_TASK_TITLE,
+  LEGACY_VIDEO_WATCH_TASK_TITLE,
   'Data Copying',
   'Data Copying (Small)',
   'Referral Signup'
@@ -40,6 +41,55 @@ async function deleteBeginnerTaskRowsByIds(taskIds) {
   return rowCount;
 }
 
+const EASY_EARN_CATEGORIES = {
+  VIDEO: 'video',
+  QUIZ: 'quiz',
+  POLL: 'poll',
+  PHOTO_SURVEY: 'photo_survey'
+};
+
+const PHOTO_SURVEY_TOTAL = 10;
+const PHOTO_SURVEY_INTERVAL_MS = 3 * 60 * 1000;
+
+function alreadyClaimedTodayError() {
+  const err = new Error("You've already completed today's Easy Earn task. Come back tomorrow.");
+  err.code = 'ALREADY_CLAIMED_TODAY';
+  return err;
+}
+
+async function getTodaysEasyEarnClaim(userId) {
+  const { rows } = await query(
+    'select * from easy_earn_daily_claims where user_id = $1 and claim_date = current_date',
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+// Credits a user's ONE allowed Easy Earn reward for today. The unique (user_id, claim_date)
+// constraint on easy_earn_daily_claims is what actually enforces the daily cap under race
+// conditions (e.g. double-clicks); the upfront check just gives a clean error message.
+async function creditEasyEarnReward({ userId, category, taskId, amount, details }) {
+  const existing = await getTodaysEasyEarnClaim(userId);
+  if (existing) throw alreadyClaimedTodayError();
+
+  try {
+    await query(
+      `insert into easy_earn_daily_claims (user_id, claim_date, category, task_id, amount, details)
+       values ($1, current_date, $2, $3, $4, $5)`,
+      [userId, category, taskId, amount, details ? JSON.stringify(details) : null]
+    );
+  } catch (err) {
+    if (err.code === '23505') throw alreadyClaimedTodayError();
+    throw err;
+  }
+
+  await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, userId]);
+  await query(
+    'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
+    [userId, 'easy_earn', amount, `Easy Earn reward (${category})`]
+  );
+}
+
 async function cleanupSeededTasks() {
   const { rows: beginnerRows } = await query(
     'select id from beginner_tasks where title = any($1::text[])',
@@ -53,10 +103,18 @@ async function cleanupSeededTasks() {
   );
   const catalogTasksRemoved = await deleteTaskRowsByIds(catalogRows.map(row => row.id));
 
-  const { rows: extraEasyEarnRows } = await query(
-    'select id from tasks where coalesce(is_easy_earn, false) = true and title <> $1',
-    [VIDEO_WATCH_TASK_TITLE]
-  );
+  // Dedup: keep only the oldest Easy Earn task per category (video/quiz/poll/photo_survey),
+  // remove any extras. Categories are independent now, so this no longer assumes a single task.
+  const { rows: extraEasyEarnRows } = await query(`
+    select t1.id from tasks t1
+    where coalesce(t1.is_easy_earn, false) = true
+      and exists (
+        select 1 from tasks t2
+        where coalesce(t2.is_easy_earn, false) = true
+          and coalesce(t2.category, '') = coalesce(t1.category, '')
+          and t2.created_at < t1.created_at
+      )
+  `);
   const extraEasyEarnsRemoved = await deleteTaskRowsByIds(extraEasyEarnRows.map(row => row.id));
 
   return {
@@ -2031,69 +2089,6 @@ app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/easy-earns/:id/submit', requireAuth, async (req, res) => {
-  const { id: taskId } = req.params;
-  const { id: userId } = req.user;
-  const { url } = req.body;
-
-  if (!url || !url.trim()) {
-    return res.status(400).json({ error: 'URL is required' });
-  }
-
-  try {
-    const { rows: taskRows } = await query(
-      `select * from beginner_tasks where id = $1`,
-      [taskId]
-    );
-
-    if (taskRows.length === 0) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-
-    const task = taskRows[0];
-    if (task.status !== 'active') {
-      return res.status(400).json({ error: 'This task is not currently active' });
-    }
-
-    const { rows: lastSubmission } = await query(
-      `select submitted_at from beginner_task_submissions
-       where task_id = $1 and user_id = $2
-       order by submitted_at desc limit 1`,
-      [taskId, userId]
-    );
-
-    if (lastSubmission.length > 0) {
-      const lastTime = new Date(lastSubmission[0].submitted_at);
-      const nextTime = new Date(lastTime.getTime() + 30 * 60 * 1000);
-      const now = new Date();
-
-      if (now < nextTime) {
-        const minutesLeft = Math.ceil((nextTime - now) / 1000 / 60);
-        return res.status(400).json({
-          error: `Please wait ${minutesLeft} more minutes before submitting again`,
-          next_available_at: nextTime
-        });
-      }
-    }
-
-    await query(
-      `insert into beginner_task_submissions (task_id, user_id, url)
-       values ($1, $2, $3)`,
-      [taskId, userId, url.trim()]
-    );
-
-    res.json({
-      ok: true,
-      message: 'Submission successful',
-      task_title: task.title,
-      next_available_at: new Date(Date.now() + 30 * 60 * 1000)
-    });
-  } catch (error) {
-    console.error('Error submitting Easy Earns task:', error);
-    res.status(500).json({ error: 'Failed to submit task: ' + error.message });
-  }
-});
-
 // User: Claim beginner task reward
 app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
   try {
@@ -2144,56 +2139,6 @@ app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error claiming beginner task reward:', error);
-    res.status(500).json({ error: 'Failed to claim reward: ' + error.message });
-  }
-});
-
-app.post('/easy-earns/:id/claim', requireAuth, async (req, res) => {
-  try {
-    const { id: taskId } = req.params;
-    const { id: userId } = req.user;
-
-    const { rows: taskRows } = await query(
-      `select * from beginner_tasks where id = $1`,
-      [taskId]
-    );
-
-    if (taskRows.length === 0) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-
-    const task = taskRows[0];
-    const rewardAmount = parseFloat(task.amount);
-
-    const { rows: submissionRows } = await query(
-      `select * from beginner_task_submissions
-       where task_id = $1 and user_id = $2
-       order by submitted_at desc limit 1`,
-      [taskId, userId]
-    );
-
-    if (submissionRows.length === 0) {
-      return res.status(404).json({ error: 'No submission found' });
-    }
-
-    await query(
-      `update wallets set balance = balance + $1 where user_id = $2`,
-      [rewardAmount, userId]
-    );
-
-    await query(
-      `insert into transactions (user_id, type, amount, reason)
-       values ($1, 'credit', $2, $3)`,
-      [userId, rewardAmount, `Easy Earns reward: ${task.title}`]
-    );
-
-    res.json({
-      ok: true,
-      message: 'Reward claimed successfully',
-      earned: rewardAmount
-    });
-  } catch (error) {
-    console.error('Error claiming Easy Earns reward:', error);
     res.status(500).json({ error: 'Failed to claim reward: ' + error.message });
   }
 });
@@ -2473,6 +2418,81 @@ async function ensureSchema() {
     )
   `);
 
+  // Easy Earns categories: video (existing), quiz, poll, photo_survey
+  await query(`alter table tasks add column if not exists category text`);
+  await query(`update tasks set category = 'video' where coalesce(is_easy_earn, false) = true and category is null`);
+  // One-time rename of the old title. No-op once an admin has renamed it to anything else.
+  await query(
+    `update tasks set title = $1 where title = $2 and coalesce(is_easy_earn, false) = true`,
+    [VIDEO_WATCH_TASK_TITLE, LEGACY_VIDEO_WATCH_TASK_TITLE]
+  );
+
+  // One claim per user per day across ALL Easy Earn categories - the daily-cap gate
+  await query(`
+    create table if not exists easy_earn_daily_claims (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      claim_date date not null,
+      category text not null,
+      task_id uuid references tasks(id) on delete set null,
+      amount numeric(12,2) not null default 0,
+      details jsonb,
+      created_at timestamptz default now(),
+      unique (user_id, claim_date)
+    )
+  `);
+
+  // Quiz: admin-configured questions per quiz task. Correct answers never sent to the client.
+  await query(`
+    create table if not exists easy_earn_quiz_questions (
+      id uuid primary key default gen_random_uuid(),
+      task_id uuid not null references tasks(id) on delete cascade,
+      question_index int not null,
+      question_text text not null,
+      options jsonb not null,
+      correct_option_index int not null,
+      created_at timestamptz default now()
+    )
+  `);
+
+  // Poll: admin-configured options per poll task. Any selection completes it.
+  await query(`
+    create table if not exists easy_earn_poll_options (
+      id uuid primary key default gen_random_uuid(),
+      task_id uuid not null references tasks(id) on delete cascade,
+      option_index int not null,
+      option_text text not null,
+      created_at timestamptz default now()
+    )
+  `);
+
+  // Photo Survey: admin-configured daily prompt pool (object/person/random)
+  await query(`
+    create table if not exists easy_earn_photo_prompts (
+      id uuid primary key default gen_random_uuid(),
+      task_id uuid not null references tasks(id) on delete cascade,
+      prompt_index int not null,
+      prompt_text text not null,
+      prompt_category text not null default 'object',
+      created_at timestamptz default now()
+    )
+  `);
+
+  // Photo Survey: one row per submitted photo, enforces the 3-minute interval and daily 10-photo count
+  await query(`
+    create table if not exists easy_earn_photo_submissions (
+      id uuid primary key default gen_random_uuid(),
+      task_id uuid not null references tasks(id) on delete cascade,
+      user_id uuid not null references app_users(id) on delete cascade,
+      submit_date date not null,
+      prompt_index int not null,
+      photo_url text not null,
+      caption text not null,
+      submitted_at timestamptz default now(),
+      unique (task_id, user_id, submit_date, prompt_index)
+    )
+  `);
+
   await query(`
     create table if not exists teller_wallets (
       user_id uuid primary key references app_users(id) on delete cascade,
@@ -2593,7 +2613,7 @@ app.get('/tasks', async (req, res) => {
 // Public: list Easy Earns tasks (video-watch and related items)
 app.get('/easy-earns', async (req, res) => {
   try {
-    const { rows } = await query("select id, title, description, amount, commission, status, created_at from tasks where status = 'active' and is_easy_earn = true order by created_at desc");
+    const { rows } = await query("select id, title, description, amount, commission, status, category, created_at from tasks where status = 'active' and is_easy_earn = true order by created_at desc");
     res.json(rows);
   } catch (err) {
     console.error('List easy earns error:', err);
@@ -2651,38 +2671,462 @@ app.post('/easy-earns/:id/submit', requireAuth, async (req, res) => {
   }
 });
 
-// Claim an Easy Earns submission reward (instant for MVP)
+// Claim reward for a video-watch Easy Earn task, gated by the one-category-per-day cap
 app.post('/easy-earns/:id/claim', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    // Try to find latest submission by user
+
+    const { rows: taskRows } = await query(
+      "select id, title, amount, category from tasks where id = $1 and is_easy_earn = true and status = 'active'",
+      [id]
+    );
+    if (taskRows.length === 0) return res.status(404).json({ error: 'Task not available' });
+    const task = taskRows[0];
+    if (task.category && task.category !== EASY_EARN_CATEGORIES.VIDEO) {
+      return res.status(400).json({ error: 'This task type is claimed differently' });
+    }
+    const amount = parseFloat(task.amount) || 0;
+
     const { rows: subs } = await query('select id, status from easy_earn_submissions where task_id = $1 and user_id = $2 order by submitted_at desc limit 1', [id, userId]);
-
     let sub = subs[0];
-
-    // If no submission exists, insert an auto-submission (user watched in-app)
     if (!sub) {
       const insertRes = await query('insert into easy_earn_submissions (task_id, user_id, notes, status, submitted_at) values ($1,$2,$3,$4, now()) returning id', [id, userId, 'Auto-submission: watched videos in-app', 'submitted']);
       sub = { id: insertRes.rows[0].id, status: 'submitted' };
     }
-
     if (sub.status === 'claimed') return res.status(400).json({ error: 'Already claimed' });
 
-    // Get task amount
-    const { rows: taskRows } = await query('select amount from tasks where id = $1 and is_easy_earn = true and status = $2', [id, 'active']);
-    if (taskRows.length === 0) return res.status(404).json({ error: 'Task not available' });
-    const amount = parseFloat(taskRows[0].amount) || 0;
-
-    // Credit user immediately (MVP) and mark submission claimed
-    await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, userId]);
+    await creditEasyEarnReward({ userId, category: EASY_EARN_CATEGORIES.VIDEO, taskId: id, amount, details: { title: task.title } });
     await query('update easy_earn_submissions set status = $1, awarded_amount = $2, reviewed_at = now(), reviewed_by = $3 where id = $4', ['claimed', amount, req.user.email || req.user.id, sub.id]);
-    await query('insert into transactions (user_id, type, amount, reason) values ($1,$2,$3,$4)', [userId, 'easy_earn', amount, `Easy Earns reward for task ${id}`]);
 
     res.json({ ok: true, earned: amount, message: 'Reward credited' });
   } catch (err) {
+    if (err.code === 'ALREADY_CLAIMED_TODAY') return res.status(400).json({ error: err.message });
     console.error('Easy earns claim error:', err);
     res.status(500).json({ error: 'Failed to claim reward' });
+  }
+});
+
+// Has the current user already used today's one Easy Earn slot, and on what?
+app.get('/easy-earns/status/today', requireAuth, async (req, res) => {
+  try {
+    const claim = await getTodaysEasyEarnClaim(req.user.id);
+    res.json({ claimed: !!claim, category: claim?.category || null, amount: claim ? parseFloat(claim.amount) : 0 });
+  } catch (err) {
+    console.error('Easy earns status error:', err);
+    res.status(500).json({ error: 'Failed to load status' });
+  }
+});
+
+// --- Quiz category ---
+
+app.get('/easy-earns/quiz/:taskId/questions', requireAuth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { rows } = await query(
+      'select id, question_index, question_text, options from easy_earn_quiz_questions where task_id = $1 order by question_index asc',
+      [taskId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Get quiz questions error:', err);
+    res.status(500).json({ error: 'Failed to load quiz questions' });
+  }
+});
+
+app.post('/easy-earns/quiz/:taskId/submit', requireAuth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.id;
+    const { answers } = req.body || {};
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ error: 'Answers are required' });
+    }
+
+    const { rows: taskRows } = await query(
+      "select id, title, amount, category from tasks where id = $1 and is_easy_earn = true and status = 'active'",
+      [taskId]
+    );
+    if (taskRows.length === 0) return res.status(404).json({ error: 'Quiz not available' });
+    const task = taskRows[0];
+    if (task.category !== EASY_EARN_CATEGORIES.QUIZ) return res.status(400).json({ error: 'Not a quiz task' });
+
+    const { rows: questions } = await query(
+      'select id, correct_option_index from easy_earn_quiz_questions where task_id = $1',
+      [taskId]
+    );
+    if (questions.length === 0) return res.status(400).json({ error: 'This quiz has no questions configured' });
+
+    const answerMap = new Map(answers.map(a => [a.question_id, a.selected_option_index]));
+    let correctCount = 0;
+    for (const q of questions) {
+      if (answerMap.get(q.id) === q.correct_option_index) correctCount++;
+    }
+
+    if (correctCount < questions.length) {
+      return res.status(400).json({
+        error: `You got ${correctCount}/${questions.length} correct. All answers must be correct to earn the reward - try again.`,
+        correct: correctCount,
+        total: questions.length
+      });
+    }
+
+    const amount = parseFloat(task.amount) || 0;
+    await creditEasyEarnReward({ userId, category: EASY_EARN_CATEGORIES.QUIZ, taskId, amount, details: { correct: correctCount, total: questions.length } });
+
+    res.json({ ok: true, earned: amount, correct: correctCount, total: questions.length, message: 'Reward credited' });
+  } catch (err) {
+    if (err.code === 'ALREADY_CLAIMED_TODAY') return res.status(400).json({ error: err.message });
+    console.error('Quiz submit error:', err);
+    res.status(500).json({ error: 'Failed to submit quiz' });
+  }
+});
+
+app.get('/admin/easy-earns/quiz/:taskId/questions', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { rows } = await query('select * from easy_earn_quiz_questions where task_id = $1 order by question_index asc', [taskId]);
+    res.json(rows);
+  } catch (err) {
+    console.error('Admin get quiz questions error:', err);
+    res.status(500).json({ error: 'Failed to load quiz questions' });
+  }
+});
+
+app.post('/admin/easy-earns/quiz/:taskId/questions', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { question_text, options, correct_option_index, question_index } = req.body || {};
+    if (!question_text || !Array.isArray(options) || options.length < 2) {
+      return res.status(400).json({ error: 'Question text and at least 2 options are required' });
+    }
+    if (typeof correct_option_index !== 'number' || correct_option_index < 0 || correct_option_index >= options.length) {
+      return res.status(400).json({ error: 'A valid correct_option_index is required' });
+    }
+    const { rows } = await query(
+      `insert into easy_earn_quiz_questions (task_id, question_index, question_text, options, correct_option_index)
+       values ($1,$2,$3,$4,$5) returning *`,
+      [taskId, question_index || 0, question_text, JSON.stringify(options), correct_option_index]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin add quiz question error:', err);
+    res.status(500).json({ error: 'Failed to add quiz question' });
+  }
+});
+
+app.put('/admin/easy-earns/quiz/questions/:questionId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { questionId } = req.params;
+    const { question_text, options, correct_option_index, question_index } = req.body || {};
+    const { rows } = await query(
+      `update easy_earn_quiz_questions set
+         question_text = coalesce($1, question_text),
+         options = coalesce($2, options),
+         correct_option_index = coalesce($3, correct_option_index),
+         question_index = coalesce($4, question_index)
+       where id = $5 returning *`,
+      [question_text || null, options ? JSON.stringify(options) : null, typeof correct_option_index === 'number' ? correct_option_index : null, question_index || null, questionId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Question not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin update quiz question error:', err);
+    res.status(500).json({ error: 'Failed to update quiz question' });
+  }
+});
+
+app.delete('/admin/easy-earns/quiz/questions/:questionId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { questionId } = req.params;
+    const { rowCount } = await query('delete from easy_earn_quiz_questions where id = $1', [questionId]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Question not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin delete quiz question error:', err);
+    res.status(500).json({ error: 'Failed to delete quiz question' });
+  }
+});
+
+// --- Poll category ---
+
+app.get('/easy-earns/poll/:taskId/options', requireAuth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { rows } = await query(
+      'select id, option_index, option_text from easy_earn_poll_options where task_id = $1 order by option_index asc',
+      [taskId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Get poll options error:', err);
+    res.status(500).json({ error: 'Failed to load poll options' });
+  }
+});
+
+app.post('/easy-earns/poll/:taskId/submit', requireAuth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.id;
+    const { option_id } = req.body || {};
+    if (!option_id) return res.status(400).json({ error: 'An option selection is required' });
+
+    const { rows: taskRows } = await query(
+      "select id, title, amount, category from tasks where id = $1 and is_easy_earn = true and status = 'active'",
+      [taskId]
+    );
+    if (taskRows.length === 0) return res.status(404).json({ error: 'Poll not available' });
+    const task = taskRows[0];
+    if (task.category !== EASY_EARN_CATEGORIES.POLL) return res.status(400).json({ error: 'Not a poll task' });
+
+    const { rows: optionRows } = await query(
+      'select id, option_text from easy_earn_poll_options where id = $1 and task_id = $2',
+      [option_id, taskId]
+    );
+    if (optionRows.length === 0) return res.status(400).json({ error: 'Invalid option selected' });
+
+    const amount = parseFloat(task.amount) || 0;
+    await creditEasyEarnReward({ userId, category: EASY_EARN_CATEGORIES.POLL, taskId, amount, details: { option_id, option_text: optionRows[0].option_text } });
+
+    res.json({ ok: true, earned: amount, message: 'Reward credited' });
+  } catch (err) {
+    if (err.code === 'ALREADY_CLAIMED_TODAY') return res.status(400).json({ error: err.message });
+    console.error('Poll submit error:', err);
+    res.status(500).json({ error: 'Failed to submit poll' });
+  }
+});
+
+app.get('/admin/easy-earns/poll/:taskId/options', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { rows } = await query('select * from easy_earn_poll_options where task_id = $1 order by option_index asc', [taskId]);
+    res.json(rows);
+  } catch (err) {
+    console.error('Admin get poll options error:', err);
+    res.status(500).json({ error: 'Failed to load poll options' });
+  }
+});
+
+app.post('/admin/easy-earns/poll/:taskId/options', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { option_text, option_index } = req.body || {};
+    if (!option_text) return res.status(400).json({ error: 'Option text is required' });
+    const { rows } = await query(
+      `insert into easy_earn_poll_options (task_id, option_index, option_text) values ($1,$2,$3) returning *`,
+      [taskId, option_index || 0, option_text]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin add poll option error:', err);
+    res.status(500).json({ error: 'Failed to add poll option' });
+  }
+});
+
+app.put('/admin/easy-earns/poll/options/:optionId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { optionId } = req.params;
+    const { option_text, option_index } = req.body || {};
+    const { rows } = await query(
+      `update easy_earn_poll_options set option_text = coalesce($1, option_text), option_index = coalesce($2, option_index) where id = $3 returning *`,
+      [option_text || null, option_index || null, optionId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Option not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin update poll option error:', err);
+    res.status(500).json({ error: 'Failed to update poll option' });
+  }
+});
+
+app.delete('/admin/easy-earns/poll/options/:optionId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { optionId } = req.params;
+    const { rowCount } = await query('delete from easy_earn_poll_options where id = $1', [optionId]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Option not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin delete poll option error:', err);
+    res.status(500).json({ error: 'Failed to delete poll option' });
+  }
+});
+
+// --- Photo Survey category ---
+
+app.get('/easy-earns/photo-survey/:taskId/today', requireAuth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.id;
+
+    const { rows: prompts } = await query(
+      'select id, prompt_index, prompt_text, prompt_category from easy_earn_photo_prompts where task_id = $1 order by prompt_index asc',
+      [taskId]
+    );
+
+    const { rows: submissions } = await query(
+      `select prompt_index, photo_url, caption, submitted_at from easy_earn_photo_submissions
+       where task_id = $1 and user_id = $2 and submit_date = current_date
+       order by prompt_index asc`,
+      [taskId, userId]
+    );
+
+    const lastSubmittedAt = submissions.length
+      ? submissions.reduce((latest, s) => (new Date(s.submitted_at) > latest ? new Date(s.submitted_at) : latest), new Date(0))
+      : null;
+    const nextAvailableAt = lastSubmittedAt ? new Date(lastSubmittedAt.getTime() + PHOTO_SURVEY_INTERVAL_MS) : null;
+
+    res.json({
+      prompts,
+      submissions,
+      completedCount: submissions.length,
+      total: PHOTO_SURVEY_TOTAL,
+      nextAvailableAt
+    });
+  } catch (err) {
+    console.error('Get photo survey status error:', err);
+    res.status(500).json({ error: 'Failed to load photo survey status' });
+  }
+});
+
+app.post('/easy-earns/photo-survey/:taskId/photos', requireAuth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const userId = req.user.id;
+    const { prompt_index, photo_url, caption } = req.body || {};
+
+    if (!prompt_index || !photo_url || !caption || !String(caption).trim()) {
+      return res.status(400).json({ error: 'prompt_index, photo_url and caption are all required' });
+    }
+
+    const { rows: taskRows } = await query(
+      "select id, amount, category from tasks where id = $1 and is_easy_earn = true and status = 'active'",
+      [taskId]
+    );
+    if (taskRows.length === 0) return res.status(404).json({ error: 'Photo survey not available' });
+    const task = taskRows[0];
+    if (task.category !== EASY_EARN_CATEGORIES.PHOTO_SURVEY) return res.status(400).json({ error: 'Not a photo survey task' });
+
+    const existingClaim = await getTodaysEasyEarnClaim(userId);
+    if (existingClaim) throw alreadyClaimedTodayError();
+
+    const { rows: promptRows } = await query(
+      'select id from easy_earn_photo_prompts where task_id = $1 and prompt_index = $2',
+      [taskId, prompt_index]
+    );
+    if (promptRows.length === 0) return res.status(400).json({ error: 'Invalid prompt' });
+
+    const { rows: todays } = await query(
+      `select prompt_index, submitted_at from easy_earn_photo_submissions
+       where task_id = $1 and user_id = $2 and submit_date = current_date
+       order by submitted_at desc`,
+      [taskId, userId]
+    );
+
+    if (todays.some(s => s.prompt_index === prompt_index)) {
+      return res.status(400).json({ error: 'You already submitted a photo for this prompt today' });
+    }
+
+    if (todays.length >= PHOTO_SURVEY_TOTAL) {
+      return res.status(400).json({ error: `You've already submitted all ${PHOTO_SURVEY_TOTAL} photos for today` });
+    }
+
+    if (todays.length > 0) {
+      const lastAt = new Date(todays[0].submitted_at);
+      const nextAt = new Date(lastAt.getTime() + PHOTO_SURVEY_INTERVAL_MS);
+      const now = new Date();
+      if (now < nextAt) {
+        const secondsLeft = Math.ceil((nextAt - now) / 1000);
+        return res.status(400).json({ error: `Please wait ${secondsLeft}s before submitting your next photo`, next_available_at: nextAt });
+      }
+    }
+
+    await query(
+      `insert into easy_earn_photo_submissions (task_id, user_id, submit_date, prompt_index, photo_url, caption)
+       values ($1, $2, current_date, $3, $4, $5)`,
+      [taskId, userId, prompt_index, photo_url, String(caption).trim()]
+    );
+
+    const completedCount = todays.length + 1;
+    let earned = 0;
+    const rewardCredited = completedCount >= PHOTO_SURVEY_TOTAL;
+    if (rewardCredited) {
+      const amount = parseFloat(task.amount) || 0;
+      await creditEasyEarnReward({ userId, category: EASY_EARN_CATEGORIES.PHOTO_SURVEY, taskId, amount, details: { photos: completedCount } });
+      earned = amount;
+    }
+
+    res.json({
+      ok: true,
+      completedCount,
+      total: PHOTO_SURVEY_TOTAL,
+      rewardCredited,
+      earned,
+      next_available_at: new Date(Date.now() + PHOTO_SURVEY_INTERVAL_MS)
+    });
+  } catch (err) {
+    if (err.code === 'ALREADY_CLAIMED_TODAY') return res.status(400).json({ error: err.message });
+    if (err.code === '23505') return res.status(400).json({ error: 'You already submitted a photo for this prompt today' });
+    console.error('Photo survey submit error:', err);
+    res.status(500).json({ error: 'Failed to submit photo' });
+  }
+});
+
+app.get('/admin/easy-earns/photo-survey/:taskId/prompts', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { rows } = await query('select * from easy_earn_photo_prompts where task_id = $1 order by prompt_index asc', [taskId]);
+    res.json(rows);
+  } catch (err) {
+    console.error('Admin get photo prompts error:', err);
+    res.status(500).json({ error: 'Failed to load photo prompts' });
+  }
+});
+
+app.post('/admin/easy-earns/photo-survey/:taskId/prompts', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { prompt_text, prompt_category, prompt_index } = req.body || {};
+    if (!prompt_text) return res.status(400).json({ error: 'Prompt text is required' });
+    const { rows } = await query(
+      `insert into easy_earn_photo_prompts (task_id, prompt_index, prompt_text, prompt_category) values ($1,$2,$3,$4) returning *`,
+      [taskId, prompt_index || 0, prompt_text, prompt_category || 'object']
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin add photo prompt error:', err);
+    res.status(500).json({ error: 'Failed to add photo prompt' });
+  }
+});
+
+app.put('/admin/easy-earns/photo-survey/prompts/:promptId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { promptId } = req.params;
+    const { prompt_text, prompt_category, prompt_index } = req.body || {};
+    const { rows } = await query(
+      `update easy_earn_photo_prompts set
+         prompt_text = coalesce($1, prompt_text),
+         prompt_category = coalesce($2, prompt_category),
+         prompt_index = coalesce($3, prompt_index)
+       where id = $4 returning *`,
+      [prompt_text || null, prompt_category || null, prompt_index || null, promptId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Prompt not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin update photo prompt error:', err);
+    res.status(500).json({ error: 'Failed to update photo prompt' });
+  }
+});
+
+app.delete('/admin/easy-earns/photo-survey/prompts/:promptId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { promptId } = req.params;
+    const { rowCount } = await query('delete from easy_earn_photo_prompts where id = $1', [promptId]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Prompt not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin delete photo prompt error:', err);
+    res.status(500).json({ error: 'Failed to delete photo prompt' });
   }
 });
 
@@ -2718,36 +3162,46 @@ app.post('/admin/tasks/:id/status', requireAuth, requireAdmin, async (req, res) 
   }
 });
 
-// Ensure the single Easy Earn video task exists without seeding other task catalogs.
+// Finds (or creates) the one task row for a given Easy Earn category. Only sets the title
+// at creation time - never overwrites it afterwards, so admin renames stick across restarts.
+async function ensureCategoryTask(category, { title, description, amount }) {
+  const { rows: existing } = await query(
+    'select id from tasks where category = $1 and coalesce(is_easy_earn, false) = true order by created_at asc',
+    [category]
+  );
+  let taskId = existing[0]?.id;
+
+  if (existing.length > 1) {
+    const duplicateIds = existing.slice(1).map(row => row.id);
+    const removed = await deleteTaskRowsByIds(duplicateIds);
+    if (removed > 0) console.log(`Cleanup: removed ${removed} duplicate ${category} Easy Earn task(s)`);
+  }
+
+  if (!taskId) {
+    const inserted = await query(
+      `insert into tasks (title, description, amount, commission, status, is_easy_earn, category)
+       values ($1, $2, $3, 0, 'active', true, $4)
+       returning id`,
+      [title, description, amount, category]
+    );
+    taskId = inserted.rows[0].id;
+  } else {
+    await query('update tasks set is_easy_earn = true, status = $1, category = $2 where id = $3', ['active', category, taskId]);
+  }
+
+  return taskId;
+}
+
+// Ensure one task per Easy Earn category exists, each seeded with starter content if empty.
 async function ensureInitialTasks() {
   try {
-    const { rows: existing } = await query(
-      'select id from tasks where title = $1 and coalesce(is_easy_earn, false) = true order by created_at asc',
-      [VIDEO_WATCH_TASK_TITLE]
-    );
-    let videoTaskId = existing[0]?.id;
-
-    if (existing.length > 1) {
-      const duplicateIds = existing.slice(1).map(row => row.id);
-      const removed = await deleteTaskRowsByIds(duplicateIds);
-      if (removed > 0) console.log(`Cleanup: removed ${removed} duplicate Video Watch Easy Earn task(s)`);
-    }
-
-    if (!videoTaskId) {
-      const inserted = await query(
-        `insert into tasks (title, description, amount, commission, status, is_easy_earn)
-         values ($1, $2, $3, $4, $5, true)
-         returning id`,
-        [VIDEO_WATCH_TASK_TITLE, 'Watch a short set of videos and submit proof to earn rewards.', 1.50, 0, 'active']
-      );
-      videoTaskId = inserted.rows[0].id;
-    } else {
-      await query('update tasks set is_easy_earn = true, status = $1 where id = $2', ['active', videoTaskId]);
-    }
-
+    const videoTaskId = await ensureCategoryTask(EASY_EARN_CATEGORIES.VIDEO, {
+      title: VIDEO_WATCH_TASK_TITLE,
+      description: 'Watch a short set of videos to earn rewards.',
+      amount: 1.50
+    });
     const { rows: existingVideos } = await query('select count(*) as c from easy_earn_videos where task_id = $1', [videoTaskId]);
-    const videoCount = parseInt(existingVideos[0].c || 0);
-    if (videoCount === 0) {
+    if (parseInt(existingVideos[0].c || 0) === 0) {
       const placeholders = [
         ['Intro Video', 'https://example.com/video1.mp4', 120],
         ['How-to Video', 'https://example.com/video2.mp4', 150],
@@ -2765,7 +3219,73 @@ async function ensureInitialTasks() {
       }
     }
 
-    console.log('Ensured Video Watch Easy Earns task');
+    const quizTaskId = await ensureCategoryTask(EASY_EARN_CATEGORIES.QUIZ, {
+      title: 'Quick Quiz',
+      description: 'Answer a short quiz correctly to earn a reward.',
+      amount: 2.00
+    });
+    const { rows: existingQuestions } = await query('select count(*) as c from easy_earn_quiz_questions where task_id = $1', [quizTaskId]);
+    if (parseInt(existingQuestions[0].c || 0) === 0) {
+      const sampleQuestions = [
+        ['What currency does DailyTrade use for rewards?', ['GHC', 'USD', 'EUR', 'GBP'], 0],
+        ['How many Easy Earn categories can you complete per day?', ['Only 1', '2', '5', 'Unlimited'], 0],
+        ['If you forget your password, what should you do?', ['Use the Forgot Password link on the login page', 'Register a brand new account', 'Nothing, it cannot be recovered', 'Message a random user'], 0]
+      ];
+      for (let i = 0; i < sampleQuestions.length; i++) {
+        const [questionText, options, correctIndex] = sampleQuestions[i];
+        await query(
+          `insert into easy_earn_quiz_questions (task_id, question_index, question_text, options, correct_option_index)
+           values ($1, $2, $3, $4, $5)`,
+          [quizTaskId, i + 1, questionText, JSON.stringify(options), correctIndex]
+        );
+      }
+    }
+
+    const pollTaskId = await ensureCategoryTask(EASY_EARN_CATEGORIES.POLL, {
+      title: 'Quick Poll',
+      description: 'Share your opinion in a short poll to earn a reward.',
+      amount: 2.00
+    });
+    const { rows: existingOptions } = await query('select count(*) as c from easy_earn_poll_options where task_id = $1', [pollTaskId]);
+    if (parseInt(existingOptions[0].c || 0) === 0) {
+      const sampleOptions = ['Very satisfied', 'Satisfied', 'Neutral', 'Unsatisfied'];
+      for (let i = 0; i < sampleOptions.length; i++) {
+        await query(
+          `insert into easy_earn_poll_options (task_id, option_index, option_text) values ($1, $2, $3)`,
+          [pollTaskId, i + 1, sampleOptions[i]]
+        );
+      }
+    }
+
+    const photoTaskId = await ensureCategoryTask(EASY_EARN_CATEGORIES.PHOTO_SURVEY, {
+      title: 'Photo Survey',
+      description: 'Take 10 prompted photos with captions to earn a reward.',
+      amount: 2.00
+    });
+    const { rows: existingPrompts } = await query('select count(*) as c from easy_earn_photo_prompts where task_id = $1', [photoTaskId]);
+    if (parseInt(existingPrompts[0].c || 0) === 0) {
+      const samplePrompts = [
+        ['Take a photo of something on your desk or table right now', 'object'],
+        ['Take a photo of the sky or the weather outside', 'random'],
+        ['Take a selfie showing your current mood', 'person'],
+        ['Take a photo of your favorite pair of shoes', 'object'],
+        ['Take a photo of any plant or tree nearby', 'random'],
+        ['Take a photo of a book or screen you are looking at', 'object'],
+        ['Take a selfie doing a peace sign', 'person'],
+        ['Take a photo of the floor beneath you', 'random'],
+        ['Take a photo of a door or window near you', 'object'],
+        ['Take a photo of the street or road outside', 'random']
+      ];
+      for (let i = 0; i < samplePrompts.length; i++) {
+        const [promptText, promptCategory] = samplePrompts[i];
+        await query(
+          `insert into easy_earn_photo_prompts (task_id, prompt_index, prompt_text, prompt_category) values ($1, $2, $3, $4)`,
+          [photoTaskId, i + 1, promptText, promptCategory]
+        );
+      }
+    }
+
+    console.log('Ensured all Easy Earn category tasks (video, quiz, poll, photo_survey)');
   } catch (err) {
     console.error('Initial tasks seed error:', err);
   }

@@ -52,6 +52,11 @@
             color: white;
         }
 
+        .primary-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .hero {
             background: #4361ee;
             color: white;
@@ -73,17 +78,6 @@
             max-width: 700px;
         }
 
-        .pill {
-            display: inline-block;
-            padding: 6px 10px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.2);
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
-
         .grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -103,45 +97,22 @@
             font-size: 18px;
         }
 
-        .card ul, .card ol {
-            padding-left: 18px;
-            margin: 0;
-            line-height: 1.7;
-            color: #4b5563;
-        }
-
         .status {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 6px 12px;
             border-radius: 999px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
-            text-transform: uppercase;
         }
 
-        .status.planned { background: #e8f2ff; color: #2b6df0; }
-        .status.in-progress { background: #fff4d6; color: #b7791f; }
         .status.ready { background: #e7f7ed; color: #2f855a; }
+        .status.locked { background: #f3f4f6; color: #9ca3af; }
 
-        .idea-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 8px;
+        .empty-state-text {
+            color: #6b7280;
+            padding: 20px;
+            text-align: center;
         }
-
-        .idea-item {
-            border: 1px solid #e5e7eb;
-            border-radius: 14px;
-            padding: 14px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 12px;
-        }
-
-        .idea-item strong { display: block; margin-bottom: 6px; }
-        .idea-item p { margin: 0; color: #6b7280; font-size: 14px; }
 
         @media (max-width: 760px) {
             .grid { grid-template-columns: 1fr; }
@@ -161,269 +132,503 @@
 
         <section class="hero" style="padding:18px; border-radius:12px; margin-bottom:18px;">
             <h1 style="margin:0 0 8px; font-size:22px;">Easy Earns</h1>
-            <p style="margin:0; color:#6b7280;">Complete short video tasks to earn rewards. Watch all listed videos in a task — rewards are credited automatically when you finish watching.</p>
+            <p style="margin:0; color:rgba(255,255,255,0.95);">Pick one task category to complete today. Finish it to earn your reward - the other categories unlock again tomorrow.</p>
         </section>
 
-        <div id="easyEarnsList" style="display:flex; flex-direction:column; gap:12px; margin-top:6px;"></div>
-    </div>
-
-    <!-- Modal -->
-    <div id="easyModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:9999;">
-        <div style="background:white; border-radius:12px; width:94%; max-width:640px; padding:18px;">
-            <h3 id="modalTitle">Start Task</h3>
-            <p id="modalDesc" style="color:#4b5563; margin-top:6px;"></p>
-            <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
-                <label style="font-weight:700; font-size:13px;">Proof URL or notes</label>
-                <input id="proofInput" type="text" placeholder="Paste screenshot URL or short notes" style="padding:10px; border:1px solid #e5e7eb; border-radius:8px; width:100%;" />
-                <div style="display:flex; gap:8px; margin-top:8px;">
-                    <button id="submitProofBtn" class="primary-btn" style="flex:1;">Submit Proof</button>
-                    <button id="claimRewardBtn" class="back-btn" style="flex:1; background:#e6ffef; color:#087f41; display:none;">Claim Reward</button>
-                </div>
-                <button id="closeModalBtn" class="back-btn" style="margin-top:12px; background:#f3f4f6; color:#374151;">Close</button>
-            </div>
-        </div>
+        <div id="easyEarnsList"><div style="color:#6b7280">Loading tasks...</div></div>
     </div>
 
     <script>
-        // Easy Earns frontend: loads beginner tasks and allows submit/claim flows
+        let easyEarnTasksData = [];
+        let todayStatusData = { claimed: false, category: null, amount: 0 };
+        let photoSurveyCountdownInterval = null;
+
+        function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+        const CATEGORY_META = {
+            video: { label: 'Watch & Earn', icon: 'la-play-circle', render: renderVideoCategory },
+            quiz: { label: 'Quick Quiz', icon: 'la-question-circle', render: renderQuizCategory },
+            poll: { label: 'Quick Poll', icon: 'la-poll-h', render: renderPollCategory },
+            photo_survey: { label: 'Photo Survey', icon: 'la-camera', render: renderPhotoSurveyCategory }
+        };
+
+        async function refreshTodayStatus() {
+            try {
+                todayStatusData = await window.API.getEasyEarnStatusToday();
+            } catch (err) {
+                console.error('Failed to load today status', err);
+            }
+        }
+
+        function renderCategoryGrid() {
+            const listEl = document.getElementById('easyEarnsList');
+            if (!easyEarnTasksData.length) {
+                listEl.innerHTML = '<div class="empty-state-text">No Easy Earns tasks are active right now.</div>';
+                return;
+            }
+
+            listEl.innerHTML = '<div class="grid" id="categoryGrid"></div><div id="categoryDetail"></div>';
+            const grid = document.getElementById('categoryGrid');
+
+            grid.innerHTML = easyEarnTasksData.map(task => {
+                const meta = CATEGORY_META[task.category] || { label: task.title, icon: 'la-star' };
+                const isTodaysCategory = todayStatusData.claimed && todayStatusData.category === task.category;
+                const isLocked = todayStatusData.claimed && !isTodaysCategory;
+
+                let actionHtml;
+                if (isTodaysCategory) {
+                    actionHtml = '<div class="status ready" style="margin-top:10px;">Completed today</div>';
+                } else if (isLocked) {
+                    actionHtml = '<div class="status locked" style="margin-top:10px;">Locked - come back tomorrow</div>';
+                } else {
+                    actionHtml = `<button type="button" class="primary-btn" style="margin-top:10px;" onclick="openCategory('${task.id}')">Start</button>`;
+                }
+
+                return `
+                    <div class="card">
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <i class="las ${meta.icon}" style="font-size:20px; color:#4361ee;"></i>
+                            <h3 style="margin:0;">${escapeHtml(meta.label)}</h3>
+                        </div>
+                        <p style="color:#6b7280; font-size:14px; margin-bottom:8px;">${escapeHtml(task.description || '')}</p>
+                        <div style="font-size:13px; font-weight:600; color:#374151;">Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}</div>
+                        ${actionHtml}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openCategory(taskId) {
+            const task = easyEarnTasksData.find(t => t.id === taskId);
+            if (!task) return;
+            const meta = CATEGORY_META[task.category];
+            if (!meta || !meta.render) {
+                document.getElementById('categoryDetail').innerHTML = '<div class="card"><p style="color:#ef4444;">Unknown task type.</p></div>';
+                return;
+            }
+            meta.render(task);
+            document.getElementById('categoryDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        window.openCategory = openCategory;
+
+        // --- Watch & Earn (video) ---
+        async function renderVideoCategory(task) {
+            const container = document.getElementById('categoryDetail');
+            container.innerHTML = '<div class="card"><p style="color:#6b7280;">Loading videos...</p></div>';
+
+            try {
+                const vids = await window.API.getEasyEarnVideos(task.id);
+                if (!vids || vids.length === 0) {
+                    container.innerHTML = '<div class="card"><p>No videos configured for this task yet.</p></div>';
+                    return;
+                }
+
+                function isYouTubeUrl(u) { return /youtube\.com|youtu\.be/.test(u || ''); }
+                function extractYouTubeId(u) {
+                    try {
+                        const m = u.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
+                        if (m && m[1]) return m[1];
+                        const short = u.match(/youtu\.be\/(.+)$/);
+                        return short ? short[1].split('?')[0] : null;
+                    } catch (e) { return null; }
+                }
+
+                const watched = new Set();
+                const ytPlayers = [];
+
+                container.innerHTML = `
+                    <div class="card">
+                        <h3>${escapeHtml(task.title)}</h3>
+                        <p style="color:#6b7280; margin-bottom:10px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}</p>
+                        <div id="videoContainer"></div>
+                        <div id="videoProgress" style="font-size:13px; color:#9ca3af; margin-top:8px;">0/${vids.length} watched</div>
+                    </div>
+                `;
+
+                const videoContainer = document.getElementById('videoContainer');
+                const progress = document.getElementById('videoProgress');
+
+                videoContainer.innerHTML = vids.map(v => {
+                    const title = escapeHtml(v.title || ('Video ' + v.video_index));
+                    if (isYouTubeUrl(v.url)) {
+                        const vid = extractYouTubeId(v.url);
+                        return `<div style="margin-bottom:10px; width:100%;">
+                            <div style="font-weight:600; margin-bottom:6px;">${title}</div>
+                            <div id="yt_player_${v.video_index}" data-yt-id="${vid || ''}" style="width:100%; height:240px; background:#000; border-radius:10px; overflow:hidden;"></div>
+                        </div>`;
+                    }
+                    return `<div style="margin-bottom:10px; width:100%;">
+                        <div style="font-weight:600; margin-bottom:6px;">${title}</div>
+                        <video id="video_${v.video_index}" width="100%" controls preload="metadata" style="border-radius:10px; background:#000;">
+                            <source src="${escapeHtml(v.url || '')}" type="video/mp4">
+                            Your browser does not support HTML5 video.
+                        </video>
+                    </div>`;
+                }).join('');
+
+                function attemptAutoClaim() {
+                    return (async () => {
+                        progress.textContent = 'All videos watched - claiming reward...';
+                        try {
+                            const resp = await window.API.claimEasyEarn(task.id);
+                            progress.style.color = '#2f855a';
+                            progress.textContent = `Reward credited: GHC ${parseFloat(resp.earned || 0).toFixed(2)}`;
+                            await refreshTodayStatus();
+                            renderCategoryGrid();
+                            await window.API.getWallet().catch(() => {});
+                            window.dispatchEvent(new Event('userFinanceUpdated'));
+                        } catch (err) {
+                            progress.style.color = '#ef4444';
+                            progress.textContent = err.message || 'Claim failed';
+                        }
+                    })();
+                }
+
+                vids.forEach(v => {
+                    if (!isYouTubeUrl(v.url)) {
+                        const vidEl = document.getElementById('video_' + v.video_index);
+                        if (!vidEl) return;
+                        vidEl.addEventListener('ended', async () => {
+                            watched.add(v.video_index);
+                            progress.textContent = `${watched.size}/${vids.length} watched`;
+                            if (watched.size === vids.length) await attemptAutoClaim();
+                        });
+                    }
+                });
+
+                const ytContainers = videoContainer.querySelectorAll('[id^="yt_player_"]');
+                if (ytContainers.length > 0) {
+                    if (typeof YT === 'undefined' || typeof YT.Player === 'undefined') {
+                        if (!document.getElementById('youtube-iframe-api')) {
+                            const s = document.createElement('script');
+                            s.id = 'youtube-iframe-api';
+                            s.src = 'https://www.youtube.com/iframe_api';
+                            document.head.appendChild(s);
+                        }
+                    }
+
+                    function initYouTubePlayers() {
+                        ytContainers.forEach(el => {
+                            const id = el.id;
+                            const videoId = el.getAttribute('data-yt-id');
+                            if (!videoId) return;
+                            const idxMatch = id.match(/yt_player_(\d+)$/);
+                            const vIndex = idxMatch ? Number(idxMatch[1]) : null;
+                            const player = new YT.Player(id, {
+                                videoId: videoId,
+                                playerVars: { controls: 1, rel: 0 },
+                                events: {
+                                    onStateChange: function(event) {
+                                        if (event.data === YT.PlayerState.ENDED) {
+                                            watched.add(vIndex);
+                                            progress.textContent = `${watched.size}/${vids.length} watched`;
+                                            if (watched.size === vids.length) attemptAutoClaim();
+                                        }
+                                    }
+                                }
+                            });
+                            ytPlayers.push(player);
+                        });
+                    }
+
+                    if (typeof YT !== 'undefined' && typeof YT.Player !== 'undefined') {
+                        initYouTubePlayers();
+                    } else {
+                        const prev = window.onYouTubeIframeAPIReady;
+                        window.onYouTubeIframeAPIReady = function() {
+                            if (typeof prev === 'function') prev();
+                            initYouTubePlayers();
+                        };
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load videos for task', task.id, err);
+                container.innerHTML = '<div class="card"><p style="color:#ef4444;">Failed to load videos</p></div>';
+            }
+        }
+
+        // --- Quick Quiz ---
+        async function renderQuizCategory(task) {
+            const container = document.getElementById('categoryDetail');
+            container.innerHTML = '<div class="card"><p style="color:#6b7280;">Loading quiz...</p></div>';
+
+            try {
+                const questions = await window.API.getQuizQuestions(task.id);
+                if (!questions.length) {
+                    container.innerHTML = '<div class="card"><p>No quiz questions configured yet.</p></div>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div class="card">
+                        <h3>${escapeHtml(task.title)}</h3>
+                        <p style="color:#6b7280; margin-bottom:14px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)} (all answers must be correct)</p>
+                        <form id="quizForm">
+                            ${questions.map((q, qi) => `
+                                <div style="margin-bottom:16px;">
+                                    <div style="font-weight:600; margin-bottom:8px;">${qi + 1}. ${escapeHtml(q.question_text)}</div>
+                                    ${(q.options || []).map((opt, oi) => `
+                                        <label style="display:block; margin-bottom:6px; font-size:14px; cursor:pointer;">
+                                            <input type="radio" name="q_${q.id}" value="${oi}" required style="margin-right:8px;">
+                                            ${escapeHtml(opt)}
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            `).join('')}
+                            <button type="submit" class="primary-btn" id="quizSubmitBtn">Submit Answers</button>
+                        </form>
+                        <div id="quizResult" style="margin-top:12px; font-size:14px;"></div>
+                    </div>
+                `;
+
+                document.getElementById('quizForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const answers = questions.map(q => {
+                        const selected = document.querySelector(`input[name="q_${q.id}"]:checked`);
+                        return { question_id: q.id, selected_option_index: selected ? parseInt(selected.value, 10) : -1 };
+                    });
+                    const btn = document.getElementById('quizSubmitBtn');
+                    const resultEl = document.getElementById('quizResult');
+                    btn.disabled = true;
+                    btn.textContent = 'Submitting...';
+                    resultEl.textContent = '';
+
+                    try {
+                        const res = await window.API.submitQuiz(task.id, answers);
+                        resultEl.style.color = '#2f855a';
+                        resultEl.textContent = `Correct! You earned GHC ${parseFloat(res.earned || 0).toFixed(2)}.`;
+                        await refreshTodayStatus();
+                        renderCategoryGrid();
+                        window.dispatchEvent(new Event('userFinanceUpdated'));
+                    } catch (err) {
+                        resultEl.style.color = '#ef4444';
+                        resultEl.textContent = err.message || 'Submission failed';
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = 'Submit Answers';
+                    }
+                });
+            } catch (err) {
+                console.error('Failed to load quiz', err);
+                container.innerHTML = '<div class="card"><p style="color:#ef4444;">Failed to load quiz.</p></div>';
+            }
+        }
+
+        // --- Quick Poll ---
+        async function renderPollCategory(task) {
+            const container = document.getElementById('categoryDetail');
+            container.innerHTML = '<div class="card"><p style="color:#6b7280;">Loading poll...</p></div>';
+
+            try {
+                const options = await window.API.getPollOptions(task.id);
+                if (!options.length) {
+                    container.innerHTML = '<div class="card"><p>No poll options configured yet.</p></div>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div class="card">
+                        <h3>${escapeHtml(task.title)}</h3>
+                        <p style="color:#6b7280; margin-bottom:14px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)}</p>
+                        <form id="pollForm">
+                            ${options.map(opt => `
+                                <label style="display:block; margin-bottom:8px; font-size:14px; cursor:pointer;">
+                                    <input type="radio" name="pollOption" value="${opt.id}" required style="margin-right:8px;">
+                                    ${escapeHtml(opt.option_text)}
+                                </label>
+                            `).join('')}
+                            <button type="submit" class="primary-btn" id="pollSubmitBtn" style="margin-top:8px;">Submit</button>
+                        </form>
+                        <div id="pollResult" style="margin-top:12px; font-size:14px;"></div>
+                    </div>
+                `;
+
+                document.getElementById('pollForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const selected = document.querySelector('input[name="pollOption"]:checked');
+                    if (!selected) return;
+                    const btn = document.getElementById('pollSubmitBtn');
+                    const resultEl = document.getElementById('pollResult');
+                    btn.disabled = true;
+                    btn.textContent = 'Submitting...';
+
+                    try {
+                        const res = await window.API.submitPoll(task.id, selected.value);
+                        resultEl.style.color = '#2f855a';
+                        resultEl.textContent = `Thanks! You earned GHC ${parseFloat(res.earned || 0).toFixed(2)}.`;
+                        await refreshTodayStatus();
+                        renderCategoryGrid();
+                        window.dispatchEvent(new Event('userFinanceUpdated'));
+                    } catch (err) {
+                        resultEl.style.color = '#ef4444';
+                        resultEl.textContent = err.message || 'Submission failed';
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = 'Submit';
+                    }
+                });
+            } catch (err) {
+                console.error('Failed to load poll', err);
+                container.innerHTML = '<div class="card"><p style="color:#ef4444;">Failed to load poll.</p></div>';
+            }
+        }
+
+        // --- Photo Survey ---
+        async function renderPhotoSurveyCategory(task) {
+            const container = document.getElementById('categoryDetail');
+            container.innerHTML = '<div class="card"><p style="color:#6b7280;">Loading photo survey...</p></div>';
+            if (photoSurveyCountdownInterval) { clearInterval(photoSurveyCountdownInterval); photoSurveyCountdownInterval = null; }
+
+            try {
+                const status = await window.API.getPhotoSurveyToday(task.id);
+                if (!status.prompts || status.prompts.length === 0) {
+                    container.innerHTML = '<div class="card"><p>No photo prompts configured yet.</p></div>';
+                    return;
+                }
+
+                if (status.completedCount >= status.total) {
+                    container.innerHTML = `
+                        <div class="card">
+                            <h3>${escapeHtml(task.title)}</h3>
+                            <p style="color:#2f855a; margin-top:10px;">You've completed all ${status.total} photos for today. Come back tomorrow for more!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const doneIndexes = new Set((status.submissions || []).map(s => s.prompt_index));
+                const nextPrompt = status.prompts.find(p => !doneIndexes.has(p.prompt_index));
+                const nextAvailableAt = status.nextAvailableAt ? new Date(status.nextAvailableAt) : null;
+
+                container.innerHTML = `
+                    <div class="card">
+                        <h3>${escapeHtml(task.title)}</h3>
+                        <p style="color:#6b7280; margin-bottom:14px;">${escapeHtml(task.description || '')} Reward: GHC ${parseFloat(task.amount || 0).toFixed(2)} for all ${status.total} photos.</p>
+                        <div style="font-weight:600; margin-bottom:10px;">Progress: ${status.completedCount}/${status.total} photos</div>
+                        <div id="photoWaitNotice" style="display:none; color:#b7791f; font-size:13px; margin-bottom:10px;"></div>
+                        <div id="photoPromptSection"></div>
+                        <div id="photoResult" style="margin-top:12px; font-size:14px;"></div>
+                    </div>
+                `;
+
+                function renderPromptForm() {
+                    const promptSection = document.getElementById('photoPromptSection');
+                    if (!nextPrompt) {
+                        promptSection.innerHTML = '<p style="color:#ef4444;">No prompt available for your next photo. Contact support.</p>';
+                        return;
+                    }
+                    promptSection.innerHTML = `
+                        <div style="border:1px solid #e5e7eb; border-radius:12px; padding:14px;">
+                            <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.04em; color:#9ca3af; margin-bottom:6px;">${escapeHtml(nextPrompt.prompt_category || 'object')}</div>
+                            <div style="font-weight:600; margin-bottom:12px;">${escapeHtml(nextPrompt.prompt_text)}</div>
+                            <input type="file" id="photoFileInput" accept="image/*" capture="environment" style="margin-bottom:10px; display:block;">
+                            <input type="text" id="photoCaptionInput" placeholder="Caption: location, object name, or description" style="padding:10px; border:1px solid #e5e7eb; border-radius:8px; width:100%; margin-bottom:10px; box-sizing:border-box;">
+                            <button type="button" class="primary-btn" id="photoSubmitBtn">Upload Photo</button>
+                        </div>
+                    `;
+
+                    document.getElementById('photoSubmitBtn').addEventListener('click', async () => {
+                        const fileInput = document.getElementById('photoFileInput');
+                        const caption = document.getElementById('photoCaptionInput').value.trim();
+                        const resultEl = document.getElementById('photoResult');
+                        resultEl.textContent = '';
+
+                        if (!fileInput.files || !fileInput.files[0]) {
+                            resultEl.style.color = '#ef4444';
+                            resultEl.textContent = 'Please choose or take a photo first.';
+                            return;
+                        }
+                        if (!caption) {
+                            resultEl.style.color = '#ef4444';
+                            resultEl.textContent = 'Please add a caption.';
+                            return;
+                        }
+
+                        const btn = document.getElementById('photoSubmitBtn');
+                        btn.disabled = true;
+                        btn.textContent = 'Uploading...';
+                        try {
+                            const photoUrl = await window.uploadToCloudinary(fileInput.files[0]);
+                            const res = await window.API.submitPhotoSurveyPhoto(task.id, {
+                                prompt_index: nextPrompt.prompt_index,
+                                photo_url: photoUrl,
+                                caption
+                            });
+
+                            if (res.rewardCredited) {
+                                resultEl.style.color = '#2f855a';
+                                resultEl.textContent = `All ${res.total} photos done! You earned GHC ${parseFloat(res.earned || 0).toFixed(2)}.`;
+                                await refreshTodayStatus();
+                                renderCategoryGrid();
+                                window.dispatchEvent(new Event('userFinanceUpdated'));
+                            } else {
+                                resultEl.style.color = '#2f855a';
+                                resultEl.textContent = `Photo ${res.completedCount}/${res.total} saved. Next photo unlocks in 3 minutes.`;
+                                startWaitCountdown(new Date(res.next_available_at));
+                            }
+                        } catch (err) {
+                            resultEl.style.color = '#ef4444';
+                            resultEl.textContent = err.message || 'Upload failed';
+                        } finally {
+                            btn.disabled = false;
+                            btn.textContent = 'Upload Photo';
+                        }
+                    });
+                }
+
+                function startWaitCountdown(nextAt) {
+                    const promptSection = document.getElementById('photoPromptSection');
+                    const notice = document.getElementById('photoWaitNotice');
+                    promptSection.innerHTML = '';
+                    notice.style.display = 'block';
+
+                    function tick() {
+                        const msLeft = nextAt.getTime() - Date.now();
+                        if (msLeft <= 0) {
+                            clearInterval(photoSurveyCountdownInterval);
+                            photoSurveyCountdownInterval = null;
+                            notice.style.display = 'none';
+                            renderPhotoSurveyCategory(task);
+                            return;
+                        }
+                        const secondsLeft = Math.ceil(msLeft / 1000);
+                        const m = Math.floor(secondsLeft / 60);
+                        const s = secondsLeft % 60;
+                        notice.textContent = `Next photo unlocks in ${m}:${String(s).padStart(2, '0')}`;
+                    }
+                    tick();
+                    photoSurveyCountdownInterval = setInterval(tick, 1000);
+                }
+
+                if (nextAvailableAt && nextAvailableAt.getTime() > Date.now()) {
+                    startWaitCountdown(nextAvailableAt);
+                } else {
+                    renderPromptForm();
+                }
+            } catch (err) {
+                console.error('Failed to load photo survey', err);
+                container.innerHTML = '<div class="card"><p style="color:#ef4444;">Failed to load photo survey.</p></div>';
+            }
+        }
+
         async function loadEasyEarns() {
             const listEl = document.getElementById('easyEarnsList');
             listEl.innerHTML = '<div style="color:#6b7280">Loading tasks...</div>';
             try {
-                const tasks = await window.API.getEasyEarns();
-                if (!Array.isArray(tasks) || tasks.length === 0) {
-                    listEl.innerHTML = '<div class="empty-state-text">No Easy Earns tasks are active right now.</div>';
-                    return;
-                }
-
-                listEl.innerHTML = '';
-                tasks.forEach(task => {
-                    const item = document.createElement('div');
-                    item.className = 'idea-item';
-                    item.innerHTML = `
-                        <div style="flex:1">
-                            <strong>${escapeHtml(task.title)}</strong>
-                            <p>${escapeHtml(task.description || '')}</p>
-                            <div style="margin-top:8px; font-size:13px; color:#6b7280">Reward: GHC ${parseFloat(task.amount||0).toFixed(2)}</div>
-                        </div>
-                        <div style="display:flex; flex-direction:column; gap:8px; min-width:260px; align-items:flex-end;">
-                            <div id="videoContainer_${task.id}" style="width:100%;"></div>
-                            <div id="videoProgress_${task.id}" style="font-size:12px; color:#9ca3af; text-align:right;">Loading videos...</div>
-                        </div>
-                    `;
-                    listEl.appendChild(item);
-
-                    // Load videos for this easy-earn task and render players
-                    (async function(t) {
-                        try {
-                            const vids = await window.API.getEasyEarnVideos(t.id);
-                            const container = document.getElementById('videoContainer_' + t.id);
-                            const progress = document.getElementById('videoProgress_' + t.id);
-                            if (!vids || vids.length === 0) {
-                                container.innerHTML = '<div style="color:#6b7280">No videos configured for this task yet.</div>';
-                                progress.textContent = '';
-                                return;
-                            }
-
-                            // Helper to detect YouTube URLs
-                            function isYouTubeUrl(u) {
-                                return /youtube\.com|youtu\.be/.test(u || '');
-                            }
-
-                            function extractYouTubeId(u) {
-                                try {
-                                    const m = u.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/);
-                                    if (m && m[1]) return m[1];
-                                    const short = u.match(/youtu\.be\/(.+)$/);
-                                    return short ? short[1].split('?')[0] : null;
-                                } catch (e) { return null; }
-                            }
-
-                            // Track watched videos
-                            const watched = new Set();
-                            // Keep YouTube players to prevent GC
-                            const ytPlayers = [];
-
-                            // Build placeholders
-                            container.innerHTML = vids.map(v => {
-                                const title = escapeHtml(v.title || ('Video ' + v.video_index));
-                                if (isYouTubeUrl(v.url)) {
-                                    const vid = extractYouTubeId(v.url);
-                                    return `\n                                <div style="margin-bottom:10px; width:100%;">\n                                    <div style="font-weight:600; margin-bottom:6px;">${title}</div>\n                                    <div id="yt_player_${t.id}_${v.video_index}" data-yt-id="${vid || ''}" style="width:100%; height:240px; background:#000; border-radius:10px; overflow:hidden;"></div>\n                                </div>\n                            `;
-                                }
-                                // fallback to HTML5 video
-                                return `\n                                <div style="margin-bottom:10px; width:100%;">\n                                    <div style="font-weight:600; margin-bottom:6px;">${title}</div>\n                                    <video id="video_${t.id}_${v.video_index}" width="100%" controls preload="metadata" style="border-radius:10px; background:#000;">\n                                        <source src="${escapeAttr(v.url || '')}" type="video/mp4">\n                                        Your browser does not support HTML5 video.\n                                    </video>\n                                </div>\n                            `;
-                            }).join('');
-
-                            progress.textContent = `0/${vids.length} watched`;
-
-                            // Attach HTML5 video listeners
-                            vids.forEach(v => {
-                                if (!isYouTubeUrl(v.url)) {
-                                    const vidEl = document.getElementById('video_' + t.id + '_' + v.video_index);
-                                    if (!vidEl) return;
-                                    vidEl.addEventListener('ended', async () => {
-                                        watched.add(v.video_index);
-                                        progress.textContent = `${watched.size}/${vids.length} watched`;
-                                        if (watched.size === vids.length) await attemptAutoClaim();
-                                    });
-                                }
-                            });
-
-                            // YouTube: load API and create players
-                            const ytContainers = container.querySelectorAll('[id^="yt_player_"]');
-                            function attemptAutoClaim() {
-                                return (async () => {
-                                    progress.textContent = 'All videos watched — claiming reward...';
-                                    try {
-                                        const resp = await window.API.claimEasyEarn(t.id);
-                                        if (resp && resp.ok) {
-                                            alert(`Reward credited: GHC ${parseFloat(resp.earned||0).toFixed(2)}`);
-                                            await window.API.getWallet().catch(()=>{});
-                                            loadEasyEarns();
-                                            window.dispatchEvent(new Event('userFinanceUpdated'));
-                                        } else {
-                                            alert(resp.message || 'Claim response received');
-                                        }
-                                    } catch (err) {
-                                        console.error('Auto-claim failed:', err);
-                                        progress.textContent = 'Claim failed — try submitting proof manually.';
-                                    }
-                                })();
-                            }
-
-                            if (ytContainers.length > 0) {
-                                // Load YouTube IFrame API if not present
-                                if (typeof YT === 'undefined' || typeof YT.Player === 'undefined') {
-                                    // Inject API
-                                    if (!document.getElementById('youtube-iframe-api')) {
-                                        const s = document.createElement('script');
-                                        s.id = 'youtube-iframe-api';
-                                        s.src = 'https://www.youtube.com/iframe_api';
-                                        document.head.appendChild(s);
-                                    }
-                                }
-
-                                // When API ready, initialize players
-                                function initYouTubePlayers() {
-                                    ytContainers.forEach(el => {
-                                        const id = el.id;
-                                        const videoId = el.getAttribute('data-yt-id');
-                                        if (!videoId) return;
-                                        const idxMatch = id.match(/yt_player_(.+)_(\d+)$/);
-                                        const vIndex = idxMatch ? Number(idxMatch[2]) : null;
-                                        const player = new YT.Player(id, {
-                                            videoId: videoId,
-                                            playerVars: { controls: 1, rel: 0 },
-                                            events: {
-                                                onStateChange: function(event) {
-                                                    if (event.data === YT.PlayerState.ENDED) {
-                                                        watched.add(vIndex);
-                                                        progress.textContent = `${watched.size}/${vids.length} watched`;
-                                                        if (watched.size === vids.length) attemptAutoClaim();
-                                                    }
-                                                }
-                                            }
-                                        });
-                                        ytPlayers.push(player);
-                                    });
-                                }
-
-                                if (typeof YT !== 'undefined' && typeof YT.Player !== 'undefined') {
-                                    initYouTubePlayers();
-                                } else {
-                                    // Wait for global callback
-                                    const prev = window.onYouTubeIframeAPIReady;
-                                    window.onYouTubeIframeAPIReady = function() {
-                                        if (typeof prev === 'function') prev();
-                                        initYouTubePlayers();
-                                    };
-                                }
-                            }
-
-                            // Check if all watched already (edge cases)
-                            const checkInterval = setInterval(() => {
-                                if (watched.size === vids.length) {
-                                    clearInterval(checkInterval);
-                                }
-                            }, 1000);
-
-                        } catch (err) {
-                            console.error('Failed to load videos for task', t.id, err);
-                            const container = document.getElementById('videoContainer_' + t.id);
-                            const progress = document.getElementById('videoProgress_' + t.id);
-                            if (container) container.innerHTML = '<div style="color:#ef4444">Failed to load videos</div>';
-                            if (progress) progress.textContent = '';
-                        }
-                    })(task);
-                });
+                const [tasks] = await Promise.all([window.API.getEasyEarns(), refreshTodayStatus()]);
+                easyEarnTasksData = Array.isArray(tasks) ? tasks : [];
+                renderCategoryGrid();
             } catch (err) {
                 console.error('Failed to load Easy Earns tasks', err);
                 listEl.innerHTML = '<div style="color:#ef4444">Failed to load tasks. Please try again later.</div>';
             }
         }
 
-        function escapeHtml(s){ return String(s||'').replace(/[&<>\\"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
-        function escapeAttr(s){ return String(s||'').replace(/'/g, "\\'").replace(/\\"/g,'\\\\\"'); }
-
-        let currentTaskId = null;
-
-        function openEasyModal(id, title, desc, amount) {
-            currentTaskId = id;
-            document.getElementById('modalTitle').textContent = title;
-            document.getElementById('modalDesc').textContent = desc || '';
-            document.getElementById('proofInput').value = '';
-            document.getElementById('submitProofBtn').style.display = '';
-            document.getElementById('claimRewardBtn').style.display = 'none';
-            document.getElementById('easyModal').style.display = 'flex';
-        }
-
-        document.getElementById('closeModalBtn').addEventListener('click', ()=>{ document.getElementById('easyModal').style.display='none'; });
-
-        document.getElementById('submitProofBtn').addEventListener('click', async ()=>{
-            const url = document.getElementById('proofInput').value.trim();
-            if (!url) return alert('Please provide a screenshot URL or short notes.');
-            try {
-                document.getElementById('submitProofBtn').disabled = true;
-                document.getElementById('submitProofBtn').textContent = 'Submitting...';
-                const res = await window.API.submitEasyEarn(currentTaskId, url);
-                alert(res.message || 'Submission successful');
-                document.getElementById('submitProofBtn').style.display = 'none';
-                document.getElementById('claimRewardBtn').style.display = '';
-            } catch (err) {
-                alert(err.message || 'Submission failed');
-            } finally {
-                document.getElementById('submitProofBtn').disabled = false;
-                document.getElementById('submitProofBtn').textContent = 'Submit Proof';
-            }
-        });
-
-        document.getElementById('claimRewardBtn').addEventListener('click', async ()=>{
-            try {
-                document.getElementById('claimRewardBtn').disabled = true;
-                document.getElementById('claimRewardBtn').textContent = 'Claiming...';
-                const res = await window.API.claimEasyEarn(currentTaskId);
-                alert(res.message || `You earned GHC ${res.earned}`);
-                document.getElementById('easyModal').style.display = 'none';
-                // refresh tasks & balance
-                await loadEasyEarns();
-                await window.API.getWallet().catch(()=>{});
-                window.dispatchEvent(new Event('userFinanceUpdated'));
-            } catch (err) {
-                alert(err.message || 'Claim failed');
-            } finally {
-                document.getElementById('claimRewardBtn').disabled = false;
-                document.getElementById('claimRewardBtn').textContent = 'Claim Reward';
-            }
-        });
-
-        // Load on page ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', loadEasyEarns);
         } else {
             loadEasyEarns();
         }
     </script>
-    </div>
 </body>
 </html>
