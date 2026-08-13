@@ -26,3 +26,21 @@ services:
         value: "10000"
       - key: DB_SLOW_QUERY_MS
         value: "1500"
+
+  - type: web
+    name: dailytrade-whatsapp-bot
+    runtime: node
+    rootDir: whatsapp-bot
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SITE_API_URL
+        value: https://dailytrade-backend.onrender.com
+      - key: SCHEDULER_API_KEY
+        sync: false
+      - key: WHATSAPP_TARGET_JID
+        sync: false
