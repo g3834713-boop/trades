@@ -10,6 +10,62 @@ import { canWithdrawAmount } from './verificationLimits.js';
 
 const app = express();
 
+const VIDEO_WATCH_TASK_TITLE = 'Video Watch Task';
+const LEGACY_SEEDED_TASK_TITLES = [
+  'Follow + Like Campaign',
+  'Share & Tag Friends',
+  'Mobile App Signup',
+  'Website Feedback Form',
+  'Product Description',
+  VIDEO_WATCH_TASK_TITLE,
+  'Data Copying',
+  'Data Copying (Small)',
+  'Referral Signup'
+];
+
+async function deleteTaskRowsByIds(taskIds) {
+  if (!taskIds.length) return 0;
+  await query('delete from task_assignments where task_id = any($1::uuid[])', [taskIds]);
+  await query('delete from order_processing where task_id = any($1::uuid[])', [taskIds]);
+  await query('delete from easy_earn_submissions where task_id = any($1::uuid[])', [taskIds]);
+  await query('delete from easy_earn_videos where task_id = any($1::uuid[])', [taskIds]);
+  const { rowCount } = await query('delete from tasks where id = any($1::uuid[])', [taskIds]);
+  return rowCount;
+}
+
+async function deleteBeginnerTaskRowsByIds(taskIds) {
+  if (!taskIds.length) return 0;
+  await query('delete from beginner_task_submissions where task_id = any($1::uuid[])', [taskIds]);
+  const { rowCount } = await query('delete from beginner_tasks where id = any($1::uuid[])', [taskIds]);
+  return rowCount;
+}
+
+async function cleanupSeededTasks() {
+  const { rows: beginnerRows } = await query(
+    'select id from beginner_tasks where title = any($1::text[])',
+    [LEGACY_SEEDED_TASK_TITLES]
+  );
+  const beginnerTasksRemoved = await deleteBeginnerTaskRowsByIds(beginnerRows.map(row => row.id));
+
+  const { rows: catalogRows } = await query(
+    'select id from tasks where title = any($1::text[]) and coalesce(is_easy_earn, false) = false',
+    [LEGACY_SEEDED_TASK_TITLES]
+  );
+  const catalogTasksRemoved = await deleteTaskRowsByIds(catalogRows.map(row => row.id));
+
+  const { rows: extraEasyEarnRows } = await query(
+    'select id from tasks where coalesce(is_easy_earn, false) = true and title <> $1',
+    [VIDEO_WATCH_TASK_TITLE]
+  );
+  const extraEasyEarnsRemoved = await deleteTaskRowsByIds(extraEasyEarnRows.map(row => row.id));
+
+  return {
+    beginnerTasksRemoved,
+    catalogTasksRemoved,
+    extraEasyEarnsRemoved
+  };
+}
+
 async function getAppSetting(key, defaultValue = null) {
   const { rows } = await query('select value from app_settings where key = $1', [key]);
   if (!rows.length) return defaultValue;
@@ -983,7 +1039,7 @@ app.get('/tasks/my', requireAuth, async (req, res) => {
     `select t.*, ta.status as assignment_status, ta.assigned_at, ta.completed_at
      from task_assignments ta
      join tasks t on t.id = ta.task_id
-     where ta.user_id = $1
+     where ta.user_id = $1 and coalesce(t.is_easy_earn, false) = false
      order by ta.assigned_at desc`,
     [id]
   );
@@ -1027,7 +1083,7 @@ app.post('/admin/tasks', requireAuth, requireAdmin, async (req, res) => {
 });
 // Admin: Get all tasks
 app.get('/admin/tasks', requireAuth, requireAdmin, async (req, res) => {
-  const { rows } = await query('select * from tasks order by created_at desc');
+  const { rows } = await query('select * from tasks where coalesce(is_easy_earn, false) = false order by created_at desc');
   res.json(rows);
 });
 
@@ -1115,11 +1171,9 @@ app.delete('/admin/easy-earns/:id/videos/:videoId', requireAuth, requireAdmin, a
 // Admin cleanup: remove previously seeded task-ideas except the Video Watch Task
 app.post('/admin/easy-earns/cleanup', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const titlesToRemove = [
-      'Follow + Like Campaign', 'Share & Tag Friends', 'Mobile App Signup', 'Website Feedback Form', 'Product Description', 'Data Copying', 'Referral Signup'
-    ];
-    const { rowCount } = await query(`delete from tasks where title = any($1::text[]) and coalesce(is_easy_earn,false) = false`, [titlesToRemove]);
-    res.json({ ok: true, removed: rowCount });
+    const result = await cleanupSeededTasks();
+    await ensureInitialTasks();
+    res.json({ ok: true, ...result });
   } catch (err) {
     console.error('Cleanup error:', err);
     res.status(500).json({ error: 'Cleanup failed' });
@@ -1909,16 +1963,6 @@ app.get('/beginner-tasks', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/easy-earns', requireAuth, async (req, res) => {
-  try {
-    const { id: userId } = req.user;
-    res.json(await getBeginnerTasksForUser(userId));
-  } catch (error) {
-    console.error('Error fetching Easy Earns tasks:', error);
-    res.status(500).json({ error: 'Failed to fetch Easy Earns tasks: ' + error.message });
-  }
-});
-
 // User: Submit URL for beginner task
 app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
   try {
@@ -2385,23 +2429,6 @@ async function ensureSchema() {
       created_at timestamptz default now()
     )
   `);
-
-  // Seed a small set of Easy Earns (beginner) tasks for initial rollout
-  await query(`
-    insert into beginner_tasks (id, title, description, amount, status)
-    select gen_random_uuid(), v.title, v.description, v.amount, 'active'
-    from (values
-      ('Follow + Like Campaign', 'Follow the specified social accounts, like 5 posts and comment. Submit screenshot URL.', 2.00),
-      ('Share & Tag Friends', 'Share the post to 3+ friends/groups and tag 5 friends. Submit screenshot URL.', 3.00),
-      ('Mobile App Signup', 'Download and sign up to the advertised mobile app. Submit confirmation screenshot.', 3.00),
-      ('Website Feedback Form', 'Complete the feedback form and submit screenshot of the confirmation.', 2.00),
-      ('Product Description', 'Write a 100-150 word product description and submit text.', 6.00),
-      ('Video Watch Task', 'Watch the provided video for at least 2 minutes and submit timestamped screenshot.', 1.50),
-      ('Data Copying (Small)', 'Copy 20 entries from image to spreadsheet and submit the file link.', 5.00),
-      ('Referral Signup', 'Refer a friend who completes a task; submit friend email for validation.', 4.00)
-    ) as v(title, description, amount)
-    where not exists (select 1 from beginner_tasks bt where bt.title = v.title)
-  `);
   
   await query(`
     create table if not exists products (
@@ -2691,73 +2718,66 @@ app.post('/admin/tasks/:id/status', requireAuth, requireAdmin, async (req, res) 
   }
 });
 
-// Seed recommended initial tasks if table is empty
+// Ensure the single Easy Earn video task exists without seeding other task catalogs.
 async function ensureInitialTasks() {
   try {
-    const { rows } = await query('select count(*) as c from tasks');
-    const count = parseInt(rows[0].c || 0);
-    // Ensure the Video Watch easy-earn task exists. Keep other catalog tasks separate.
-    if (count === 0) {
-      // Create a single Easy Earns task for video watching
-      const { rows: existing } = await query("select id from tasks where title = 'Video Watch Task' limit 1");
-      let videoTaskId = existing[0]?.id;
-      if (!videoTaskId) {
-        const inserted = await query(
-          `insert into tasks (title, description, amount, commission, status, is_easy_earn)
-           values ($1, $2, $3, $4, $5, true)
-           returning id`,
-          ['Video Watch Task', 'Watch a short set of videos and submit proof to earn rewards.', 1.50, 0, 'active']
-        );
-        videoTaskId = inserted.rows[0].id;
-      } else {
-        // mark it as easy earn and active
-        await query('update tasks set is_easy_earn = true, status = $1 where id = $2', ['active', videoTaskId]);
-      }
+    const { rows: existing } = await query(
+      'select id from tasks where title = $1 and coalesce(is_easy_earn, false) = true order by created_at asc',
+      [VIDEO_WATCH_TASK_TITLE]
+    );
+    let videoTaskId = existing[0]?.id;
 
-      // Seed five placeholder videos for the task (admin can update later)
-      const { rows: existingVideos } = await query('select count(*) as c from easy_earn_videos where task_id = $1', [videoTaskId]);
-      const videoCount = parseInt(existingVideos[0].c || 0);
-      if (videoCount < 5) {
-        const placeholders = [
-          ['Intro Video', 'https://example.com/video1.mp4', 120],
-          ['How-to Video', 'https://example.com/video2.mp4', 150],
-          ['Product Demo', 'https://example.com/video3.mp4', 95],
-          ['Quick Tips', 'https://example.com/video4.mp4', 130],
-          ['Wrap Up', 'https://example.com/video5.mp4', 110]
-        ];
-        for (let i = 0; i < placeholders.length; i++) {
-          const [title, url, dur] = placeholders[i];
-          await query(
-            `insert into easy_earn_videos (task_id, video_index, title, url, duration_seconds)
-             values ($1, $2, $3, $4, $5)
-             on conflict do nothing`,
-            [videoTaskId, i + 1, title, url, dur]
-          );
-        }
-      }
-      console.log('Seeded Video Watch Easy Earns task');
+    if (existing.length > 1) {
+      const duplicateIds = existing.slice(1).map(row => row.id);
+      const removed = await deleteTaskRowsByIds(duplicateIds);
+      if (removed > 0) console.log(`Cleanup: removed ${removed} duplicate Video Watch Easy Earn task(s)`);
     }
+
+    if (!videoTaskId) {
+      const inserted = await query(
+        `insert into tasks (title, description, amount, commission, status, is_easy_earn)
+         values ($1, $2, $3, $4, $5, true)
+         returning id`,
+        [VIDEO_WATCH_TASK_TITLE, 'Watch a short set of videos and submit proof to earn rewards.', 1.50, 0, 'active']
+      );
+      videoTaskId = inserted.rows[0].id;
+    } else {
+      await query('update tasks set is_easy_earn = true, status = $1 where id = $2', ['active', videoTaskId]);
+    }
+
+    const { rows: existingVideos } = await query('select count(*) as c from easy_earn_videos where task_id = $1', [videoTaskId]);
+    const videoCount = parseInt(existingVideos[0].c || 0);
+    if (videoCount === 0) {
+      const placeholders = [
+        ['Intro Video', 'https://example.com/video1.mp4', 120],
+        ['How-to Video', 'https://example.com/video2.mp4', 150],
+        ['Product Demo', 'https://example.com/video3.mp4', 95],
+        ['Quick Tips', 'https://example.com/video4.mp4', 130],
+        ['Wrap Up', 'https://example.com/video5.mp4', 110]
+      ];
+      for (let i = 0; i < placeholders.length; i++) {
+        const [title, url, durationSeconds] = placeholders[i];
+        await query(
+          `insert into easy_earn_videos (task_id, video_index, title, url, duration_seconds)
+           values ($1, $2, $3, $4, $5)`,
+          [videoTaskId, i + 1, title, url, durationSeconds]
+        );
+      }
+    }
+
+    console.log('Ensured Video Watch Easy Earns task');
   } catch (err) {
     console.error('Initial tasks seed error:', err);
   }
 }
 
 ensureSchema()
-  .then(() => ensureInitialTasks())
-  .then(async () => {
-    // Remove old seeded task-ideas that should not appear in the main UI
-    try {
-      const titlesToRemove = [
-        'Follow + Like Campaign', 'Share & Tag Friends', 'Mobile App Signup', 'Website Feedback Form', 'Product Description', 'Data Copying', 'Referral Signup'
-      ];
-      const { rowCount } = await query(`delete from tasks where title = any($1::text[]) and coalesce(is_easy_earn,false) = false`, [titlesToRemove]);
-      if (rowCount && rowCount > 0) {
-        console.log(`Cleanup: removed ${rowCount} seeded task-ideas`);
-      }
-    } catch (cleanupErr) {
-      console.error('Startup cleanup error:', cleanupErr);
-    }
+  .then(() => cleanupSeededTasks())
+  .then((result) => {
+    const removed = result.beginnerTasksRemoved + result.catalogTasksRemoved + result.extraEasyEarnsRemoved;
+    if (removed > 0) console.log(`Cleanup: removed ${removed} seeded task row(s)`);
   })
+  .then(() => ensureInitialTasks())
   .catch((error) => {
     console.error('Schema init error:', error);
   })
