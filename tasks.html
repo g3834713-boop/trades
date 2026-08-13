@@ -602,39 +602,8 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Hide sections initially, show with animation */
-        .balance-section,
-        .award-section,
-        #beginnerTasksSection,
-        .filter-buttons,
-        .task-list {
-            opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.4s ease, transform 0.4s ease;
-        }
-
-        .balance-section.loaded,
-        .award-section.loaded,
-        #beginnerTasksSection.loaded,
-        .filter-buttons.loaded,
-        .task-list.loaded {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        /* Ensure sections maintain space while loading */
-        .balance-section:empty,
-        .award-section:empty {
-            min-height: 150px;
-        }
-
-        #beginnerTasksSection:empty {
-            min-height: 0;
-            opacity: 1;
-            transform: none;
-        }
-
-        /* Smooth content changes */
+        /* Sections render fully-formed skeletons in the static HTML and are visible
+           immediately - JS fills in real values in place, no pop-in/reflow choreography. */
         .task-list {
             min-height: 100px;
         }
@@ -774,16 +743,58 @@
         </div>
 
         <!-- Balance Section -->
-        <div class="balance-section"></div>
+        <div class="balance-section">
+            <div class="balance-title">My Tasks</div>
+            <div class="balance-grid">
+                <div class="balance-item">
+                    <div class="balance-item-label">Bonus (GHC)</div>
+                    <div class="balance-item-value" id="bonusValue">···</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-item-label">Return Principal (GHC)</div>
+                    <div class="balance-item-value">0</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-item-label">Quantity of Tasks</div>
+                    <div class="balance-item-value" id="taskCountValue">···</div>
+                </div>
+                <div class="balance-item">
+                    <div class="balance-item-label">Return Commission (GHC)</div>
+                    <div class="balance-item-value" id="commissionValue">···</div>
+                </div>
+                <div class="balance-item balance-highlight">
+                    <div class="balance-item-label">My Balance</div>
+                    <div class="balance-item-value" id="myBalanceValue">···</div>
+                </div>
+            </div>
+            <button class="task-action-btn" onclick="window.location.href='task-ideas.html'" style="background: #2d9cdb; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px;">
+                <i class="las la-lightbulb"></i>
+                Open Easy Earns
+            </button>
+            <div id="checkinButtonContainer" style="margin-top: 12px;">
+                <button class="task-action-btn" disabled style="background: #6c757d;">Loading check-in status...</button>
+            </div>
+        </div>
 
         <!-- Schedule Status Banner -->
-        <div id="scheduleStatusBanner" style="display:none; margin: 10px 0; padding: 12px 14px; border-radius: 10px; font-size: 13px; font-weight: 600;"></div>
+        <div id="scheduleStatusBanner" style="margin: 10px 0; padding: 12px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; background: #f3f4f6; color: #6b7280;">
+            <i class="las la-clock"></i> Checking task schedule...
+        </div>
 
         <!-- Award Section -->
-        <div class="award-section"></div>
+        <div class="award-section">
+            <div class="award-title">Award Progress</div>
+            <div class="award-amount" id="awardAmount">GHC 0.00</div>
+            <div class="award-bar-container">
+                <div class="award-bar-fill" id="awardBarFill" style="width: 0%;"></div>
+            </div>
+            <div class="award-percentage" id="awardPercentage">0% Complete</div>
+        </div>
 
         <!-- Beginner Tasks Section -->
-        <div id="beginnerTasksSection"></div>
+        <div id="beginnerTasksSection">
+            <div style="padding: 12px 16px; color: var(--text-muted); font-size: 13px;">Checking for an open task...</div>
+        </div>
 
         <!-- Filter Buttons -->
         <div class="filter-buttons">
@@ -794,7 +805,9 @@
 
         <!-- Product Grid -->
         <div class="product-section-title">Easy Earns Catalog</div>
-        <div id="catalogGrid" class="product-grid"></div>
+        <div id="catalogGrid" class="product-grid">
+            <div class="empty-state-text" style="grid-column: 1 / -1;">Loading catalog...</div>
+        </div>
 
         <div class="product-section-title" style="display: none;" id="productSectionTitle">Products</div>
         <div class="product-grid"></div>
@@ -820,14 +833,13 @@
             progress: 0
         };
 
-        // Initialize page - everything fires in parallel immediately, each section
-        // renders itself the moment its own data arrives instead of waiting in waves.
+        // Initialize page - the whole layout (balance, banner, award, beginner section)
+        // is already visible as a filled-in skeleton from the static HTML, so nothing
+        // needs to wait behind a spinner. Everything fires in parallel and each section
+        // just fills in its own real values in place as its data arrives.
         async function initializePage() {
-            // The page shell (tabs, filter buttons, section titles) is already visible -
-            // don't gate it behind a spinner. Drop the spinner immediately.
             const pageLoading = document.getElementById('pageLoading');
             if (pageLoading) pageLoading.style.display = 'none';
-            document.querySelector('.filter-buttons').classList.add('loaded');
 
             const balanceReady = updateBalance();
             const tasksReady = loadUserTasks();
@@ -839,17 +851,10 @@
 
             refreshTaskStats();
             updateAward();
-            document.querySelector('.award-section').classList.add('loaded');
             displayTasks('pending');
-            document.querySelector('.task-list').classList.add('loaded');
             // Re-render with the now-guaranteed-fresh schedule status, in case this
             // resolved before refreshSchedule() did.
             if (lastBeginnerTasks) renderBeginnerTasks(lastBeginnerTasks);
-
-            const beginnerSection = document.getElementById('beginnerTasksSection');
-            if (beginnerSection && beginnerSection.innerHTML.trim()) {
-                beginnerSection.classList.add('loaded');
-            }
 
             // Check for pending orders in background (non-blocking)
             resumePendingOrders().catch(err => {
@@ -1419,55 +1424,23 @@
                 const completedTasks = (tasksData.completed || []).length;
                 const totalEarnings = (tasksData.completed || []).reduce((sum, t) => sum + t.amount, 0);
 
-                // Update balance display
-                document.querySelector('.balance-section').innerHTML = `
-                    <div class="balance-title">My Tasks</div>
-                    <div class="balance-grid">
-                        <div class="balance-item">
-                            <div class="balance-item-label">Bonus (GHC)</div>
-                            <div class="balance-item-value">${parseFloat(wallet.bonus || 0).toFixed(2)}</div>
-                        </div>
-                        <div class="balance-item">
-                            <div class="balance-item-label">Return Principal (GHC)</div>
-                            <div class="balance-item-value">0</div>
-                        </div>
-                        <div class="balance-item">
-                            <div class="balance-item-label">Quantity of Tasks</div>
-                            <div class="balance-item-value" id="taskCountValue">${completedTasks}/${totalTasks}</div>
-                        </div>
-                        <div class="balance-item">
-                            <div class="balance-item-label">Return Commission (GHC)</div>
-                            <div class="balance-item-value" id="commissionValue">${totalEarnings.toFixed(2)}</div>
-                        </div>
-                        <div class="balance-item balance-highlight">
-                            <div class="balance-item-label">My Balance</div>
-                            <div class="balance-item-value">GHC ${parseFloat(wallet.balance || 0).toFixed(2)}</div>
-                        </div>
-                    </div>
-                `;
+                // Fill in the already-visible balance skeleton in place - same layout
+                // before and after, so nothing resizes or jumps when real data lands.
+                const bonusEl = document.getElementById('bonusValue');
+                if (bonusEl) bonusEl.textContent = parseFloat(wallet.bonus || 0).toFixed(2);
+                const balEl = document.getElementById('myBalanceValue');
+                if (balEl) balEl.textContent = `GHC ${parseFloat(wallet.balance || 0).toFixed(2)}`;
+                const taskCountEl = document.getElementById('taskCountValue');
+                if (taskCountEl) taskCountEl.textContent = `${completedTasks}/${totalTasks}`;
+                const commissionEl = document.getElementById('commissionValue');
+                if (commissionEl) commissionEl.textContent = totalEarnings.toFixed(2);
 
-                // Add task ideas entry and daily check-in button/status below the balance
-                const balanceCard = document.querySelector('.balance-section');
-                const ideasContainer = document.createElement('div');
-                ideasContainer.style.marginTop = '12px';
-                ideasContainer.innerHTML = `
-                    <button class="task-action-btn" onclick="window.location.href='task-ideas.html'" style="background: #2d9cdb; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <i class="las la-lightbulb"></i>
-                        Open Easy Earns
-                    </button>
-                `;
-                balanceCard.appendChild(ideasContainer);
-
-                const btnContainer = document.createElement('div');
-                btnContainer.style.marginTop = '12px';
-                if (checkin && checkin.checkedIn) {
-                    btnContainer.innerHTML = `<button class="task-action-btn" disabled style="background: #6c757d;">Checked in today (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`;
-                } else {
-                    btnContainer.innerHTML = `<button class="task-action-btn" onclick="doDailyCheckin(this)">Daily Check-in (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`;
+                const checkinContainer = document.getElementById('checkinButtonContainer');
+                if (checkinContainer) {
+                    checkinContainer.innerHTML = (checkin && checkin.checkedIn)
+                        ? `<button class="task-action-btn" disabled style="background: #6c757d;">Checked in today (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`
+                        : `<button class="task-action-btn" onclick="doDailyCheckin(this)">Daily Check-in (GHC ${parseFloat(checkin.amount || 0).toFixed(2)})</button>`;
                 }
-                balanceCard.appendChild(btnContainer);
-
-                balanceCard.classList.add('loaded');
             } catch (error) {
                 console.error('Error updating balance:', error);
             }
@@ -1512,17 +1485,12 @@
             let totalTasks = Object.values(tasksData).flat().length;
             let percentage = totalTasks === 0 ? 0 : Math.round((totalCompleted / totalTasks) * 100);
 
-            const awardSection = document.querySelector('.award-section');
-            if (awardSection) {
-                awardSection.innerHTML = `
-                    <div class="award-title">Award Progress</div>
-                    <div class="award-amount">GHC ${(tasksData.completed.reduce((sum, t) => sum + t.amount, 0)).toFixed(2)}</div>
-                    <div class="award-bar-container">
-                        <div class="award-bar-fill" style="width: ${percentage}%;"></div>
-                    </div>
-                    <div class="award-percentage">${percentage}% Complete</div>
-                `;
-            }
+            const amountEl = document.getElementById('awardAmount');
+            if (amountEl) amountEl.textContent = `GHC ${(tasksData.completed.reduce((sum, t) => sum + t.amount, 0)).toFixed(2)}`;
+            const barEl = document.getElementById('awardBarFill');
+            if (barEl) barEl.style.width = `${percentage}%`;
+            const pctEl = document.getElementById('awardPercentage');
+            if (pctEl) pctEl.textContent = `${percentage}% Complete`;
         }
 
         // Fetches what the WhatsApp bot currently has open, renders the status banner,
@@ -1885,23 +1853,18 @@
         window.addEventListener('DOMContentLoaded', async function() {
             applyLanguage();
 
-            // Paint the balance card instantly from cache - real data replaces it a
-            // moment later once the network call resolves, so the page never looks empty.
+            // Fill in the balance skeleton (already visible in the static HTML) from
+            // cache instantly - same layout as the final render, just placeholder text
+            // swapped for real cached numbers, so nothing resizes when the network
+            // call resolves a moment later and overwrites these same fields again.
             const cachedProfile = localStorage.getItem('cachedUserProfile');
             if (cachedProfile) {
                 try {
                     const cached = JSON.parse(cachedProfile);
-                    const balanceSection = document.querySelector('.balance-section');
-                    balanceSection.innerHTML = `
-                        <div class="balance-title">My Tasks</div>
-                        <div class="balance-grid">
-                            <div class="balance-item balance-highlight">
-                                <div class="balance-item-label">My Balance</div>
-                                <div class="balance-item-value">GHC ${parseFloat(cached.balance || 0).toFixed(2)}</div>
-                            </div>
-                        </div>
-                    `;
-                    balanceSection.classList.add('loaded');
+                    const bonusEl = document.getElementById('bonusValue');
+                    if (bonusEl) bonusEl.textContent = parseFloat(cached.bonus || 0).toFixed(2);
+                    const balEl = document.getElementById('myBalanceValue');
+                    if (balEl) balEl.textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
                 } catch (e) {
                     console.warn('Failed to parse cached profile:', e);
                 }
