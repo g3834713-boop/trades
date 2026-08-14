@@ -218,7 +218,20 @@ app.use((req, res, next) => {
 });
 
 app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
+
+// Only the real frontend can make browser-based requests here. Requests with no Origin
+// header (curl, server-to-server calls like the WhatsApp bot's) are unaffected - CORS
+// only governs what a browser will let a webpage's JS read, not server-to-server calls.
+const ALLOWED_ORIGINS = ['https://trades-psi.vercel.app'];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(morgan('dev'));
