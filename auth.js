@@ -3,6 +3,25 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
+// A random ID persisted in this browser, sent alongside /users/sync so the backend's
+// referral anti-farming check can tell "same person reusing their own browser" apart
+// from "different people who happen to share a network" - matching on IP alone would
+// wrongly penalize the second case (roommates, an office, a household).
+function getOrCreateDeviceId() {
+  try {
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      deviceId = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    return deviceId;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Auth helpers
 window.AuthService = {
   async register(email, password, fullName, phone, referralCode) {
@@ -45,10 +64,11 @@ window.AuthService = {
           body: JSON.stringify({
             fullName,
             phone,
-            referralCode: referralCode || localStorage.getItem('pendingReferralCode') || ''
+            referralCode: referralCode || localStorage.getItem('pendingReferralCode') || '',
+            deviceId: getOrCreateDeviceId()
           })
         });
-        
+
         // Clear stored referral code after sync
         localStorage.removeItem('pendingReferralCode');
         
@@ -101,7 +121,8 @@ window.AuthService = {
         body: JSON.stringify({
           fullName: userMeta.full_name || '',
           phone: userMeta.phone || '',
-          referralCode: pendingRef
+          referralCode: pendingRef,
+          deviceId: getOrCreateDeviceId()
         })
       });
       localStorage.removeItem('pendingReferralCode');
@@ -250,12 +271,25 @@ window.API = {
       ...options.headers
     };
 
+    // /users/sync needs deviceId for the referral anti-farming check - inject it here
+    // so every caller gets it automatically instead of remembering to add it themselves.
+    let body = options.body;
+    if (endpoint === '/users/sync') {
+      let parsed = {};
+      if (typeof body === 'string') {
+        try { parsed = JSON.parse(body); } catch (e) { parsed = {}; }
+      }
+      parsed.deviceId = getOrCreateDeviceId();
+      body = JSON.stringify(parsed);
+    }
+
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       const response = await fetch(`${CONFIG.API_URL}${endpoint}`, {
         ...options,
+        body,
         headers,
         signal: controller.signal
       });

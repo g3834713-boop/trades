@@ -259,20 +259,23 @@ app.post('/users/sync', requireAuth, async (req, res) => {
   const { id, email } = req.user;
   const myReferralCode = generateReferralCode(id);
   const signupIp = req.ip || null;
+  const signupDeviceId = (typeof req.body.deviceId === 'string' && req.body.deviceId.trim())
+    ? req.body.deviceId.trim().slice(0, 200)
+    : null;
 
   // Check if user already exists (to avoid giving bonus on re-sync)
   const { rows: existing } = await query('select id, referred_by from app_users where id = $1', [id]);
   const isNewUser = existing.length === 0;
 
   await query(
-    `insert into app_users (id, email, full_name, phone, referral_code, signup_ip)
-     values ($1, $2, $3, $4, $5, $6)
+    `insert into app_users (id, email, full_name, phone, referral_code, signup_ip, signup_device_id)
+     values ($1, $2, $3, $4, $5, $6, $7)
      on conflict (id) do update set
        email = excluded.email,
        full_name = coalesce(excluded.full_name, app_users.full_name),
        phone = coalesce(excluded.phone, app_users.phone),
        referral_code = coalesce(app_users.referral_code, excluded.referral_code)`,
-    [id, email, fullName || null, phone || null, myReferralCode, signupIp]
+    [id, email, fullName || null, phone || null, myReferralCode, signupIp, signupDeviceId]
   );
   await query(
     `insert into wallets (user_id) values ($1)
@@ -301,32 +304,34 @@ app.post('/users/sync', requireAuth, async (req, res) => {
           // bonus itself, so it's fine to record even if the bonus below gets blocked.
           await query('update app_users set referred_by = $1 where id = $2', [referrerId, id]);
 
-          // Anti-farming: don't pay out if this signup shares an IP with the referrer's
-          // own signup, or with another account already credited under this referrer -
-          // that's the actual pattern of someone creating throwaway accounts on their own
-          // device to repeatedly pay themselves the referral bonus. A real second signup
-          // from a shared network (family, roommates, office) will look the same and lose
-          // out here too - that's a real tradeoff of an IP-based check, not a bug.
-          let sameIpAbuseDetected = false;
-          if (signupIp) {
-            const { rows: referrerRows } = await query('select signup_ip from app_users where id = $1', [referrerId]);
-            const referrerIp = referrerRows[0]?.signup_ip;
-            if (referrerIp && referrerIp === signupIp) {
-              sameIpAbuseDetected = true;
+          // Anti-farming: don't pay out if this signup shares BOTH its IP and its device
+          // ID with the referrer's own signup, or with another account already credited
+          // under this referrer. Requiring both signals (not just IP) is deliberate - an
+          // IP alone can't tell "same person reusing their own browser" apart from "two
+          // different people on the same wifi", and blocking the latter would wrongly
+          // punish real referrals from roommates/an office/a household. Someone using a
+          // different browser or clearing localStorage on the same network still slips
+          // through - this raises the bar for casual farming, it doesn't eliminate it.
+          let sameDeviceAbuseDetected = false;
+          if (signupIp && signupDeviceId) {
+            const { rows: referrerRows } = await query('select signup_ip, signup_device_id from app_users where id = $1', [referrerId]);
+            const referrer = referrerRows[0];
+            if (referrer && referrer.signup_ip === signupIp && referrer.signup_device_id === signupDeviceId) {
+              sameDeviceAbuseDetected = true;
             } else {
-              const { rows: dupIpRows } = await query(
+              const { rows: dupRows } = await query(
                 `select 1 from referrals r
                  join app_users u on u.id = r.referred_id
-                 where r.referrer_id = $1 and u.signup_ip = $2
+                 where r.referrer_id = $1 and u.signup_ip = $2 and u.signup_device_id = $3
                  limit 1`,
-                [referrerId, signupIp]
+                [referrerId, signupIp, signupDeviceId]
               );
-              sameIpAbuseDetected = dupIpRows.length > 0;
+              sameDeviceAbuseDetected = dupRows.length > 0;
             }
           }
 
-          if (sameIpAbuseDetected) {
-            console.warn(`Referral bonus blocked: referrer ${referrerId} and new signup ${id} share an IP (${signupIp}) - looks like same-device farming.`);
+          if (sameDeviceAbuseDetected) {
+            console.warn(`Referral bonus blocked: referrer ${referrerId} and new signup ${id} share both IP (${signupIp}) and device - looks like same-device farming.`);
           } else {
             // Record referral
             await query(
@@ -2800,6 +2805,7 @@ async function ensureSchema() {
   // Captured once at first signup (never overwritten on later syncs) - used only to spot
   // referral bonus farming from the same device/network, not stored for any other purpose.
   await query('alter table app_users add column if not exists signup_ip text');
+  await query('alter table app_users add column if not exists signup_device_id text');
   await query(`
     create table if not exists identity_verifications (
       user_id uuid primary key references app_users(id) on delete cascade,
