@@ -8,7 +8,10 @@ const CONFIG = {
   // Cloudinary from the browser, so only the (public, non-secret) cloud name and preset
   // name are needed here - never put the Cloudinary API secret in frontend code.
   CLOUDINARY_CLOUD_NAME: 'dqpy0ddog',
-  CLOUDINARY_UPLOAD_PRESET: 'trades'
+  CLOUDINARY_UPLOAD_PRESET: 'trades',
+  // Public VAPID key for Web Push subscriptions - safe to expose client-side (that's
+  // its purpose). The matching private key lives only in the backend's env vars.
+  VAPID_PUBLIC_KEY: 'BLyK6T2iEjoEO_KmFYpTgI9Rf1GhL2e4sgnF2_-g-U6FR9Uvq4HMHJWb2X8YZqktsrtjbnRxa2BJXB5WaO8CKxE'
 };
 
 const DEFAULT_SETTINGS = {

@@ -3,9 +3,14 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import webpush from 'web-push';
 import { pool, query } from './db.js';
 import { requireAuth, requireAdmin } from './middleware/auth.js';
 import { canWithdrawAmount } from './verificationLimits.js';
+
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails('mailto:support@dailytrade.com', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+}
 
 
 const app = express();
@@ -108,6 +113,9 @@ async function creditEasyEarnReward({ userId, category, taskId, amount, details 
     'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
     [userId, 'easy_earn', amount, `Easy Earn reward (${category})`]
   );
+  await createNotification(userId, 'easy_earn_reward', 'Easy Earn reward',
+    `You've earned GHC ${Number(amount).toFixed(2)} from your Easy Earn ${category} task.`,
+    { category, taskId, amount });
 }
 
 async function cleanupSeededTasks() {
@@ -227,6 +235,47 @@ async function upsertAppSetting(key, value) {
      on conflict (key) do update set value = excluded.value`,
     [key, String(value)]
   );
+}
+
+// Best-effort OS-level push to every device a user has granted permission on - failures
+// here (expired subscription, no VAPID keys configured yet, etc.) must never bubble up
+// to whatever money-moving action triggered the notification.
+async function sendPushToUser(userId, title, message) {
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
+  try {
+    const { rows } = await query('select * from push_subscriptions where user_id = $1', [userId]);
+    for (const sub of rows) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          JSON.stringify({ title, body: message })
+        );
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await query('delete from push_subscriptions where id = $1', [sub.id]); // expired/revoked - clean up
+        } else {
+          console.error('Push send failed:', err.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('sendPushToUser failed:', err.message);
+  }
+}
+
+// Fire-and-forget: a notification failure must never break the action that triggered it,
+// so errors are logged, not thrown.
+async function createNotification(userId, type, title, message, metadata = null) {
+  if (!userId) return;
+  try {
+    await query(
+      `insert into notifications (user_id, type, title, message, metadata) values ($1, $2, $3, $4, $5)`,
+      [userId, type, title, message, metadata ? JSON.stringify(metadata) : null]
+    );
+    await sendPushToUser(userId, title, message);
+  } catch (err) {
+    console.error('Failed to create notification:', type, err.message);
+  }
 }
 
 // Prevent caching for all API responses
@@ -366,6 +415,8 @@ app.post('/users/sync', requireAuth, async (req, res) => {
                values ($1, 'referral_bonus', 2.00, $2)`,
               [referrerId, `Referral bonus for inviting ${email}`]
             );
+            await createNotification(referrerId, 'referral_bonus', 'Referral bonus earned',
+              `You've earned a GHC 2.00 referral bonus for inviting ${email}.`, { referredEmail: email });
           }
         }
       }
@@ -628,6 +679,11 @@ app.post('/admin/users/:userId/verification/require', requireAuth, requireAdmin,
     [required, status, req.params.userId]
   );
 
+  if (required) {
+    await createNotification(req.params.userId, 'verification_required', 'Identity verification required',
+      'Admin has requested that you complete identity verification. Please submit your documents in the Mine section.');
+  }
+
   res.json({ ok: true });
 });
 
@@ -641,6 +697,11 @@ app.post('/admin/users/:userId/totp/require', requireAuth, requireAdmin, async (
     'update app_users set totp_required = $1 where id = $2',
     [required, req.params.userId]
   );
+
+  if (required) {
+    await createNotification(req.params.userId, 'totp_required', '2FA setup required',
+      'Admin has requested that you set up an authenticator app (2FA) for your account. Please complete setup in Security Center.');
+  }
 
   res.json({ ok: true });
 });
@@ -754,7 +815,7 @@ app.post('/wallet/deduct', requireAuth, async (req, res) => {
 });
 
 // Add bonus (for task completion with interest)
-app.post('/wallet/add-bonus', requireAuth, async (req, res) => {
+app.post('/wallet/add-bonus', requireAuth, requireAdmin, async (req, res) => {
   const { id } = req.user;
   const { amount, reason } = req.body;
   const numericAmount = Number(amount) || 0;
@@ -813,6 +874,8 @@ app.post('/checkin', requireAuth, async (req, res) => {
     if (amount > 0) {
       await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, id]);
       await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [id, 'daily_checkin', amount, 'Daily check-in bonus']);
+      await createNotification(id, 'checkin_bonus', 'Daily check-in bonus',
+        `You've claimed your GHC ${Number(amount).toFixed(2)} daily check-in bonus.`);
     }
 
     const { rows } = await query('select balance, bonus from wallets where user_id = $1', [id]);
@@ -830,6 +893,49 @@ app.post('/checkin', requireAuth, async (req, res) => {
 app.get('/settings', async (req, res) => {
   const settings = await getAllAppSettings();
   res.json(settings);
+});
+
+// --- Notifications ---
+app.get('/notifications', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  const { rows } = await query(
+    'select id, type, title, message, metadata, is_read, created_at from notifications where user_id = $1 order by created_at desc limit 50',
+    [id]
+  );
+  const { rows: unreadRows } = await query(
+    'select count(*)::int as unread from notifications where user_id = $1 and is_read = false',
+    [id]
+  );
+  res.json({ notifications: rows, unreadCount: unreadRows[0]?.unread || 0 });
+});
+
+app.post('/notifications/:id/read', requireAuth, async (req, res) => {
+  await query('update notifications set is_read = true, read_at = now() where id = $1 and user_id = $2', [req.params.id, req.user.id]);
+  res.json({ ok: true });
+});
+
+app.post('/notifications/read-all', requireAuth, async (req, res) => {
+  await query('update notifications set is_read = true, read_at = now() where user_id = $1 and is_read = false', [req.user.id]);
+  res.json({ ok: true });
+});
+
+// --- Web Push subscriptions ---
+app.post('/push/subscribe', requireAuth, async (req, res) => {
+  const { endpoint, keys } = req.body.subscription || req.body;
+  if (!endpoint || !keys?.p256dh || !keys?.auth) {
+    return res.status(400).json({ error: 'Invalid push subscription' });
+  }
+  await query(
+    `insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, $2, $3, $4)
+     on conflict (endpoint) do update set user_id = excluded.user_id`,
+    [req.user.id, endpoint, keys.p256dh, keys.auth]
+  );
+  res.json({ ok: true });
+});
+
+app.post('/push/unsubscribe', requireAuth, async (req, res) => {
+  await query('delete from push_subscriptions where endpoint = $1 and user_id = $2', [req.body.endpoint, req.user.id]);
+  res.json({ ok: true });
 });
 
 // --- WhatsApp bot schedule ---
@@ -930,6 +1036,22 @@ app.post('/schedule/slots', requireSchedulerKey, async (req, res) => {
       `insert into schedule_slots (task_type, starts_at, ends_at, details) values ($1, $2, $3, $4) returning *`,
       [task_type, starts_at, ends_at, details ? JSON.stringify(details) : null]
     );
+
+    try {
+      const broadcastMsg = `A new ${task_type} task slot is now open.`;
+      await query(
+        `insert into notifications (user_id, type, title, message, metadata)
+         select id, 'task_available', 'New task slot available', $1, $2 from app_users`,
+        [broadcastMsg, JSON.stringify({ task_type, starts_at, ends_at })]
+      );
+      const { rows: subscribedUsers } = await query('select distinct user_id from push_subscriptions');
+      for (const u of subscribedUsers) {
+        sendPushToUser(u.user_id, 'New task slot available', broadcastMsg).catch(() => {});
+      }
+    } catch (notifyErr) {
+      console.error('Failed to broadcast task_available notifications:', notifyErr);
+    }
+
     res.json(rows[0]);
   } catch (err) {
     console.error('Push schedule slot error:', err);
@@ -1165,6 +1287,10 @@ app.post('/withdrawals', requireAuth, async (req, res) => {
     [id, 'withdrawal_request', numericAmount, reason]
   );
 
+  await createNotification(id, 'withdrawal_requested', 'Withdrawal requested',
+    `Your GHC ${numericAmount.toFixed(2)} withdrawal request has been submitted and is awaiting approval.`,
+    { withdrawalId: rows[0].id, amount: numericAmount });
+
   res.json(rows[0]);
 });
 
@@ -1262,6 +1388,9 @@ app.post('/payments/:id/transaction', requireAuth, async (req, res) => {
   );
 
   if (rows.length === 0) return res.status(404).json({ error: 'Payment not found' });
+  await createNotification(userId, 'deposit_requested', 'Deposit submitted',
+    `Your GHC ${Number(rows[0].amount).toFixed(2)} deposit is awaiting confirmation.`,
+    { paymentId: rows[0].id, amount: rows[0].amount });
   res.json(rows[0]);
 });
 
@@ -1311,6 +1440,10 @@ app.post('/admin/withdrawals/:id/approve', requireAuth, requireAdmin, async (req
   await query('update wallets set balance = balance - $1, updated_at = now() where user_id = $2', [withdrawal.amount, withdrawal.user_id]);
   await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [withdrawal.user_id, 'withdrawal', withdrawal.amount, 'Withdrawal approved']);
 
+  await createNotification(withdrawal.user_id, 'withdrawal_approved', 'Withdrawal approved',
+    `You've withdrawn GHC ${Number(withdrawal.amount).toFixed(2)}. Your withdrawal has been approved and processed.`,
+    { withdrawalId, amount: withdrawal.amount });
+
   res.json(updatedRows[0]);
 });
 
@@ -1337,6 +1470,12 @@ app.post('/admin/withdrawals/:id/reject', requireAuth, requireAdmin, async (req,
     await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [withdrawal.user_id, 'withdrawal_rejected', withdrawal.amount, reason]);
   }
 
+  const rejectMsg = reason
+    ? `Your GHC ${Number(withdrawal.amount).toFixed(2)} withdrawal request was rejected: ${reason}`
+    : `Your GHC ${Number(withdrawal.amount).toFixed(2)} withdrawal request was rejected.`;
+  await createNotification(withdrawal.user_id, 'withdrawal_rejected', 'Withdrawal rejected', rejectMsg,
+    { withdrawalId, amount: withdrawal.amount, reason: reason || null });
+
   res.json(updatedRows[0]);
 });
 
@@ -1358,12 +1497,17 @@ app.post('/admin/payments/:id/complete', requireAuth, requireAdmin, async (req, 
   await query('insert into deposits (user_id, amount, bonus, reason) values ($1, $2, 0, $3)', [payment.user_id, payment.amount, 'Payment confirmed']);
   await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [payment.user_id, 'deposit', payment.amount, 'Payment confirmed']);
 
+  await createNotification(payment.user_id, 'deposit_confirmed', 'Deposit confirmed',
+    `Your GHC ${Number(payment.amount).toFixed(2)} deposit has been confirmed and credited to your balance.`,
+    { paymentId: payment.id, amount: payment.amount });
+
   res.json({ ok: true });
 });
 
 // Admin: delete payment request
 app.delete('/admin/payments/:id', requireAuth, requireAdmin, async (req, res) => {
   const { id: paymentId } = req.params;
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
 
   const { rows } = await query(
     'delete from payments where id = $1 returning *',
@@ -1371,6 +1515,13 @@ app.delete('/admin/payments/:id', requireAuth, requireAdmin, async (req, res) =>
   );
 
   if (rows.length === 0) return res.status(404).json({ error: 'Payment not found' });
+  const payment = rows[0];
+  const message = reason
+    ? `Your GHC ${Number(payment.amount).toFixed(2)} deposit request was declined: ${reason}`
+    : `Your GHC ${Number(payment.amount).toFixed(2)} deposit request was declined.`;
+  await createNotification(payment.user_id, 'deposit_declined', 'Deposit declined', message,
+    { paymentId: payment.id, amount: payment.amount, reason: reason || null });
+
   res.json({ ok: true });
 });
 
@@ -1387,6 +1538,13 @@ app.post('/admin/deposits', requireAuth, requireAdmin, async (req, res) => {
   if (bonus > 0) {
     await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [userId, 'bonus', bonus, reason || 'Bonus credit']);
   }
+
+  const depositMsg = amount > 0 && bonus > 0
+    ? `Admin credited GHC ${Number(amount).toFixed(2)} to your balance and GHC ${Number(bonus).toFixed(2)} to your bonus.`
+    : amount > 0
+      ? `You've deposited GHC ${Number(amount).toFixed(2)}. It has been credited to your balance.`
+      : `Admin credited GHC ${Number(bonus).toFixed(2)} to your bonus.`;
+  await createNotification(userId, 'deposit_credit', 'Balance credited', depositMsg, { amount, bonus });
 
   res.json({ ok: true });
 });
@@ -2149,6 +2307,9 @@ app.post('/teller/withdraw', requireAuth, async (req, res) => {
     'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
     [userId, 'teller_withdraw', tellerBalance, 'Teller balance withdrawn to main wallet']
   );
+  await createNotification(userId, 'teller_withdraw', 'Teller balance withdrawn',
+    `GHC ${tellerBalance.toFixed(2)} has been moved from your teller balance to your main balance.`,
+    { amount: tellerBalance });
 
   const { rows: finalWallet } = await query('select balance from wallets where user_id = $1', [userId]);
   res.json({ ok: true, balance: Number(finalWallet[0]?.balance || 0) });
@@ -2557,6 +2718,10 @@ app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
         : `Beginner task reward: ${task.title}`]
     );
 
+    await createNotification(userId, 'beginner_task_reward', 'Task reward earned',
+      `You've earned GHC ${rewardAmount.toFixed(2)} for completing "${task.title}".`,
+      { taskId, amount: rewardAmount, reduced });
+
     res.json({
       ok: true,
       message: reduced ? 'Reward claimed (reduced - complete a teller task to restore full reward)' : 'Reward claimed successfully',
@@ -2702,6 +2867,9 @@ async function advanceOrderProcessing(orderId, userId) {
           `insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)`,
           [userId, 'order_reward', totalReturn, `Order completed - ${taskOrProduct} reward`]
         );
+        await createNotification(userId, 'order_reward', 'Order completed',
+          `Your ${taskOrProduct} order has been completed - GHC ${totalReturn.toFixed(2)} has been credited to your bonus balance.`,
+          { orderId, taskOrProduct, amount: totalReturn });
 
         // Mark task/product assignment as completed
         if (order.task_id) {
@@ -3064,6 +3232,36 @@ async function ensureSchema() {
   `);
   await query('create index if not exists order_processing_user_idx on order_processing(user_id)');
   await query('create index if not exists order_processing_status_idx on order_processing(status)');
+
+  // User-facing notifications (bell icon, polled every ~15s by the frontend).
+  await query(`
+    create table if not exists notifications (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      type text not null,
+      title text not null,
+      message text not null,
+      metadata jsonb,
+      is_read boolean not null default false,
+      created_at timestamptz default now(),
+      read_at timestamptz
+    )
+  `);
+  await query('create index if not exists notifications_user_created_idx on notifications(user_id, created_at desc)');
+  await query('create index if not exists notifications_user_unread_idx on notifications(user_id) where is_read = false');
+
+  // Web Push subscriptions - one row per browser/device a user has granted push permission on.
+  await query(`
+    create table if not exists push_subscriptions (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      endpoint text not null unique,
+      p256dh text not null,
+      auth text not null,
+      created_at timestamptz default now()
+    )
+  `);
+  await query('create index if not exists push_subscriptions_user_idx on push_subscriptions(user_id)');
 
   // Backfill referral codes for existing users who don't have one
   const { rows: usersWithoutCode } = await query("select id from app_users where referral_code is null or referral_code = ''");
