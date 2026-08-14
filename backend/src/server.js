@@ -2458,22 +2458,30 @@ app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
       });
     }
 
-    // Check last submission time (30-minute cooldown)
+    // requireActiveScheduleType() above already confirmed that either the schedule
+    // system isn't in use at all, or there's an active 'beginner' slot right now - so
+    // it's safe to look it up again here and use its real end time for the cooldown,
+    // matching what getBeginnerTasksForUser() shows on the task list. Falls back to the
+    // flat 30-minute rule only when the schedule system isn't in use.
+    const activeSlotForCooldown = (await isScheduleSystemInUse()) ? await getActiveScheduleSlot() : null;
+
+    // Check last submission time
     const { rows: lastSubmission } = await query(
       `select submitted_at from beginner_task_submissions
        where task_id = $1 and user_id = $2
        order by submitted_at desc limit 1`,
       [taskId, userId]
     );
-    
+
     if (lastSubmission.length > 0) {
-      const lastTime = new Date(lastSubmission[0].submitted_at);
-      const nextTime = new Date(lastTime.getTime() + 30 * 60 * 1000);
+      const nextTime = activeSlotForCooldown
+        ? new Date(activeSlotForCooldown.ends_at)
+        : new Date(new Date(lastSubmission[0].submitted_at).getTime() + 30 * 60 * 1000);
       const now = new Date();
-      
+
       if (now < nextTime) {
         const minutesLeft = Math.ceil((nextTime - now) / 1000 / 60);
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: `Please wait ${minutesLeft} more minutes before submitting again`,
           next_available_at: nextTime
         });
@@ -2486,12 +2494,12 @@ app.post('/beginner-tasks/:id/submit', requireAuth, async (req, res) => {
        values ($1, $2, $3)`,
       [taskId, userId, url.trim()]
     );
-    
-    res.json({ 
-      ok: true, 
+
+    res.json({
+      ok: true,
       message: 'Submission successful',
       task_title: task.title,
-      next_available_at: new Date(Date.now() + 30 * 60 * 1000)
+      next_available_at: activeSlotForCooldown ? new Date(activeSlotForCooldown.ends_at) : new Date(Date.now() + 30 * 60 * 1000)
     });
   } catch (error) {
     console.error('Error submitting beginner task:', error);
