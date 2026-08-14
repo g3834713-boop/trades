@@ -10,6 +10,12 @@ import { canWithdrawAmount } from './verificationLimits.js';
 
 const app = express();
 
+// Render sits behind a reverse proxy - without this, req.ip always resolves to the
+// proxy's internal address instead of the real client IP, which would break the
+// referral anti-farming check below (every signup would look like it came from the
+// same "IP").
+app.set('trust proxy', true);
+
 const VIDEO_WATCH_TASK_TITLE = 'Watch & Earn';
 const LEGACY_VIDEO_WATCH_TASK_TITLE = 'Video Watch Task';
 const LEGACY_SEEDED_TASK_TITLES = [
@@ -252,20 +258,21 @@ app.post('/users/sync', requireAuth, async (req, res) => {
   const { referralCode } = req.body;
   const { id, email } = req.user;
   const myReferralCode = generateReferralCode(id);
+  const signupIp = req.ip || null;
 
   // Check if user already exists (to avoid giving bonus on re-sync)
   const { rows: existing } = await query('select id, referred_by from app_users where id = $1', [id]);
   const isNewUser = existing.length === 0;
 
   await query(
-    `insert into app_users (id, email, full_name, phone, referral_code)
-     values ($1, $2, $3, $4, $5)
+    `insert into app_users (id, email, full_name, phone, referral_code, signup_ip)
+     values ($1, $2, $3, $4, $5, $6)
      on conflict (id) do update set
        email = excluded.email,
        full_name = coalesce(excluded.full_name, app_users.full_name),
        phone = coalesce(excluded.phone, app_users.phone),
        referral_code = coalesce(app_users.referral_code, excluded.referral_code)`,
-    [id, email, fullName || null, phone || null, myReferralCode]
+    [id, email, fullName || null, phone || null, myReferralCode, signupIp]
   );
   await query(
     `insert into wallets (user_id) values ($1)
@@ -290,26 +297,56 @@ app.post('/users/sync', requireAuth, async (req, res) => {
         );
         if (referrers.length > 0) {
           const referrerId = referrers[0].id;
-          // Mark who referred this user
+          // Mark who referred this user regardless - this is just bookkeeping, not the
+          // bonus itself, so it's fine to record even if the bonus below gets blocked.
           await query('update app_users set referred_by = $1 where id = $2', [referrerId, id]);
-          // Record referral
-          await query(
-            `insert into referrals (referrer_id, referred_id, bonus_amount)
-             values ($1, $2, 2.00)
-             on conflict (referred_id) do nothing`,
-            [referrerId, id]
-          );
-          // Credit referrer 2 GHC bonus
-          await query(
-            'update wallets set bonus = bonus + 2.00, updated_at = now() where user_id = $1',
-            [referrerId]
-          );
-          // Record transaction for referrer
-          await query(
-            `insert into transactions (user_id, type, amount, reason)
-             values ($1, 'referral_bonus', 2.00, $2)`,
-            [referrerId, `Referral bonus for inviting ${email}`]
-          );
+
+          // Anti-farming: don't pay out if this signup shares an IP with the referrer's
+          // own signup, or with another account already credited under this referrer -
+          // that's the actual pattern of someone creating throwaway accounts on their own
+          // device to repeatedly pay themselves the referral bonus. A real second signup
+          // from a shared network (family, roommates, office) will look the same and lose
+          // out here too - that's a real tradeoff of an IP-based check, not a bug.
+          let sameIpAbuseDetected = false;
+          if (signupIp) {
+            const { rows: referrerRows } = await query('select signup_ip from app_users where id = $1', [referrerId]);
+            const referrerIp = referrerRows[0]?.signup_ip;
+            if (referrerIp && referrerIp === signupIp) {
+              sameIpAbuseDetected = true;
+            } else {
+              const { rows: dupIpRows } = await query(
+                `select 1 from referrals r
+                 join app_users u on u.id = r.referred_id
+                 where r.referrer_id = $1 and u.signup_ip = $2
+                 limit 1`,
+                [referrerId, signupIp]
+              );
+              sameIpAbuseDetected = dupIpRows.length > 0;
+            }
+          }
+
+          if (sameIpAbuseDetected) {
+            console.warn(`Referral bonus blocked: referrer ${referrerId} and new signup ${id} share an IP (${signupIp}) - looks like same-device farming.`);
+          } else {
+            // Record referral
+            await query(
+              `insert into referrals (referrer_id, referred_id, bonus_amount)
+               values ($1, $2, 2.00)
+               on conflict (referred_id) do nothing`,
+              [referrerId, id]
+            );
+            // Credit referrer 2 GHC bonus
+            await query(
+              'update wallets set bonus = bonus + 2.00, updated_at = now() where user_id = $1',
+              [referrerId]
+            );
+            // Record transaction for referrer
+            await query(
+              `insert into transactions (user_id, type, amount, reason)
+               values ($1, 'referral_bonus', 2.00, $2)`,
+              [referrerId, `Referral bonus for inviting ${email}`]
+            );
+          }
         }
       }
     } catch (refErr) {
@@ -2760,6 +2797,9 @@ async function ensureSchema() {
   await query('alter table app_users add column if not exists verification_requested_at timestamptz');
   await query('alter table app_users add column if not exists totp_required boolean not null default false');
   await query('alter table app_users add column if not exists totp_enrolled_at timestamptz');
+  // Captured once at first signup (never overwritten on later syncs) - used only to spot
+  // referral bonus farming from the same device/network, not stored for any other purpose.
+  await query('alter table app_users add column if not exists signup_ip text');
   await query(`
     create table if not exists identity_verifications (
       user_id uuid primary key references app_users(id) on delete cascade,
