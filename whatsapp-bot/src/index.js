@@ -6,6 +6,27 @@ import { formatBeginnerTaskMessage, formatTellerTaskMessage } from './messageTem
 import { renderTaskNumberCard, renderTellerPackageCard } from './cardImage.js';
 import { startHealthServer } from './healthServer.js';
 
+// Baileys' low-level frame decoder can throw a raw, synchronous crypto exception
+// (`Unsupported state or unable to authenticate data`) that no local try/catch can
+// reach - confirmed live via a Render deploy log: it happens when a NEW deploy's
+// process starts a fresh connection while the OLD deploy's process (kept alive by
+// Render until the new one passes its health check) is still holding the same
+// Postgres-backed WhatsApp session, desyncing the encrypted session between the two.
+// Node's default behavior for an uncaught exception is to kill the whole process,
+// which is exactly what turned this into a series of "Failed deploy"s - the health
+// server (already listening by this point) never got the chance to pass Render's
+// check. Catching it here and retrying the connection keeps the process (and health
+// check) alive instead, so the deploy succeeds and the bot reconnects on its own
+// once the old process is fully torn down.
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception (bot stays up, reconnecting in 10s):', err.message);
+  setTimeout(() => {
+    connectWhatsApp({ onReady: handleReady }).catch((connectErr) => {
+      console.error('Reconnect attempt after uncaught exception failed:', connectErr.message);
+    });
+  }, 10000);
+});
+
 const TARGET_JID = process.env.WHATSAPP_TARGET_JID;
 const MAX_RECENT_PRODUCTS = 3; // avoid repeating the same product too often in a row
 
@@ -115,23 +136,27 @@ function scheduleNextDayKickoff(sock) {
   }, next8am.getTime() - Date.now());
 }
 
+const botState = { sock: null };
+
+// Shared by the initial connect and any exception-triggered reconnect, so both go
+// through the exact same "arm today's schedule" path (which is itself idempotent -
+// see the armedTimeouts guard in scheduleDay()).
+function handleReady(sock) {
+  botState.sock = sock;
+  if (TARGET_JID) {
+    scheduleDay(sock);
+    scheduleNextDayKickoff(sock);
+  }
+}
+
 async function main() {
   if (!TARGET_JID) {
     console.warn('WHATSAPP_TARGET_JID is not set yet - connect once, then run `npm run list-groups` to find it.');
   }
 
-  const botState = { sock: null };
   startHealthServer(undefined, botState);
 
-  await connectWhatsApp({
-    onReady: (sock) => {
-      botState.sock = sock;
-      if (TARGET_JID) {
-        scheduleDay(sock);
-        scheduleNextDayKickoff(sock);
-      }
-    }
-  });
+  await connectWhatsApp({ onReady: handleReady });
 }
 
 main().catch((err) => {
