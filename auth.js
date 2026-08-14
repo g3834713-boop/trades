@@ -692,6 +692,18 @@ window.API = {
     return this.call('/easy-earns/status/today');
   },
 
+  async getOneTimeTaskStatus() {
+    return this.call('/one-time-tasks/status');
+  },
+
+  async claimNotificationsTask() {
+    return this.call('/one-time-tasks/notifications/claim', { method: 'POST' });
+  },
+
+  async claimHomeScreenTask() {
+    return this.call('/one-time-tasks/home-screen/claim', { method: 'POST', body: JSON.stringify({ standalone: true }) });
+  },
+
   async getScheduleCurrent() {
     return this.call('/schedule/current');
   },

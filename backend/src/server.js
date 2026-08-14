@@ -180,7 +180,11 @@ async function getAllAppSettings() {
     // one, without paying out more (a pure cost-reduction lever, not a giveaway).
     beginnerPenaltyThreshold: 5,
     beginnerPenaltyStepPercent: 10,
-    beginnerPenaltyFloorPercent: 50
+    beginnerPenaltyFloorPercent: 50,
+    // One-time bonus task rewards - each pays out once per user ever, independent of the
+    // daily Easy Earn rotation.
+    notificationsTaskReward: 2,
+    homeScreenTaskReward: 2
   };
 
   for (const row of rows) {
@@ -222,6 +226,12 @@ async function getAllAppSettings() {
     } else if (key === 'beginner_penalty_floor_percent') {
       const parsed = Number(value);
       if (!Number.isNaN(parsed)) settings.beginnerPenaltyFloorPercent = parsed;
+    } else if (key === 'notifications_task_reward') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.notificationsTaskReward = parsed;
+    } else if (key === 'home_screen_task_reward') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.homeScreenTaskReward = parsed;
     }
   }
 
@@ -1131,7 +1141,9 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
     dailyCheckinAmount,
     beginnerPenaltyThreshold,
     beginnerPenaltyStepPercent,
-    beginnerPenaltyFloorPercent
+    beginnerPenaltyFloorPercent,
+    notificationsTaskReward,
+    homeScreenTaskReward
   } = req.body;
 
   if (commissionRate !== undefined) {
@@ -1179,6 +1191,12 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
   }
   if (beginnerPenaltyFloorPercent !== undefined) {
     await upsertAppSetting('beginner_penalty_floor_percent', beginnerPenaltyFloorPercent);
+  }
+  if (notificationsTaskReward !== undefined) {
+    await upsertAppSetting('notifications_task_reward', notificationsTaskReward);
+  }
+  if (homeScreenTaskReward !== undefined) {
+    await upsertAppSetting('home_screen_task_reward', homeScreenTaskReward);
   }
 
   res.json({ ok: true });
@@ -3263,6 +3281,19 @@ async function ensureSchema() {
   `);
   await query('create index if not exists push_subscriptions_user_idx on push_subscriptions(user_id)');
 
+  // One-time bonus tasks (allow notifications, add to home screen) - independent of the
+  // daily Easy Earn rotation, each pays out once per user ever.
+  await query(`
+    create table if not exists one_time_task_claims (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      task_key text not null,
+      amount numeric(12,2) not null default 0,
+      created_at timestamptz default now(),
+      unique (user_id, task_key)
+    )
+  `);
+
   // Backfill referral codes for existing users who don't have one
   const { rows: usersWithoutCode } = await query("select id from app_users where referral_code is null or referral_code = ''");
   for (const u of usersWithoutCode) {
@@ -3388,6 +3419,63 @@ app.get('/easy-earns/status/today', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Easy earns status error:', err);
     res.status(500).json({ error: 'Failed to load status' });
+  }
+});
+
+// --- One-time bonus tasks (allow notifications, add to home screen) - independent of
+// the daily Easy Earn rotation above, each pays out once per user ever. ---
+
+app.get('/one-time-tasks/status', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  const settings = await getAllAppSettings();
+  const { rows } = await query('select task_key from one_time_task_claims where user_id = $1', [id]);
+  const claimed = new Set(rows.map(r => r.task_key));
+  res.json({
+    notifications: { claimed: claimed.has('notifications_enabled'), amount: settings.notificationsTaskReward },
+    homeScreen: { claimed: claimed.has('home_screen_added'), amount: settings.homeScreenTaskReward }
+  });
+});
+
+async function claimOneTimeTask(userId, taskKey, amount, title, message) {
+  try {
+    await query('insert into one_time_task_claims (user_id, task_key, amount) values ($1, $2, $3)', [userId, taskKey, amount]);
+  } catch (err) {
+    if (err.code === '23505') { const e = new Error('Already claimed'); e.code = 'ALREADY_CLAIMED'; throw e; }
+    throw err;
+  }
+  await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, userId]);
+  await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [userId, 'one_time_task', amount, title]);
+  await createNotification(userId, 'one_time_task_reward', title, message, { taskKey, amount });
+}
+
+app.post('/one-time-tasks/notifications/claim', requireAuth, async (req, res) => {
+  const { id: userId } = req.user;
+  const { rows } = await query('select 1 from push_subscriptions where user_id = $1 limit 1', [userId]);
+  if (rows.length === 0) return res.status(400).json({ error: 'Please allow notifications first, then try claiming again.' });
+  try {
+    const settings = await getAllAppSettings();
+    const amount = Number(settings.notificationsTaskReward) || 0;
+    await claimOneTimeTask(userId, 'notifications_enabled', amount, 'Bonus earned', `You've earned GHC ${amount.toFixed(2)} for allowing notifications.`);
+    res.json({ ok: true, amount });
+  } catch (err) {
+    if (err.code === 'ALREADY_CLAIMED') return res.status(400).json({ error: 'You already claimed this reward.' });
+    console.error('Notifications task claim failed:', err);
+    res.status(500).json({ error: 'Failed to claim reward' });
+  }
+});
+
+app.post('/one-time-tasks/home-screen/claim', requireAuth, async (req, res) => {
+  const { id: userId } = req.user;
+  if (!req.body?.standalone) return res.status(400).json({ error: 'Please open DailyTrade from your home screen icon first, then claim.' });
+  try {
+    const settings = await getAllAppSettings();
+    const amount = Number(settings.homeScreenTaskReward) || 0;
+    await claimOneTimeTask(userId, 'home_screen_added', amount, 'Bonus earned', `You've earned GHC ${amount.toFixed(2)} for adding DailyTrade to your home screen.`);
+    res.json({ ok: true, amount });
+  } catch (err) {
+    if (err.code === 'ALREADY_CLAIMED') return res.status(400).json({ error: 'You already claimed this reward.' });
+    console.error('Home screen task claim failed:', err);
+    res.status(500).json({ error: 'Failed to claim reward' });
   }
 });
 

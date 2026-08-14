@@ -1007,6 +1007,14 @@
                         <label class="form-label">Daily Check-in Amount (GHC)</label>
                         <input type="number" class="form-input" id="dailyCheckinAmount" value="5" min="0" step="0.01">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">"Allow Notifications" Task Reward (GHC)</label>
+                        <input type="number" class="form-input" id="notificationsTaskReward" value="2" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">"Add to Home Screen" Task Reward (GHC)</label>
+                        <input type="number" class="form-input" id="homeScreenTaskReward" value="2" min="0" step="0.01">
+                    </div>
 
                     <h3 style="font-size: 15px; margin: 20px 0 12px; color: #333;">Beginner Task Reward Penalty</h3>
                     <div style="font-size: 12px; color: #777; margin-bottom: 12px; line-height: 1.5;">
@@ -3574,6 +3582,8 @@
             document.getElementById('beginnerPenaltyThreshold').value = settings.beginnerPenaltyThreshold ?? 5;
             document.getElementById('beginnerPenaltyStepPercent').value = settings.beginnerPenaltyStepPercent ?? 10;
             document.getElementById('beginnerPenaltyFloorPercent').value = settings.beginnerPenaltyFloorPercent ?? 50;
+            document.getElementById('notificationsTaskReward').value = settings.notificationsTaskReward ?? 2;
+            document.getElementById('homeScreenTaskReward').value = settings.homeScreenTaskReward ?? 2;
         }
 
         function saveSettings() {
@@ -3589,6 +3599,8 @@
             const beginnerPenaltyThreshold = parseInt(document.getElementById('beginnerPenaltyThreshold').value, 10) || 5;
             const beginnerPenaltyStepPercent = parseFloat(document.getElementById('beginnerPenaltyStepPercent').value) || 0;
             const beginnerPenaltyFloorPercent = parseFloat(document.getElementById('beginnerPenaltyFloorPercent').value) || 0;
+            const notificationsTaskReward = parseFloat(document.getElementById('notificationsTaskReward').value) || 0;
+            const homeScreenTaskReward = parseFloat(document.getElementById('homeScreenTaskReward').value) || 0;
 
             const support = {
                 financeTelegram,
@@ -3598,7 +3610,7 @@
                 supportPhone
             };
 
-            saveAppSettings({ commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount });
+            saveAppSettings({ commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount, notificationsTaskReward, homeScreenTaskReward });
 
             // Persist to the real server-side settings - this is what every page (Customer
             // Service, home.html's support notices, etc.) actually reads from, not the
@@ -3609,7 +3621,8 @@
                         method: 'POST',
                         body: JSON.stringify({
                             commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount,
-                            beginnerPenaltyThreshold, beginnerPenaltyStepPercent, beginnerPenaltyFloorPercent
+                            beginnerPenaltyThreshold, beginnerPenaltyStepPercent, beginnerPenaltyFloorPercent,
+                            notificationsTaskReward, homeScreenTaskReward
                         })
                     });
                     await loadAdminSettings();
