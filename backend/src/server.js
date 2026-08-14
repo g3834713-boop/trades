@@ -1417,6 +1417,31 @@ app.get('/products/my', requireAuth, async (req, res) => {
   res.json(rows);
 });
 
+// Every active product, browsable by any logged-in user - not gated on prior admin
+// assignment like /products/my above. This is what actually lets someone act on a live
+// "teller/product tasks are open" schedule slot: /orders/start still enforces the real
+// schedule gate when they place an order, this route just needs to show what's available.
+app.get('/products/catalog', requireAuth, async (req, res) => {
+  const { rows } = await query(
+    `select id, name, description, image, price, commission from products where status = 'active' order by price asc`
+  );
+  const catalog = rows.map(p => {
+    const price = parseFloat(p.price) || 0;
+    const commission = parseFloat(p.commission) || 0;
+    const profit = Math.round((price * commission / 100) * 100) / 100;
+    return {
+      id: p.id,
+      title: p.name,
+      description: p.description,
+      productImage: p.image,
+      amount: price,
+      commission,
+      totalReturn: Math.round((price + profit) * 100) / 100
+    };
+  });
+  res.json(catalog);
+});
+
 // Admin: Create task
 app.post('/admin/tasks', requireAuth, requireAdmin, async (req, res) => {
   try {
