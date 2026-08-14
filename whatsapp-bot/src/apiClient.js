@@ -38,3 +38,9 @@ export async function getBeginnerTaskProducts() {
 export async function getTellerProducts() {
   return call('/schedule/teller-products');
 }
+
+// Every slot already pushed today, used to compute the next task number from
+// persisted history instead of an in-memory counter that resets on every restart.
+export async function getTodaySlots() {
+  return call('/schedule/today');
+}
