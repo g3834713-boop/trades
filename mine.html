@@ -525,6 +525,22 @@
             color: var(--text-primary);
         }
 
+        .btn-submit {
+            background: var(--brand);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-submit:hover {
+            background: var(--brand-hover);
+        }
+
         .modal-buttons .btn-submit {
             background: var(--brand);
             color: white;
@@ -797,12 +813,13 @@
                     <div id="verifyCardBackPreview" style="margin-top: 10px;"></div>
                 </div>
                 <div class="form-group" style="margin-top: 4px; border-top: 1px solid var(--border-light); padding-top: 16px;">
-                    <label class="form-label">Live Face Check</label>
+                    <label class="form-label">Liveness Verification</label>
                     <div class="info-box" style="margin-bottom: 12px;">
-                        We also need a quick live photo check to confirm you're a real person right now. These photos are only used by our verification team to compare against your Ghana Card.
+                        As a final step, we need a short liveness check to confirm you're physically present. This biometric image is used solely by our verification team to match you against your Ghana Card and is not shared with third parties.
                     </div>
                     <div id="livenessIdle">
-                        <button type="button" class="btn-submit" style="width: 100%;" onclick="startLivenessCapture()">Start Camera Check</button>
+                        <button type="button" class="btn-submit" style="width: 100%;" onclick="startLivenessCapture()">Start Liveness Check</button>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;">By continuing, you consent to DailyTrade capturing a live photo for identity verification purposes.</div>
                     </div>
                     <div id="livenessCameraBlock" style="display: none;">
                         <div style="position: relative; border-radius: 10px; overflow: hidden; background: #000; aspect-ratio: 3/4; max-height: 280px;">
@@ -1965,6 +1982,13 @@
             // Load user data on page load
             window.addEventListener('DOMContentLoaded', async function() {
                 applyTranslations();
+
+                // Deep-link support: e.g. mine.html#verify, mine.html#security
+                const deepLinkSection = window.location.hash.replace('#', '');
+                const validNavigateToSections = ['recharge', 'withdraw', 'account', 'security', 'funding', 'invite', 'verify', 'language', 'support', 'about'];
+                if (validNavigateToSections.includes(deepLinkSection)) {
+                    navigateTo(deepLinkSection);
+                }
 
                 // === Instantly show cached data so values never flash blank ===
                 const cachedProfile = localStorage.getItem('cachedUserProfile');

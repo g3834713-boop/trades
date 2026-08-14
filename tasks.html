@@ -814,7 +814,7 @@
         </div>
 
         <div class="product-section-title" style="display: none;" id="productSectionTitle">Products</div>
-        <div class="product-grid"></div>
+        <div id="filterProductGrid" class="product-grid"></div>
 
         <!-- Task List -->
         <div class="product-section-title" style="display: none;" id="tasksSectionTitle">Tasks</div>
@@ -1676,7 +1676,7 @@
         function displayTasks(filter) {
             const tasks = tasksData[filter] || [];
             const taskList = document.querySelector('.task-list');
-            const productGrid = document.querySelector('.product-grid');
+            const productGrid = document.getElementById('filterProductGrid');
             const productSectionTitle = document.getElementById('productSectionTitle');
             const tasksSectionTitle = document.getElementById('tasksSectionTitle');
             

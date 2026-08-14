@@ -902,7 +902,7 @@
     </div>
 
     <!-- Notice Bar -->
-    <div class="notice-bar">
+    <div class="notice-bar" onclick="openActionModal('completeProfileModal')" style="cursor: pointer;">
         <i class="las la-info-circle"></i>
         <span>Complete your profile to unlock all features</span>
     </div>
@@ -1100,7 +1100,7 @@
                 <div class="opp-title">Recharge & Earn</div>
                 <div class="opp-desc">Top up your balance to unlock premium tasks</div>
             </a>
-            <a class="gallery-item tint-red" href="mine.html">
+            <a class="gallery-item tint-red" href="#" onclick="navigateTo('invite')">
                 <div class="opp-icon" style="background: #e74c3c;"><i class="las la-user-friends"></i></div>
                 <div class="opp-title">Invite & Earn</div>
                 <div class="opp-desc">Invite a friend and earn GHC 2.00 bonus</div>
@@ -1291,6 +1291,69 @@
         </div>
     </div>
 
+    <!-- Invite Friends Modal -->
+    <div class="action-modal" id="inviteModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-share-alt"></i>
+                Invite Friends
+            </div>
+            <div class="info-box">
+                Share your referral code or link with friends. When they register, you earn <strong>GHC 2.00</strong> bonus!
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label class="form-label">Your Referral Code</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" class="form-input" id="referralCode" readonly style="background: var(--surface-alt); flex: 1; font-weight: 700; letter-spacing: 2px; text-align: center;">
+                    <button style="padding: 10px 16px; background: var(--brand); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="copyReferralCode()">Copy</button>
+                </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label class="form-label">Share Link</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" class="form-input" id="referralLink" readonly style="background: var(--surface-alt); flex: 1; font-size: 12px;">
+                    <button style="padding: 10px 16px; background: var(--success-text); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;" onclick="copyReferralLink()">Share</button>
+                </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label class="form-label">Referral Statistics</label>
+                <div style="background: var(--surface-alt); padding: 12px; border-radius: 8px; font-size: 13px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Friends Invited:</span>
+                        <strong id="friendsInvited">0</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Total Bonus Earned:</span>
+                        <strong id="referralBonus">GHC 0.00</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('inviteModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Complete Profile Modal -->
+    <div class="action-modal" id="completeProfileModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <i class="las la-user-check"></i>
+                Complete Your Profile
+            </div>
+            <div class="info-box">
+                Finish these two quick steps to unlock all features and keep your account secure.
+            </div>
+            <div class="form-group">
+                <a href="mine.html#verify" class="btn-submit" style="display: block; text-align: center; text-decoration: none; margin-bottom: 12px;">Verify Identity</a>
+                <a href="mine.html#security" class="btn-submit" style="display: block; text-align: center; text-decoration: none;">Two-Factor Authentication</a>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeActionModal('completeProfileModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Bottom Navigation -->
     <div class="bottom-nav">
         <a href="#" class="nav-item active" onclick="setActive(this)">
@@ -1325,6 +1388,10 @@
                     openActionModal('withdrawModal');
                     loadWithdrawData();
                     break;
+                case 'invite':
+                    openActionModal('inviteModal');
+                    loadInviteCode();
+                    break;
                 case 'work':
                     window.location.href = 'work.html';
                     break;
@@ -1344,6 +1411,54 @@
                 }
             } catch (error) {
                 console.error('Error loading account data:', error);
+            }
+        }
+
+        // Invite Friends Functions
+        async function loadInviteCode() {
+            try {
+                const profile = await window.API.getUserProfile();
+                const code = profile.referral_code || '';
+                document.getElementById('referralCode').value = code;
+
+                // Build share link (directory-agnostic, works from any page)
+                const baseUrl = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+                document.getElementById('referralLink').value = baseUrl + 'register.html?ref=' + code;
+
+                // Fetch referral stats from backend
+                try {
+                    const stats = await window.API.call('/users/me/referral-stats');
+                    document.getElementById('friendsInvited').textContent = stats.invited || 0;
+                    document.getElementById('referralBonus').textContent = 'GHC ' + (stats.totalBonus || 0).toFixed(2);
+                } catch (e) {
+                    console.error('Failed to load referral stats:', e);
+                }
+            } catch (err) {
+                console.error('Failed to load invite code:', err);
+            }
+        }
+
+        function copyReferralCode() {
+            const code = document.getElementById('referralCode').value;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('Referral code copied!');
+            });
+        }
+
+        function copyReferralLink() {
+            const link = document.getElementById('referralLink').value;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Join DailyTrade',
+                    text: 'Sign up on DailyTrade and start earning! Use my referral code to get started.',
+                    url: link
+                }).catch(() => {
+                    navigator.clipboard.writeText(link).then(() => alert('Link copied!'));
+                });
+            } else {
+                navigator.clipboard.writeText(link).then(() => {
+                    alert('Referral link copied!');
+                });
             }
         }
 
