@@ -481,6 +481,10 @@ window.API = {
     return this.call('/products/catalog');
   },
 
+  async getMyOrders() {
+    return this.call('/orders/my');
+  },
+
   async createTask(title, description, amount, commission = 0) {
     return this.call('/admin/tasks', {
       method: 'POST',

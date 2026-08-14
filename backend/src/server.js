@@ -2355,10 +2355,12 @@ app.delete('/admin/beginner-tasks/submissions/:id', requireAuth, requireAdmin, a
 // product than the one that was actually posted this round.
 async function getBeginnerTasksForUser(userId) {
   let tasks;
+  let activeSlotEndsAt = null;
   if (await isScheduleSystemInUse()) {
     const slot = await getActiveScheduleSlot();
     const productId = slot && slot.task_type === 'beginner' ? slot.details?.productId : null;
     if (!productId) return [];
+    activeSlotEndsAt = slot.ends_at;
     ({ rows: tasks } = await query(
       `select * from beginner_tasks where status = 'active' and id = $1`,
       [productId]
@@ -2382,8 +2384,14 @@ async function getBeginnerTasksForUser(userId) {
 
     if (lastSubmission.length > 0) {
       task.last_submitted_at = lastSubmission[0].submitted_at;
-      const lastTime = new Date(lastSubmission[0].submitted_at);
-      const nextTime = new Date(lastTime.getTime() + 30 * 60 * 1000);
+      // The bot's own schedule already knows exactly when the next task appears (the
+      // active slot's real end time) - using that instead of a flat 30-minute guess
+      // from the submission timestamp means the countdown is always accurate, whether
+      // the slot has 2 minutes or 25 minutes left when they submitted. Falls back to
+      // the old fixed cooldown only if the schedule system isn't in use at all.
+      const nextTime = activeSlotEndsAt
+        ? new Date(activeSlotEndsAt)
+        : new Date(new Date(lastSubmission[0].submitted_at).getTime() + 30 * 60 * 1000);
       task.next_available_at = nextTime;
       task.can_submit = new Date() >= nextTime;
     } else {
@@ -2593,6 +2601,28 @@ app.post('/orders/start', requireAuth, async (req, res) => {
 });
 
 // Order processing: Get current status and progress
+// The only complete record of a user's finished orders - advanceOrderProcessing() only
+// marks task_assignments/product_assignments complete when a matching assignment row
+// already exists, which silently no-ops for a product picked from the open catalog
+// (GET /products/catalog) rather than admin-assigned. Without this, a completed catalog
+// order would be invisible everywhere except the wallet balance itself.
+app.get('/orders/my', requireAuth, async (req, res) => {
+  const { id } = req.user;
+  const { rows } = await query(
+    `select op.id, op.task_id, op.product_id, op.cost, op.interest, op.total_return,
+            op.status, op.completed_at, op.created_at,
+            coalesce(p.name, t.title) as title,
+            p.image as product_image
+     from order_processing op
+     left join products p on p.id = op.product_id
+     left join tasks t on t.id = op.task_id
+     where op.user_id = $1
+     order by op.created_at desc`,
+    [id]
+  );
+  res.json(rows);
+});
+
 app.get('/orders/:orderId/status', requireAuth, async (req, res) => {
   const { orderId } = req.params;
   const { id: userId } = req.user;

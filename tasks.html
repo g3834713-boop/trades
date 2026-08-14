@@ -1004,14 +1004,17 @@
             const grid = document.getElementById('tellerPackagesSection');
             if (!title || !grid) return;
 
-            if (!products || products.length === 0) {
+            // Only ever shown during an actual open teller slot - hidden entirely the
+            // rest of the time (before the bot posts, and again once the slot ends),
+            // matching how the beginner-task section disappears outside its own slot.
+            const open = isScheduleOpenFor('teller');
+            if (!products || products.length === 0 || !open) {
                 title.style.display = 'none';
                 grid.style.display = 'none';
                 grid.innerHTML = '';
                 return;
             }
 
-            const open = isScheduleOpenFor('teller');
             title.style.display = 'block';
             grid.style.display = 'grid';
             grid.innerHTML = products.map(product => `
@@ -1023,10 +1026,7 @@
                     <div class="product-card-description">${escapeHtml(product.description || '')}</div>
                     <div class="product-card-price">GHC ${product.amount.toFixed(2)}</div>
                     ${product.commission > 0 ? `<div class="product-card-commission">Interest: ${product.commission}%</div>` : ''}
-                    ${open
-                        ? `<button class="product-card-button" onclick="completeTask('${product.id}', 'true')">Place Order</button>`
-                        : `<button class="product-card-button" disabled style="opacity: 0.6; cursor: not-allowed;" title="Not open right now">Not Open Yet</button>`
-                    }
+                    <button class="product-card-button" onclick="completeTask('${product.id}', 'true')">Place Order</button>
                 </div>
             `).join('');
         }
@@ -1422,6 +1422,16 @@
                     window.API.getMyProducts()
                 ]);
 
+                // Order history is a supplementary source (see merge below) - if it fails,
+                // fall back to an empty list rather than losing the tasks/products that
+                // already loaded fine.
+                let orders = [];
+                try {
+                    orders = await window.API.getMyOrders();
+                } catch (err) {
+                    console.error('Failed to load order history:', err);
+                }
+
                 console.log('Loaded tasks from backend:', tasks);
                 console.log('Loaded products from backend:', products);
 
@@ -1463,6 +1473,32 @@
                         productImage: product.image,
                         quantity: 1,
                         assignedAt: product.assigned_at
+                    });
+                });
+
+                // Orders placed through the open teller-package catalog (no admin
+                // assignment behind them) never show up in the /products/my loop above -
+                // order_processing is the only unconditional record that they happened.
+                // Merge in the completed ones here, skipping any product that's already
+                // shown as completed via the assignment path above so the same product
+                // doesn't appear twice.
+                const completedAssignedProductIds = new Set(
+                    tasksData.completed.filter(t => t.isProduct).map(t => t.id)
+                );
+                orders.forEach(order => {
+                    if (order.status !== 'completed' || !order.product_id) return;
+                    if (completedAssignedProductIds.has(order.product_id)) return;
+                    tasksData.completed.push({
+                        id: `order-${order.id}`,
+                        title: order.title || 'Product order',
+                        description: '',
+                        amount: parseFloat(order.cost || 0),
+                        commission: 0,
+                        status: 'completed',
+                        isProduct: true,
+                        productImage: order.product_image,
+                        quantity: 1,
+                        assignedAt: order.completed_at || order.created_at
                     });
                 });
 
