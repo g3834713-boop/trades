@@ -165,6 +165,21 @@
             color: var(--text-muted);
         }
 
+        .totp-banner {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 16px 12px 0;
+            padding: 12px 14px;
+            background: var(--warning-info-bg);
+            color: var(--warning-info-text);
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
         /* Balance Cards Section */
         .balance-cards-section {
             display: grid;
@@ -551,6 +566,12 @@
         <div class="verification-badge" id="verificationBadge"><span id="verificationStatusText">Not requested</span></div>
     </div>
 
+    <!-- 2FA Required Banner - only shown once we know the account needs it and hasn't set it up yet -->
+    <div id="totpRequiredBanner" class="totp-banner" onclick="navigateTo('security')">
+        <span><i class="las la-shield-alt"></i> Your account requires an authenticator app. Tap to set it up.</span>
+        <i class="las la-chevron-right"></i>
+    </div>
+
     <!-- Balance Section -->
     <div class="balance-cards-section">
         <div class="balance-card">
@@ -563,6 +584,16 @@
         </div>
     </div>
     <script>
+        // Global (not just this block) - shows/hides the top-of-page 2FA nag banner
+        // based on whatever profile object is on hand. Called from both the instant
+        // cached-prefill below and the fresh profile load further down the page.
+        function updateTotpBanner(profile) {
+            const banner = document.getElementById('totpRequiredBanner');
+            if (!banner) return;
+            const needsSetup = !!(profile && profile.totp_required && !profile.totp_enrolled_at);
+            banner.style.display = needsSetup ? 'flex' : 'none';
+        }
+
         try {
             const cachedProfile = localStorage.getItem('cachedUserProfile');
             if (cachedProfile) {
@@ -571,6 +602,7 @@
                 document.getElementById('profileId').textContent = cached.id ? 'ID-' + cached.id.substring(0, 8).toUpperCase() : 'ID-UNKNOWN';
                 document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(cached.balance || 0).toFixed(2)}`;
                 document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(cached.bonus || 0).toFixed(2)}`;
+                updateTotpBanner(cached);
                 if (cached.avatar_url) {
                     updateAvatarUI(cached.avatar_url);
                 } else {
@@ -1840,6 +1872,7 @@
                 const challenge = await window.AuthService.challengeMfa(pendingTotpEnrollFactorId);
                 await window.AuthService.verifyMfa(pendingTotpEnrollFactorId, challenge.id, code);
                 await window.API.completeTotpEnrollment();
+                updateTotpBanner(null);
                 alert('Authenticator app enabled! You\'ll need it the next time you log in.');
                 await loadTotpStatus();
             } catch (error) {
@@ -1971,6 +2004,7 @@
                     document.getElementById('profileId').textContent = 'ID-' + userProfile.id.substring(0, 8).toUpperCase();
                     document.getElementById('balanceDisplay').textContent = `GHC ${parseFloat(userProfile.balance || 0).toFixed(2)}`;
                     document.getElementById('bonusDisplay').textContent = `GHC ${parseFloat(userProfile.bonus || 0).toFixed(2)}`;
+                    updateTotpBanner(userProfile);
                     if (userProfile.avatar_url) {
                         updateAvatarUI(userProfile.avatar_url);
                     } else {
