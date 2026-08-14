@@ -1008,9 +1008,17 @@
                             <div class="beginner-task-info">
                                 <div class="beginner-task-info-item">
                                     <div class="beginner-task-info-label">Reward</div>
-                                    <div class="beginner-task-info-value">GHC ${parseFloat(task.amount).toFixed(2)}</div>
+                                    <div class="beginner-task-info-value">
+                                        ${task.reward_reduced ? `<span style="text-decoration: line-through; opacity: 0.6; font-size: 13px; margin-right: 4px;">GHC ${parseFloat(task.amount).toFixed(2)}</span>` : ''}
+                                        GHC ${parseFloat(task.effective_amount ?? task.amount).toFixed(2)}
+                                    </div>
                                 </div>
                             </div>
+                            ${task.reward_reduced ? `
+                                <div class="beginner-task-cooldown">
+                                    <i class="las la-exclamation-circle"></i> Reward reduced after ${task.consecutive_teller_skips} teller task${task.consecutive_teller_skips !== 1 ? 's' : ''} skipped in a row - complete a teller task to restore the full reward.
+                                </div>
+                            ` : ''}
                             ${!task.can_submit ? `
                                 <div class="beginner-task-cooldown">
                                     <i class="las la-clock"></i> Next available in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}

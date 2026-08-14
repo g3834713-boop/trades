@@ -166,7 +166,13 @@ async function getAllAppSettings() {
       supportPhone: '',
       supportLiveChat: 'Telegram: @DailyTrader'
     },
-    dailyCheckinAmount: 5
+    dailyCheckinAmount: 5,
+    // Beginner (URL) task reward shrinks the longer a user consecutively skips teller/
+    // product tasks - nudges people who exclusively farm the free tier toward the paid
+    // one, without paying out more (a pure cost-reduction lever, not a giveaway).
+    beginnerPenaltyThreshold: 5,
+    beginnerPenaltyStepPercent: 10,
+    beginnerPenaltyFloorPercent: 50
   };
 
   for (const row of rows) {
@@ -199,6 +205,15 @@ async function getAllAppSettings() {
     } else if (key === 'daily_checkin_amount') {
       const parsed = Number(value);
       if (!Number.isNaN(parsed)) settings.dailyCheckinAmount = parsed;
+    } else if (key === 'beginner_penalty_threshold') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.beginnerPenaltyThreshold = parsed;
+    } else if (key === 'beginner_penalty_step_percent') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.beginnerPenaltyStepPercent = parsed;
+    } else if (key === 'beginner_penalty_floor_percent') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.beginnerPenaltyFloorPercent = parsed;
     }
   }
 
@@ -836,6 +851,52 @@ async function isScheduleSystemInUse() {
   return rows.length > 0;
 }
 
+// How many *completed* teller slots in a row this user has not placed an order during -
+// walks backward from the most recent finished teller slot, stopping at the first one
+// they actually participated in. Computed fresh every time rather than a stored counter,
+// so there's nothing to keep in sync and no drift risk if slots/orders change.
+async function getConsecutiveTellerSkips(userId) {
+  const { rows: slots } = await query(
+    `select starts_at, ends_at from schedule_slots
+     where task_type = 'teller' and ends_at <= now()
+     order by starts_at desc
+     limit 20`
+  );
+
+  let skips = 0;
+  for (const slot of slots) {
+    const { rows } = await query(
+      `select 1 from order_processing
+       where user_id = $1 and created_at >= $2 and created_at < $3
+       limit 1`,
+      [userId, slot.starts_at, slot.ends_at]
+    );
+    if (rows.length > 0) break;
+    skips++;
+  }
+  return skips;
+}
+
+// Applies the beginner-task reward penalty curve: full reward until the configured
+// skip threshold, then steps down by stepPercent per additional skip, never below
+// floorPercent. Pure cost-reduction lever (never pays out more than the base amount),
+// meant to nudge users off free-tier-only farming toward the paid teller/product tier.
+async function getBeginnerRewardMultiplier(userId) {
+  const skips = await getConsecutiveTellerSkips(userId);
+  const settings = await getAllAppSettings();
+  const threshold = Number(settings.beginnerPenaltyThreshold) || 0;
+  const stepPercent = Number(settings.beginnerPenaltyStepPercent) || 0;
+  const floorPercent = Number(settings.beginnerPenaltyFloorPercent) || 100;
+
+  if (skips < threshold || threshold <= 0) {
+    return { multiplier: 1, skips, reduced: false };
+  }
+
+  const stepsOver = skips - threshold + 1;
+  const percent = Math.max(floorPercent, 100 - stepPercent * stepsOver);
+  return { multiplier: percent / 100, skips, reduced: percent < 100 };
+}
+
 async function requireActiveScheduleType(taskType, errorMessage) {
   if (!(await isScheduleSystemInUse())) return null; // not yet enforced
   const slot = await getActiveScheduleSlot();
@@ -943,7 +1004,10 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
     minWithdrawal,
     platformName,
     support = {},
-    dailyCheckinAmount
+    dailyCheckinAmount,
+    beginnerPenaltyThreshold,
+    beginnerPenaltyStepPercent,
+    beginnerPenaltyFloorPercent
   } = req.body;
 
   if (commissionRate !== undefined) {
@@ -982,6 +1046,15 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
   }
   if (dailyCheckinAmount !== undefined) {
     await upsertAppSetting('daily_checkin_amount', dailyCheckinAmount);
+  }
+  if (beginnerPenaltyThreshold !== undefined) {
+    await upsertAppSetting('beginner_penalty_threshold', beginnerPenaltyThreshold);
+  }
+  if (beginnerPenaltyStepPercent !== undefined) {
+    await upsertAppSetting('beginner_penalty_step_percent', beginnerPenaltyStepPercent);
+  }
+  if (beginnerPenaltyFloorPercent !== undefined) {
+    await upsertAppSetting('beginner_penalty_floor_percent', beginnerPenaltyFloorPercent);
   }
 
   res.json({ ok: true });
@@ -2234,6 +2307,9 @@ async function getBeginnerTasksForUser(userId) {
     ));
   }
 
+  // Same for every task in this response - compute once, not per task.
+  const { multiplier, skips, reduced } = await getBeginnerRewardMultiplier(userId);
+
   for (const task of tasks) {
     const { rows: lastSubmission } = await query(
       `select submitted_at from beginner_task_submissions
@@ -2253,6 +2329,12 @@ async function getBeginnerTasksForUser(userId) {
       task.last_submitted_at = null;
       task.next_available_at = null;
     }
+
+    // What they'll actually receive on claim, shown up front rather than as a
+    // surprise - reward_reduced/consecutive_teller_skips let the UI explain why.
+    task.effective_amount = Math.round(parseFloat(task.amount) * multiplier * 100) / 100;
+    task.reward_reduced = reduced;
+    task.consecutive_teller_skips = skips;
   }
 
   return tasks;
@@ -2364,8 +2446,8 @@ app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
     }
     
     const task = taskRows[0];
-    const rewardAmount = parseFloat(task.amount);
-    
+    const baseAmount = parseFloat(task.amount);
+
     // Check if submission exists
     const { rows: submissionRows } = await query(
       `select * from beginner_task_submissions
@@ -2373,26 +2455,31 @@ app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
        order by submitted_at desc limit 1`,
       [taskId, userId]
     );
-    
+
     if (submissionRows.length === 0) {
       return res.status(404).json({ error: 'No submission found' });
     }
-    
+
+    const { multiplier, reduced } = await getBeginnerRewardMultiplier(userId);
+    const rewardAmount = Math.round(baseAmount * multiplier * 100) / 100;
+
     // Add reward to balance
     await query(
       `update wallets set balance = balance + $1 where user_id = $2`,
       [rewardAmount, userId]
     );
-    
+
     await query(
       `insert into transactions (user_id, type, amount, reason)
        values ($1, 'credit', $2, $3)`,
-      [userId, rewardAmount, `Beginner task reward: ${task.title}`]
+      [userId, rewardAmount, reduced
+        ? `Beginner task reward: ${task.title} (reduced - complete a teller task to restore full reward)`
+        : `Beginner task reward: ${task.title}`]
     );
-    
-    res.json({ 
-      ok: true, 
-      message: 'Reward claimed successfully',
+
+    res.json({
+      ok: true,
+      message: reduced ? 'Reward claimed (reduced - complete a teller task to restore full reward)' : 'Reward claimed successfully',
       earned: rewardAmount
     });
   } catch (error) {
