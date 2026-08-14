@@ -1433,6 +1433,17 @@
             }[char]));
         }
 
+        // For untrusted text placed inside an onclick="...('VALUE')" attribute: escapes
+        // the JS string literal first (backslash, single quote), then HTML-escapes the
+        // result so it's also safe as an HTML attribute value. Order matters - the
+        // browser HTML-decodes the attribute before handing it to the JS parser, so
+        // both layers are needed or a value like x" onmouseover="alert(1) breaks out
+        // of the attribute regardless of the inner JS-string escaping.
+        function escapeJsAttr(value) {
+            const jsEscaped = String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            return escapeHtml(jsEscaped);
+        }
+
         function isValidHttpUrl(value) {
             try {
                 const url = new URL(value);
@@ -1531,8 +1542,8 @@
                     recentUsers.forEach(user => {
                         const joinDate = new Date(user.created_at).toLocaleDateString();
                         html += `<div class="table-row" style="grid-template-columns: repeat(4, 1fr);">
-                            <div class="table-cell">${user.full_name || user.email}</div>
-                            <div class="table-cell">${user.email}</div>
+                            <div class="table-cell">${escapeHtml(user.full_name || user.email)}</div>
+                            <div class="table-cell">${escapeHtml(user.email)}</div>
                             <div class="table-cell">GHC ${parseFloat(user.balance || 0).toFixed(2)}</div>
                             <div class="table-cell">${joinDate}</div>
                         </div>`;
@@ -1561,17 +1572,19 @@
                         const paymentMethod = user.payment_method ? ` (${user.payment_method})` : '';
                         const joinDate = new Date(user.created_at).toLocaleDateString();
                         const isAdmin = user.email === 'admin0@gmail.com';
-                        const safeName = (user.full_name || user.email || '').replace(/'/g, "\\'");
+                        const safeName = escapeJsAttr(user.full_name || user.email || '');
+                        const safePaymentNumber = escapeJsAttr(user.payment_number || '');
+                        const safePaymentMethod = escapeJsAttr(user.payment_method || '');
                         const verificationBadgeClass = user.verification_required ? 'warning' : (user.verification_status === 'approved' ? 'success' : 'info');
                         html += `<div class="user-card">
                             <div class="user-card-top">
                                 <div class="user-card-title">
-                                    <div style="font-weight: 700; color: #111827;">${user.full_name || user.email}</div>
-                                    <div class="user-card-email">${user.email}</div>
+                                    <div style="font-weight: 700; color: #111827;">${escapeHtml(user.full_name || user.email)}</div>
+                                    <div class="user-card-email">${escapeHtml(user.email)}</div>
                                 </div>
                                 <div class="user-card-badges">
                                     ${isAdmin ? '<span class="user-badge admin"><i class="las la-shield-alt"></i> Admin</span>' : ''}
-                                    <span class="user-badge ${verificationBadgeClass}">${user.verification_status || 'none'}${user.verification_required ? ' • required' : ''}</span>
+                                    <span class="user-badge ${verificationBadgeClass}">${escapeHtml(user.verification_status || 'none')}${user.verification_required ? ' • required' : ''}</span>
                                     <span class="user-badge ${user.totp_enrolled_at ? 'success' : (user.totp_required ? 'warning' : 'info')}">2FA: ${user.totp_enrolled_at ? 'enabled' : (user.totp_required ? 'required' : 'off')}</span>
                                     <span class="user-badge info">ID-${userId}</span>
                                 </div>
@@ -1587,7 +1600,7 @@
                                 </div>
                                 <div class="user-card-stat">
                                     <div class="user-card-stat-label">Payment</div>
-                                    <div style="font-size: 13px; color: #334155;">${paymentNumber}${paymentMethod}</div>
+                                    <div style="font-size: 13px; color: #334155;">${escapeHtml(paymentNumber)}${escapeHtml(paymentMethod)}</div>
                                 </div>
                                 <div class="user-card-stat">
                                     <div class="user-card-stat-label">Joined</div>
@@ -1599,7 +1612,7 @@
                                 <button class="btn btn-warning" onclick="toggleUserVerificationRequirement('${user.id}', ${!user.verification_required})">${user.verification_required ? 'Release Verify' : 'Require Verify'}</button>
                                 <button class="btn btn-warning" onclick="toggleUserTotpRequirement('${user.id}', ${!user.totp_required})">${user.totp_required ? 'Release 2FA' : 'Require 2FA'}</button>
                                 <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${safeName}')">Add Funds</button>
-                                <button class="btn btn-success" onclick="openPaymentNumberModal('${user.id}', '${safeName}', '${user.payment_number || ''}', '${user.payment_method || ''}')">Set Payment Number</button>
+                                <button class="btn btn-success" onclick="openPaymentNumberModal('${user.id}', '${safeName}', '${safePaymentNumber}', '${safePaymentMethod}')">Set Payment Number</button>
                                 <button class="btn btn-danger" onclick="resetUserAccount('${user.id}', '${safeName}')">Wipe Data</button>
                                 ${user.payment_number ? `<button class="btn btn-danger" onclick="deletePaymentNumber('${user.id}', '${safeName}')">Remove</button>` : ''}
                             </div>
@@ -2313,11 +2326,11 @@
                         const date = new Date(deposit.created_at).toLocaleDateString();
                         const user = allUsers.find(u => u.id === deposit.user_id);
                         html += `<div class="table-row">
-                            <div class="table-cell">${user ? (user.full_name || user.email) : deposit.user_id.substring(0, 8)}</div>
+                            <div class="table-cell">${escapeHtml(user ? (user.full_name || user.email) : deposit.user_id.substring(0, 8))}</div>
                             <div class="table-cell">GHC ${parseFloat(deposit.amount).toFixed(2)}</div>
                             <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Completed</span></div>
                             <div class="table-cell">${date}</div>
-                            <div class="table-cell">${deposit.reason || deposit.type}</div>
+                            <div class="table-cell">${escapeHtml(deposit.reason || deposit.type)}</div>
                         </div>`;
                     });
                 }
@@ -2356,12 +2369,12 @@
                         };
                         
                         html += `<div class="table-row">
-                            <div class="table-cell">${payment.user_email || 'N/A'}</div>
+                            <div class="table-cell">${escapeHtml(payment.user_email || 'N/A')}</div>
                             <div class="table-cell">GHC ${parseFloat(payment.amount || 0).toFixed(2)}</div>
-                            <div class="table-cell">${methodNames[payment.method] || payment.method}</div>
+                            <div class="table-cell">${escapeHtml(methodNames[payment.method] || payment.method)}</div>
                             <div class="table-cell"><span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${statusText}</span></div>
-                            <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${paymentNumber}</code></div>
-                            <div class="table-cell"><code style="background: #f9f9f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${transactionId}</code></div>
+                            <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(paymentNumber)}</code></div>
+                            <div class="table-cell"><code style="background: #f9f9f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(transactionId)}</code></div>
                             <div class="table-action">
                                 ${payment.status === 'pending' || payment.status === 'submitted' ? `
                                     <button class="btn btn-success" onclick="completePayment('${payment.id}')">Complete</button>
@@ -2407,12 +2420,12 @@
                             : (payment.status === 'completed' ? 'Completed' : 'Cancelled'));
 
                         html += `<div class="table-row">
-                            <div class="table-cell">${payment.user_email || 'N/A'}</div>
+                            <div class="table-cell">${escapeHtml(payment.user_email || 'N/A')}</div>
                             <div class="table-cell">GHC ${parseFloat(payment.amount || 0).toFixed(2)}</div>
-                            <div class="table-cell">${payment.method || 'N/A'}</div>
+                            <div class="table-cell">${escapeHtml(payment.method || 'N/A')}</div>
                             <div class="table-cell"><span style="background: ${statusColor}20; color: ${statusColor}; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${statusText}</span></div>
-                            <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${paymentNumber}</code></div>
-                            <div class="table-cell"><code style="background: #f9f9f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${transactionId}</code></div>
+                            <div class="table-cell"><code style="background: #f0f4ff; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(paymentNumber)}</code></div>
+                            <div class="table-cell"><code style="background: #f9f9f9; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(transactionId)}</code></div>
                             <div class="table-action">
                                 ${payment.status === 'pending' || payment.status === 'submitted' ? `
                                     <button class="btn btn-success" onclick="completePayment('${payment.id}')">Complete</button>
@@ -2498,7 +2511,7 @@
                 if (userSelect) {
                     let userOptions = '';
                     tellerUsersCache.forEach(user => {
-                        userOptions += `<option value="${user.id}">${user.full_name || user.email}</option>`;
+                        userOptions += `<option value="${user.id}">${escapeHtml(user.full_name || user.email)}</option>`;
                     });
                     userSelect.innerHTML = userOptions;
                 }
@@ -2593,9 +2606,9 @@
                         const statusColor = withdrawal.status === 'pending' ? '#fff3cd' : withdrawal.status === 'approved' ? '#d4edda' : '#f8d7da';
                         const statusBg = withdrawal.status === 'pending' ? '#856404' : withdrawal.status === 'approved' ? '#155724' : '#721c24';
                         html += `<div class="table-row">
-                            <div class="table-cell">${userName}</div>
+                            <div class="table-cell">${escapeHtml(userName)}</div>
                             <div class="table-cell">GHC ${parseFloat(withdrawal.amount || 0).toFixed(2)}</div>
-                            <div class="table-cell"><span style="background: ${statusColor}; color: ${statusBg}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${withdrawal.status}</span></div>
+                            <div class="table-cell"><span style="background: ${statusColor}; color: ${statusBg}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${escapeHtml(withdrawal.status)}</span></div>
                             <div class="table-cell">${date}</div>
                             <div class="table-action">
                                 ${withdrawal.status === 'pending' ? `
@@ -2643,7 +2656,7 @@
                 const allUsers = await window.API.getAllUsers();
                 let options = '<option value="">Select a user</option>';
                 allUsers.forEach(user => {
-                    options += `<option value="${user.id}">${user.full_name || user.email}</option>`;
+                    options += `<option value="${user.id}">${escapeHtml(user.full_name || user.email)}</option>`;
                 });
                 document.getElementById('depositUserSelect').innerHTML = options;
                 document.getElementById('depositModal').classList.add('show');
@@ -2731,10 +2744,10 @@
                 const documents = document.getElementById('verificationDocuments');
                 documents.innerHTML = '';
                 if (verification.card_front_data) {
-                    documents.innerHTML += `<div style="border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; text-align:center; padding:8px;"><div style="font-size:12px; color:#555; margin-bottom:6px;">Front</div><img src="${verification.card_front_data}" style="width:100%; height:auto; object-fit:contain;"/></div>`;
+                    documents.innerHTML += `<div style="border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; text-align:center; padding:8px;"><div style="font-size:12px; color:#555; margin-bottom:6px;">Front</div><img src="${escapeHtml(verification.card_front_data)}" style="width:100%; height:auto; object-fit:contain;"/></div>`;
                 }
                 if (verification.card_back_data) {
-                    documents.innerHTML += `<div style="border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; text-align:center; padding:8px;"><div style="font-size:12px; color:#555; margin-bottom:6px;">Back</div><img src="${verification.card_back_data}" style="width:100%; height:auto; object-fit:contain;"/></div>`;
+                    documents.innerHTML += `<div style="border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; text-align:center; padding:8px;"><div style="font-size:12px; color:#555; margin-bottom:6px;">Back</div><img src="${escapeHtml(verification.card_back_data)}" style="width:100%; height:auto; object-fit:contain;"/></div>`;
                 }
                 if (!verification.card_front_data && !verification.card_back_data) {
                     documents.innerHTML = '<div style="color:#999;">No documents uploaded yet</div>';
@@ -2968,11 +2981,11 @@
                 const allUsers = await window.API.getAllUsers();
                 const listHtml = allUsers.map(user => {
                     const userId = user.id;
-                    const userName = user.full_name || user.email;
+                    const userName = escapeHtml(user.full_name || user.email);
                     return `
                     <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #333;">
                         <input type="checkbox" value="${userId}" style="margin-right: 8px;">
-                        ${userName} (${user.email})
+                        ${userName} (${escapeHtml(user.email)})
                     </label>`;
                 }).join('') || '<div style="color: #999; font-size: 13px;">No users registered</div>';
 
@@ -3185,11 +3198,11 @@
                 const allUsers = await window.API.getAllUsers();
                 const listHtml = allUsers.map(user => {
                     const userId = user.id;
-                    const userName = user.full_name || user.email;
+                    const userName = escapeHtml(user.full_name || user.email);
                     return `
                     <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #333;">
                         <input type="checkbox" value="${userId}" style="margin-right: 8px;">
-                        ${userName} (${user.email})
+                        ${userName} (${escapeHtml(user.email)})
                     </label>`;
                 }).join('') || '<div style="color: #999; font-size: 13px;">No users registered</div>';
 
@@ -3370,16 +3383,22 @@
                 if (submissions.length === 0) {
                     tbody.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">No submissions yet</div>';
                 } else {
-                    tbody.innerHTML = submissions.map(sub => `
+                    tbody.innerHTML = submissions.map(sub => {
+                        const displayUrl = escapeHtml(sub.url.substring(0, 40) + (sub.url.length > 40 ? '...' : ''));
+                        const urlCell = isValidHttpUrl(sub.url)
+                            ? `<a href="${escapeHtml(sub.url)}" target="_blank" rel="noopener" style="color: #4361ee; text-decoration: underline;">${displayUrl}</a>`
+                            : `<span title="Not a valid http(s) link">${displayUrl}</span>`;
+                        return `
                         <div class="table-row">
-                            <div>${sub.user_email}</div>
-                            <div><a href="${sub.url}" target="_blank" style="color: #4361ee; text-decoration: underline;">${sub.url.substring(0, 40)}${sub.url.length > 40 ? '...' : ''}</a></div>
+                            <div>${escapeHtml(sub.user_email)}</div>
+                            <div>${urlCell}</div>
                             <div>${new Date(sub.submitted_at).toLocaleString()}</div>
                             <div>
                                 <button class="btn-action btn-danger" onclick="deleteSubmission('${sub.id}', '${taskId}')"><i class="las la-trash"></i></button>
                             </div>
                         </div>
-                    `).join('');
+                    `;
+                    }).join('');
                 }
                 
                 document.getElementById('submissionsModal').classList.add('show');
@@ -3538,14 +3557,15 @@
                     const bonus = parseFloat(user.bonus || 0);
                     const paymentNumber = user.payment_number || 'Not set';
                     const paymentMethod = user.payment_method ? ` (${user.payment_method})` : '';
+                    const safeName = escapeJsAttr(user.full_name || user.email || '');
                     html += `<div class="table-row">
-                        <div class="table-cell">${user.full_name || user.email}</div>
-                        <div class="table-cell">${user.email}</div>
+                        <div class="table-cell">${escapeHtml(user.full_name || user.email)}</div>
+                        <div class="table-cell">${escapeHtml(user.email)}</div>
                         <div class="table-cell">ID-${userId}</div>
                         <div class="table-cell">GHC ${balance.toFixed(2)} <span style="color: #4361ee;">(+${bonus.toFixed(2)} bonus)</span></div>
-                        <div class="table-cell">${paymentNumber}${paymentMethod}</div>
+                        <div class="table-cell">${escapeHtml(paymentNumber)}${escapeHtml(paymentMethod)}</div>
                         <div class="table-action">
-                            <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${(user.full_name || user.email).replace(/'/g, "\\'")}')" title="Add deposit">Deposit</button>
+                            <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${safeName}')" title="Add deposit">Deposit</button>
                         </div>
                     </div>`;
                 });

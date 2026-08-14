@@ -232,7 +232,11 @@ function generateReferralCode(userId) {
 
 // Sync user profile (called after Supabase auth)
 app.post('/users/sync', requireAuth, async (req, res) => {
-  const { fullName, phone, referralCode } = req.body;
+  const rawFullName = typeof req.body.fullName === 'string' ? req.body.fullName : null;
+  const rawPhone = typeof req.body.phone === 'string' ? req.body.phone : null;
+  const fullName = rawFullName ? rawFullName.replace(/[<>]/g, '') : rawFullName;
+  const phone = rawPhone ? rawPhone.replace(/[<>]/g, '') : rawPhone;
+  const { referralCode } = req.body;
   const { id, email } = req.user;
   const myReferralCode = generateReferralCode(id);
 
@@ -323,8 +327,10 @@ app.get('/users/me', requireAuth, async (req, res) => {
 
 // Update user profile
 app.put('/users/me', requireAuth, async (req, res) => {
-  const fullName = typeof req.body.fullName === 'string' ? req.body.fullName.trim() : '';
-  const phone = typeof req.body.phone === 'string' ? req.body.phone.trim() : '';
+  // Names/phone numbers never legitimately need < or > - stripped here as a second
+  // layer of defense on top of the output-side HTML escaping admin.html relies on.
+  const fullName = typeof req.body.fullName === 'string' ? req.body.fullName.trim().replace(/[<>]/g, '') : '';
+  const phone = typeof req.body.phone === 'string' ? req.body.phone.trim().replace(/[<>]/g, '') : '';
 
   if (!fullName) return res.status(400).json({ error: 'Name is required' });
 
