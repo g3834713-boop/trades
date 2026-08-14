@@ -58,14 +58,20 @@ async function runSlot(sock, slot) {
 
 function scheduleDay(sock) {
   taskCounter = 0;
+  // Single timestamp reused for both startFrom and the delay math below - using two
+  // separate `new Date()` calls a statement apart made the first slot's delay come out
+  // marginally negative (generated a few ms before "now" was captured for the loop),
+  // which the skip-check below then threw away immediately. That silently cancelled the
+  // very slot this whole late-reconnect fix exists to fire.
+  const now = new Date();
   // Passing "now" lets a late reconnect (e.g. woken up after 8am on Render's free tier)
   // start its first slot immediately instead of at 8am sharp - see scheduler.js.
-  const slots = generateDailySchedule(new Date(), new Date());
+  const slots = generateDailySchedule(now, now);
   console.log(`Generated ${slots.length} slot(s) for today (8am-6pm).`);
 
-  const now = Date.now();
+  const nowMs = now.getTime();
   for (const slot of slots) {
-    const delay = slot.startsAt.getTime() - now;
+    const delay = slot.startsAt.getTime() - nowMs;
     if (delay < 0) continue; // slot already passed (e.g. bot started mid-day)
     setTimeout(() => runSlot(sock, slot), delay);
   }
