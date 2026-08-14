@@ -58,7 +58,9 @@ async function runSlot(sock, slot) {
 
 function scheduleDay(sock) {
   taskCounter = 0;
-  const slots = generateDailySchedule();
+  // Passing "now" lets a late reconnect (e.g. woken up after 8am on Render's free tier)
+  // start its first slot immediately instead of at 8am sharp - see scheduler.js.
+  const slots = generateDailySchedule(new Date(), new Date());
   console.log(`Generated ${slots.length} slot(s) for today (8am-6pm).`);
 
   const now = Date.now();
