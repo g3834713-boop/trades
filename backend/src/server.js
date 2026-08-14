@@ -451,7 +451,8 @@ app.post('/users/me/verification', requireAuth, async (req, res) => {
     dateOfBirth,
     ghanaCardId,
     cardFrontData,
-    cardBackData
+    cardBackData,
+    selfieFrames
   } = req.body;
 
   if (!firstName || !lastName || !dateOfBirth || !ghanaCardId) {
@@ -460,8 +461,8 @@ app.post('/users/me/verification', requireAuth, async (req, res) => {
 
   await query(
     `insert into identity_verifications
-      (user_id, first_name, last_name, middle_name, date_of_birth, ghana_card_id, card_front_data, card_back_data, status, submitted_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', now())
+      (user_id, first_name, last_name, middle_name, date_of_birth, ghana_card_id, card_front_data, card_back_data, selfie_frames, status, submitted_at)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', now())
      on conflict (user_id) do update set
        first_name = excluded.first_name,
        last_name = excluded.last_name,
@@ -470,12 +471,13 @@ app.post('/users/me/verification', requireAuth, async (req, res) => {
        ghana_card_id = excluded.ghana_card_id,
        card_front_data = excluded.card_front_data,
        card_back_data = excluded.card_back_data,
+       selfie_frames = excluded.selfie_frames,
        status = 'pending',
        reviewed_at = null,
        reviewed_by = null,
        review_notes = null,
        submitted_at = now()`,
-    [req.user.id, firstName.trim(), lastName.trim(), middleName?.trim() || null, dateOfBirth, ghanaCardId.trim(), cardFrontData || null, cardBackData || null]
+    [req.user.id, firstName.trim(), lastName.trim(), middleName?.trim() || null, dateOfBirth, ghanaCardId.trim(), cardFrontData || null, cardBackData || null, selfieFrames ? JSON.stringify(selfieFrames) : null]
   );
 
   await query(
@@ -490,7 +492,7 @@ app.get('/users/me/verification', requireAuth, async (req, res) => {
   const { rows } = await query(
     `select u.verification_required, u.verification_status, u.verification_requested_at,
             v.first_name, v.last_name, v.middle_name, v.date_of_birth, v.ghana_card_id,
-            v.card_front_data, v.card_back_data, v.status as submission_status,
+            v.card_front_data, v.card_back_data, v.selfie_frames, v.status as submission_status,
             v.submitted_at, v.reviewed_at, v.reviewed_by, v.review_notes
      from app_users u
      left join identity_verifications v on u.id = v.user_id
@@ -605,7 +607,7 @@ app.get('/admin/users/:userId/verification', requireAuth, requireAdmin, async (r
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.verification_required, u.verification_status,
             v.first_name, v.last_name, v.middle_name, v.date_of_birth, v.ghana_card_id,
-            v.card_front_data, v.card_back_data, v.status as submission_status,
+            v.card_front_data, v.card_back_data, v.selfie_frames, v.status as submission_status,
             v.submitted_at, v.reviewed_at, v.reviewed_by, v.review_notes
      from app_users u
      left join identity_verifications v on u.id = v.user_id
@@ -3011,6 +3013,7 @@ async function ensureSchema() {
     )
   `);
   await query('create index if not exists identity_verifications_status_idx on identity_verifications(status)');
+  await query('alter table identity_verifications add column if not exists selfie_frames jsonb');
   await query('alter table app_users add column if not exists referral_code text');
   await query('alter table app_users add column if not exists referred_by uuid');
   await query('create unique index if not exists app_users_referral_code_idx on app_users(referral_code)');
