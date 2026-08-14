@@ -72,7 +72,18 @@ async function runSlot(sock, slot) {
   }
 }
 
+let armedTimeouts = [];
+
 function scheduleDay(sock) {
+  // onReady can fire more than once (Baileys can reconnect multiple times in a row
+  // during an unstable moment, or right around a deploy restart) - without cancelling
+  // whatever a previous scheduleDay() call already armed, each fire would layer a
+  // complete second full-day schedule on top of the first, posting duplicate/
+  // overlapping slots. Confirmed live: a redeploy caused two different task types to
+  // post 20 seconds apart, both claiming to start at the same moment.
+  armedTimeouts.forEach(id => clearTimeout(id));
+  armedTimeouts = [];
+
   taskCounter = 0;
   // Single timestamp reused for both startFrom and the delay math below - using two
   // separate `new Date()` calls a statement apart made the first slot's delay come out
@@ -89,7 +100,7 @@ function scheduleDay(sock) {
   for (const slot of slots) {
     const delay = slot.startsAt.getTime() - nowMs;
     if (delay < 0) continue; // slot already passed (e.g. bot started mid-day)
-    setTimeout(() => runSlot(sock, slot), delay);
+    armedTimeouts.push(setTimeout(() => runSlot(sock, slot), delay));
   }
 }
 
