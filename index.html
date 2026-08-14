@@ -408,6 +408,26 @@
                     </button>
                 </div>
 
+                <!-- Two-Factor Authentication Panel (shown after password is verified, if this account requires it) -->
+                <div id="totpPanel" style="display: none; margin-bottom: 20px; padding: 16px; background: var(--surface-alt); border-radius: 8px;">
+                    <label class="form-label" style="margin-bottom: 8px;">Enter the 6-digit code from your authenticator app</label>
+                    <div class="input-container" style="margin-bottom: 10px;">
+                        <i class="las la-shield-alt input-icon"></i>
+                        <input
+                            type="text"
+                            id="totpCodeInput"
+                            class="input-box"
+                            placeholder="123456"
+                            inputmode="numeric"
+                            maxlength="6"
+                            autocomplete="one-time-code"
+                        >
+                    </div>
+                    <button type="button" class="login-button" id="totpSubmitBtn" onclick="verifyTotpLogin()" style="margin-top: 0;">
+                        Verify
+                    </button>
+                </div>
+
                 <!-- Login Button -->
                 <button type="submit" class="login-button" id="loginButton">
                     <span id="buttonText">Log in</span>
@@ -523,6 +543,11 @@
 
                 const result = await window.AuthService.login(email, password);
 
+                if (result.mfaRequired) {
+                    await beginTotpChallenge();
+                    return;
+                }
+
                 // Update status for sync
                 showStatus('Setting up your account...', 'info');
                 
@@ -563,6 +588,71 @@
                 showStatus(errorMessage, 'error');
             }
         });
+
+        // --- Two-Factor Authentication (authenticator app) step-up ---
+        let pendingTotpFactorId = null;
+        let pendingTotpChallengeId = null;
+
+        async function beginTotpChallenge() {
+            try {
+                const factors = await window.AuthService.listMfaFactors();
+                const totpFactor = (factors.totp || []).find(f => f.status === 'verified');
+                if (!totpFactor) {
+                    throw new Error('Two-factor authentication is required for this account, but no authenticator app is set up. Contact support.');
+                }
+                const challenge = await window.AuthService.challengeMfa(totpFactor.id);
+                pendingTotpFactorId = totpFactor.id;
+                pendingTotpChallengeId = challenge.id;
+
+                document.getElementById('emailInput').closest('.form-group').style.display = 'none';
+                document.getElementById('passwordInput').closest('.form-group').style.display = 'none';
+                document.getElementById('loginButton').style.display = 'none';
+                document.getElementById('totpPanel').style.display = 'block';
+                setLoading(false);
+                showStatus('Enter the code from your authenticator app to finish logging in.', 'info');
+                document.getElementById('totpCodeInput').focus();
+            } catch (error) {
+                console.error('MFA challenge error:', error);
+                setLoading(false);
+                showStatus(error.message || 'Failed to start two-factor verification.', 'error');
+            }
+        }
+
+        async function verifyTotpLogin() {
+            const code = document.getElementById('totpCodeInput').value.trim();
+            if (!code) {
+                showStatus('Enter the 6-digit code from your authenticator app.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('totpSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Verifying...';
+            hideStatus();
+
+            try {
+                await window.AuthService.completeMfaLogin(pendingTotpFactorId, pendingTotpChallengeId, code);
+
+                try {
+                    await window.API.call('/users/sync', {
+                        method: 'POST',
+                        body: JSON.stringify({ fullName: null, phone: null })
+                    });
+                } catch (syncError) {
+                    console.warn('User sync failed:', syncError);
+                }
+
+                showStatus('Login successful! Redirecting...', 'success');
+                setTimeout(() => {
+                    window.location.href = 'home.html';
+                }, 500);
+            } catch (error) {
+                console.error('TOTP verify error:', error);
+                showStatus(error.message || 'Invalid code. Please try again.', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Verify';
+            }
+        }
     </script>
 </body>
 </html>

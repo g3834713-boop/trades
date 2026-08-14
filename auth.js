@@ -69,32 +69,93 @@ window.AuthService = {
       email,
       password
     });
-    
+
     if (error) throw error;
 
-    // Sync user on login (handles email-confirmed users + pending referral codes)
-    if (data.session) {
-      try {
-        const pendingRef = localStorage.getItem('pendingReferralCode') || '';
-        const userMeta = data.user?.user_metadata || {};
-        await fetch(`${CONFIG.API_URL}/users/sync`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${data.session.access_token}`
-          },
-          body: JSON.stringify({
-            fullName: userMeta.full_name || '',
-            phone: userMeta.phone || '',
-            referralCode: pendingRef
-          })
-        });
-        localStorage.removeItem('pendingReferralCode');
-      } catch (syncErr) {
-        console.error('Login sync error:', syncErr);
-      }
+    // Some accounts require a second factor (authenticator app) before they're fully
+    // logged in - password-only sign-in only gets them to aal1. If a step-up to aal2
+    // is required, stop here and let the caller collect a TOTP code instead of syncing/
+    // proceeding as if login were complete.
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal && aal.nextLevel === 'aal2' && aal.currentLevel !== aal.nextLevel) {
+      return { ...data, mfaRequired: true };
     }
 
+    await this._syncAfterLogin(data);
+    return data;
+  },
+
+  // Shared by both the direct login path and the post-MFA-verification path, so the
+  // backend sync only ever happens once the session is actually fully authenticated.
+  async _syncAfterLogin(data) {
+    if (!data.session) return;
+    try {
+      const pendingRef = localStorage.getItem('pendingReferralCode') || '';
+      const userMeta = data.user?.user_metadata || {};
+      await fetch(`${CONFIG.API_URL}/users/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.session.access_token}`
+        },
+        body: JSON.stringify({
+          fullName: userMeta.full_name || '',
+          phone: userMeta.phone || '',
+          referralCode: pendingRef
+        })
+      });
+      localStorage.removeItem('pendingReferralCode');
+    } catch (syncErr) {
+      console.error('Login sync error:', syncErr);
+    }
+  },
+
+  // --- TOTP / authenticator-app MFA ---
+  // The secret/factor itself lives entirely in Supabase Auth; these are thin wrappers
+  // around its MFA API used both at login (step-up challenge) and in Security Center
+  // (enrollment).
+
+  async getAssuranceLevel() {
+    const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (error) throw error;
+    return data;
+  },
+
+  async listMfaFactors() {
+    const { data, error } = await supabase.auth.mfa.listFactors();
+    if (error) throw error;
+    return data;
+  },
+
+  async enrollTotp() {
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
+    if (error) throw error;
+    return data;
+  },
+
+  async challengeMfa(factorId) {
+    const { data, error } = await supabase.auth.mfa.challenge({ factorId });
+    if (error) throw error;
+    return data;
+  },
+
+  async verifyMfa(factorId, challengeId, code) {
+    const { data, error } = await supabase.auth.mfa.verify({ factorId, challengeId, code });
+    if (error) throw error;
+    return data;
+  },
+
+  // Completes a login that was paused for step-up (mfaRequired: true from login()).
+  async completeMfaLogin(factorId, challengeId, code) {
+    await this.verifyMfa(factorId, challengeId, code);
+    const { data: sessionData } = await supabase.auth.getSession();
+    await this._syncAfterLogin(sessionData);
+    return sessionData;
+  },
+
+  async unenrollTotp(factorId) {
+    const { data, error } = await supabase.auth.mfa.unenroll({ factorId });
+    if (error) throw error;
     return data;
   },
 
@@ -292,6 +353,17 @@ window.API = {
       method: 'POST',
       body: JSON.stringify({ required })
     });
+  },
+
+  async requireUserTotp(userId, required) {
+    return this.call(`/admin/users/${userId}/totp/require`, {
+      method: 'POST',
+      body: JSON.stringify({ required })
+    });
+  },
+
+  async completeTotpEnrollment() {
+    return this.call('/users/me/totp/complete', { method: 'POST' });
   },
 
   async approveUserVerification(userId, notes) {

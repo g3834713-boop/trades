@@ -1572,6 +1572,7 @@
                                 <div class="user-card-badges">
                                     ${isAdmin ? '<span class="user-badge admin"><i class="las la-shield-alt"></i> Admin</span>' : ''}
                                     <span class="user-badge ${verificationBadgeClass}">${user.verification_status || 'none'}${user.verification_required ? ' • required' : ''}</span>
+                                    <span class="user-badge ${user.totp_enrolled_at ? 'success' : (user.totp_required ? 'warning' : 'info')}">2FA: ${user.totp_enrolled_at ? 'enabled' : (user.totp_required ? 'required' : 'off')}</span>
                                     <span class="user-badge info">ID-${userId}</span>
                                 </div>
                             </div>
@@ -1596,6 +1597,7 @@
                             <div class="user-card-actions">
                                 <button class="btn btn-secondary" onclick="openUserVerificationModal('${user.id}', '${safeName}')">Review</button>
                                 <button class="btn btn-warning" onclick="toggleUserVerificationRequirement('${user.id}', ${!user.verification_required})">${user.verification_required ? 'Release Verify' : 'Require Verify'}</button>
+                                <button class="btn btn-warning" onclick="toggleUserTotpRequirement('${user.id}', ${!user.totp_required})">${user.totp_required ? 'Release 2FA' : 'Require 2FA'}</button>
                                 <button class="btn btn-primary" onclick="openAddDepositModal('${user.id}', '${safeName}')">Add Funds</button>
                                 <button class="btn btn-success" onclick="openPaymentNumberModal('${user.id}', '${safeName}', '${user.payment_number || ''}', '${user.payment_method || ''}')">Set Payment Number</button>
                                 <button class="btn btn-danger" onclick="resetUserAccount('${user.id}', '${safeName}')">Wipe Data</button>
@@ -2757,6 +2759,17 @@
             } catch (error) {
                 console.error('Error changing verification requirement:', error);
                 alert(error.message || 'Failed to update verification requirement');
+            }
+        }
+
+        async function toggleUserTotpRequirement(userId, required) {
+            try {
+                await window.API.requireUserTotp(userId, required);
+                loadUsers();
+                alert(`Authenticator app requirement ${required ? 'enabled' : 'removed'} for this user.`);
+            } catch (error) {
+                console.error('Error changing 2FA requirement:', error);
+                alert(error.message || 'Failed to update 2FA requirement');
             }
         }
 

@@ -1108,6 +1108,25 @@
             <div style="padding: 12px; background: var(--warning-info-bg); border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: var(--warning-info-text);">
                 <i class="las la-exclamation-circle"></i> Keep your password safe and never share it with anyone.
             </div>
+
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin-bottom: 12px; color: var(--text-primary); font-size: 14px; font-weight: 600;">Two-Factor Authentication</h4>
+                <div id="totpStatusBlock" style="padding: 12px; background: var(--surface-alt); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
+                    Checking status...
+                </div>
+                <div id="totpEnrollSection" style="display: none; margin-top: 12px;">
+                    <div id="totpQrContainer" style="display: none; text-align: center; margin-bottom: 12px;">
+                        <img id="totpQrImage" src="" alt="Authenticator app QR code" style="width: 180px; height: 180px; border-radius: 8px; background: white; padding: 8px;">
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Can't scan? Enter this key manually: <strong id="totpSecretText"></strong></div>
+                    </div>
+                    <div class="form-group" id="totpCodeGroup" style="display: none;">
+                        <label class="form-label">Enter the 6-digit code from your app</label>
+                        <input type="text" class="form-input" id="totpEnrollCodeInput" placeholder="123456" inputmode="numeric" maxlength="6">
+                    </div>
+                    <button class="task-action-btn" id="totpActionBtn" onclick="startTotpEnrollment()">Set Up Authenticator App</button>
+                </div>
+            </div>
+
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closeActionModal('securityModal')">Close</button>
                 <button class="btn-submit" onclick="changePassword()">Update Password</button>
@@ -1324,6 +1343,7 @@
                     break;
                 case 'security':
                     openActionModal('securityModal');
+                    loadTotpStatus();
                     break;
                 case 'funding':
                     openActionModal('fundingModal');
@@ -1739,6 +1759,94 @@
                 console.error('Change password error:', error);
                 const isWrongCurrentPassword = (error.message || '').toLowerCase().includes('invalid');
                 alert(isWrongCurrentPassword ? 'Current password is incorrect' : (error.message || 'Failed to change password'));
+            }
+        }
+
+        // --- Two-Factor Authentication (authenticator app) ---
+        let pendingTotpEnrollFactorId = null;
+
+        async function loadTotpStatus() {
+            const statusBlock = document.getElementById('totpStatusBlock');
+            const enrollSection = document.getElementById('totpEnrollSection');
+            // Reset any in-progress enrollment UI from a previous open of this modal
+            document.getElementById('totpQrContainer').style.display = 'none';
+            document.getElementById('totpCodeGroup').style.display = 'none';
+            const actionBtn = document.getElementById('totpActionBtn');
+            actionBtn.textContent = 'Set Up Authenticator App';
+            actionBtn.onclick = startTotpEnrollment;
+            pendingTotpEnrollFactorId = null;
+
+            try {
+                const [profile, factors] = await Promise.all([
+                    window.API.getUserProfile(),
+                    window.AuthService.listMfaFactors()
+                ]);
+                const enrolled = (factors.totp || []).some(f => f.status === 'verified');
+
+                if (enrolled) {
+                    statusBlock.innerHTML = '<i class="las la-check-circle" style="color: var(--success-text);"></i> Enabled - your account is protected with an authenticator app.';
+                    enrollSection.style.display = 'none';
+                } else if (profile.totp_required) {
+                    statusBlock.innerHTML = '<i class="las la-exclamation-circle" style="color: var(--danger-text);"></i> Your admin requires you to set up an authenticator app for this account.';
+                    enrollSection.style.display = 'block';
+                } else {
+                    statusBlock.textContent = 'Not enabled. You can optionally add an authenticator app for extra security.';
+                    enrollSection.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Failed to load 2FA status:', error);
+                statusBlock.textContent = 'Could not load two-factor authentication status.';
+            }
+        }
+
+        async function startTotpEnrollment() {
+            const actionBtn = document.getElementById('totpActionBtn');
+            actionBtn.disabled = true;
+            try {
+                const data = await window.AuthService.enrollTotp();
+                pendingTotpEnrollFactorId = data.id;
+
+                let qrSrc = data.totp.qr_code;
+                if (qrSrc && !qrSrc.startsWith('data:')) {
+                    qrSrc = 'data:image/svg+xml;utf8,' + encodeURIComponent(qrSrc);
+                }
+                document.getElementById('totpQrImage').src = qrSrc;
+                document.getElementById('totpSecretText').textContent = data.totp.secret;
+                document.getElementById('totpQrContainer').style.display = 'block';
+                document.getElementById('totpCodeGroup').style.display = 'block';
+                document.getElementById('totpEnrollCodeInput').value = '';
+                document.getElementById('totpEnrollCodeInput').focus();
+
+                actionBtn.textContent = 'Confirm Code';
+                actionBtn.onclick = confirmTotpEnrollment;
+            } catch (error) {
+                console.error('TOTP enroll error:', error);
+                alert(error.message || 'Failed to start authenticator app setup');
+            } finally {
+                actionBtn.disabled = false;
+            }
+        }
+
+        async function confirmTotpEnrollment() {
+            const code = document.getElementById('totpEnrollCodeInput').value.trim();
+            if (!code) {
+                alert('Enter the 6-digit code from your authenticator app');
+                return;
+            }
+
+            const actionBtn = document.getElementById('totpActionBtn');
+            actionBtn.disabled = true;
+            try {
+                const challenge = await window.AuthService.challengeMfa(pendingTotpEnrollFactorId);
+                await window.AuthService.verifyMfa(pendingTotpEnrollFactorId, challenge.id, code);
+                await window.API.completeTotpEnrollment();
+                alert('Authenticator app enabled! You\'ll need it the next time you log in.');
+                await loadTotpStatus();
+            } catch (error) {
+                console.error('TOTP verify error:', error);
+                alert(error.message || 'Invalid code. Please try again.');
+            } finally {
+                actionBtn.disabled = false;
             }
         }
 

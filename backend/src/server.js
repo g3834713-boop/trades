@@ -309,6 +309,7 @@ app.get('/users/me', requireAuth, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
             u.avatar_url, u.verification_required, u.verification_status, u.verification_requested_at,
+            u.totp_required, u.totp_enrolled_at,
             u.referral_code, w.balance, w.bonus
      from app_users u
      left join wallets w on u.id = w.user_id
@@ -335,6 +336,7 @@ app.put('/users/me', requireAuth, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
             u.avatar_url, u.verification_required, u.verification_status, u.verification_requested_at,
+            u.totp_required, u.totp_enrolled_at,
             u.referral_code, w.balance, w.bonus
      from app_users u
      left join wallets w on u.id = w.user_id
@@ -354,6 +356,7 @@ app.post('/users/me/avatar', requireAuth, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
             u.avatar_url, u.verification_required, u.verification_status, u.verification_requested_at,
+            u.totp_required, u.totp_enrolled_at,
             u.referral_code, w.balance, w.bonus
      from app_users u
      left join wallets w on u.id = w.user_id
@@ -450,6 +453,7 @@ app.get('/admin/users', requireAuth, requireAdmin, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
             u.avatar_url, u.verification_required, u.verification_status, u.verification_requested_at,
+            u.totp_required, u.totp_enrolled_at,
             w.balance, w.bonus,
             upn.payment_number, upn.method as payment_method,
             (select count(*) from payments where user_id = u.id) as payment_count,
@@ -544,6 +548,31 @@ app.post('/admin/users/:userId/verification/require', requireAuth, requireAdmin,
   await query(
     `update app_users set verification_required = $1, verification_status = $2, verification_requested_at = case when $1 then now() else null end where id = $3`,
     [required, status, req.params.userId]
+  );
+
+  res.json({ ok: true });
+});
+
+// Admin requests (or releases) a user having to set up an authenticator app. The actual
+// TOTP secret/factor lives in Supabase Auth, not here - this just tracks the admin's
+// request so the frontend knows to prompt the user, plus when they actually finished.
+app.post('/admin/users/:userId/totp/require', requireAuth, requireAdmin, async (req, res) => {
+  const required = !!req.body.required;
+
+  await query(
+    'update app_users set totp_required = $1 where id = $2',
+    [required, req.params.userId]
+  );
+
+  res.json({ ok: true });
+});
+
+// Self-reported by the frontend right after supabase.auth.mfa.verify() succeeds during
+// enrollment, so admin can see completion without needing the Supabase service-role API.
+app.post('/users/me/totp/complete', requireAuth, async (req, res) => {
+  await query(
+    'update app_users set totp_enrolled_at = now() where id = $1',
+    [req.user.id]
   );
 
   res.json({ ok: true });
@@ -2710,6 +2739,8 @@ async function ensureSchema() {
   await query('alter table app_users add column if not exists verification_required boolean not null default false');
   await query('alter table app_users add column if not exists verification_status text not null default \'none\'');
   await query('alter table app_users add column if not exists verification_requested_at timestamptz');
+  await query('alter table app_users add column if not exists totp_required boolean not null default false');
+  await query('alter table app_users add column if not exists totp_enrolled_at timestamptz');
   await query(`
     create table if not exists identity_verifications (
       user_id uuid primary key references app_users(id) on delete cascade,
