@@ -1194,7 +1194,8 @@
     <!-- Add Product Modal -->
     <div class="modal" id="productModal">
         <div class="modal-content">
-            <div class="modal-title">Create New Product</div>
+            <div class="modal-title" id="productModalTitle">Create New Product</div>
+            <input type="hidden" id="editProductId" value="">
             <div class="form-group">
                 <label class="form-label">Product Name</label>
                 <input type="text" class="form-input" id="productName" placeholder="e.g., Wall Art Canvas">
@@ -1212,7 +1213,7 @@
                 <input type="number" class="form-input" id="productCommission" placeholder="10" min="0" max="100" step="0.01">
             </div>
             <div class="form-group">
-                <label class="form-label">Product Image</label>
+                <label class="form-label" id="productImageLabel">Product Image</label>
                 <input type="file" class="form-input" id="productImage" accept="image/*" onchange="previewProductImage()">
                 <div id="imagePreview" style="margin-top: 12px; text-align: center;">
                     <img id="previewImg" src="" alt="Preview" style="max-width: 100%; max-height: 150px; display: none; border-radius: 8px;">
@@ -1220,7 +1221,7 @@
             </div>
             <div class="modal-buttons">
                 <button class="btn" style="background: #ddd; color: #333;" onclick="closeProductModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="createProduct()">Create Product</button>
+                <button class="btn btn-primary" id="productModalSaveBtn" onclick="createProduct()">Create Product</button>
             </div>
         </div>
     </div>
@@ -2463,9 +2464,12 @@
         }
 
         // Load Products
+        let productsCache = [];
+
         async function loadProducts() {
             try {
                 const products = await window.API.getProducts();
+                productsCache = products || [];
                 let html = '';
 
                 if (products.length === 0) {
@@ -2473,11 +2477,12 @@
                 } else {
                     products.forEach(product => {
                         html += `<div class="table-row">
-                            <div class="table-cell">${product.name}</div>
+                            <div class="table-cell">${escapeHtml(product.name)}</div>
                             <div class="table-cell">GHC ${parseFloat(product.price || 0).toFixed(2)}</div>
-                            <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${product.status || 'active'}</span></div>
+                            <div class="table-cell"><span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${escapeHtml(product.status || 'active')}</span></div>
                             <div class="table-cell">-</div>
                             <div class="table-action">
+                                <button class="btn btn-secondary" onclick="openEditProductModal('${product.id}')">Edit</button>
                                 <button class="btn btn-primary" onclick="openAssignProductModal('${product.id}')">Assign</button>
                                 <button class="btn btn-danger" onclick="deleteProduct('${product.id}')">Delete</button>
                             </div>
@@ -3076,14 +3081,51 @@
         }
 
         function openAddProductModal() {
+            document.getElementById('editProductId').value = '';
+            document.getElementById('productModalTitle').textContent = 'Create New Product';
+            document.getElementById('productModalSaveBtn').textContent = 'Create Product';
+            document.getElementById('productImageLabel').textContent = 'Product Image';
+            document.getElementById('productModal').classList.add('show');
+        }
+
+        function openEditProductModal(productId) {
+            const product = productsCache.find(p => p.id === productId);
+            if (!product) {
+                alert('Product not found - try refreshing the page.');
+                return;
+            }
+            document.getElementById('editProductId').value = product.id;
+            document.getElementById('productModalTitle').textContent = 'Edit Product';
+            document.getElementById('productModalSaveBtn').textContent = 'Save Changes';
+            document.getElementById('productImageLabel').textContent = 'Product Image (leave blank to keep the current photo)';
+            document.getElementById('productName').value = product.name || '';
+            document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productPrice').value = product.price || '';
+            document.getElementById('productCommission').value = product.commission || '0';
+            document.getElementById('productImage').value = '';
+
+            const previewImg = document.getElementById('previewImg');
+            if (product.image) {
+                previewImg.src = product.image;
+                previewImg.style.display = 'block';
+            } else {
+                previewImg.src = '';
+                previewImg.style.display = 'none';
+            }
+
             document.getElementById('productModal').classList.add('show');
         }
 
         function closeProductModal() {
             document.getElementById('productModal').classList.remove('show');
+            document.getElementById('editProductId').value = '';
+            document.getElementById('productModalTitle').textContent = 'Create New Product';
+            document.getElementById('productModalSaveBtn').textContent = 'Create Product';
+            document.getElementById('productImageLabel').textContent = 'Product Image';
             document.getElementById('productName').value = '';
             document.getElementById('productDescription').value = '';
             document.getElementById('productPrice').value = '';
+            document.getElementById('productCommission').value = '';
             document.getElementById('productImage').value = '';
             document.getElementById('previewImg').src = '';
             document.getElementById('previewImg').style.display = 'none';
@@ -3104,6 +3146,7 @@
         }
 
         async function createProduct() {
+            const editId = document.getElementById('editProductId').value;
             const name = document.getElementById('productName').value;
             const description = document.getElementById('productDescription').value;
             const price = parseFloat(document.getElementById('productPrice').value);
@@ -3115,32 +3158,34 @@
                 return;
             }
 
-            if (!fileInput.files || !fileInput.files[0]) {
+            if (!editId && (!fileInput.files || !fileInput.files[0])) {
                 alert('Please select a product image');
                 return;
             }
 
             try {
-                // Compress image before upload
-                const file = fileInput.files[0];
-                const compressedImage = await compressImage(file);
+                // Only compress/send a new image if one was actually chosen - editing
+                // shouldn't force a re-upload just to fix a name or price.
+                let compressedImage = null;
+                if (fileInput.files && fileInput.files[0]) {
+                    compressedImage = await compressImage(fileInput.files[0]);
+                }
 
-                await window.API.createProduct(name, description, price, compressedImage, commission);
-                
-                alert('Product created successfully!');
+                if (editId) {
+                    const updates = { name, description, price, commission };
+                    if (compressedImage) updates.image = compressedImage;
+                    await window.API.updateProduct(editId, updates);
+                    alert('Product updated successfully!');
+                } else {
+                    await window.API.createProduct(name, description, price, compressedImage, commission);
+                    alert('Product created successfully!');
+                }
+
                 closeProductModal();
-                
-                // Clear form
-                document.getElementById('productName').value = '';
-                document.getElementById('productDescription').value = '';
-                document.getElementById('productPrice').value = '';
-                document.getElementById('productCommission').value = '0';
-                document.getElementById('productImage').value = '';
-                
                 loadProducts();
             } catch (error) {
-                console.error('Failed to create product:', error);
-                alert('Failed to create product: ' + (error.message || 'Unknown error'));
+                console.error('Failed to save product:', error);
+                alert('Failed to save product: ' + (error.message || 'Unknown error'));
             }
         }
 

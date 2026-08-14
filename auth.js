@@ -528,6 +528,13 @@ window.API = {
     return this.call('/admin/products');
   },
 
+  async updateProduct(productId, updates) {
+    return this.call(`/admin/products/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+  },
+
   async assignProduct(productId, userIds) {
     return this.call(`/admin/products/${productId}/assign`, {
       method: 'POST',

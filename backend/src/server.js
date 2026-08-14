@@ -1667,6 +1667,43 @@ app.get('/admin/products', requireAuth, requireAdmin, async (req, res) => {
   res.json(rows);
 });
 
+// Admin: Edit an existing product. Any field left out of the request body keeps its
+// current value - image especially, since re-uploading a photo on every edit would be
+// a bad workflow for something as small as fixing a typo or a price.
+app.put('/admin/products/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id: productId } = req.params;
+    const { name, description, price, image, commission } = req.body;
+
+    if (name !== undefined && !name) {
+      return res.status(400).json({ error: 'Name cannot be empty' });
+    }
+    if (price !== undefined && !price) {
+      return res.status(400).json({ error: 'Price cannot be empty' });
+    }
+
+    const { rows } = await query(
+      `update products set
+         name = coalesce($1, name),
+         description = coalesce($2, description),
+         price = coalesce($3, price),
+         image = coalesce($4, image),
+         commission = coalesce($5, commission)
+       where id = $6
+       returning *`,
+      [name ?? null, description ?? null, price ?? null, image ?? null, commission ?? null, productId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(500).json({ error: 'Failed to update product: ' + error.message });
+  }
+});
+
 // Admin: Delete product
 app.delete('/admin/products/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
