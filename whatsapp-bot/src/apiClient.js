@@ -62,3 +62,21 @@ export async function pingBackend() {
   const res = await fetch(`${API_URL}/health`);
   return res.ok;
 }
+
+// --- Live Chat bridge ---
+export async function getPendingChatMessages() {
+  return call('/chat/pending');
+}
+
+export async function markChatMessageRelayed(messageId, whatsappMessageId) {
+  return call('/chat/relayed', { method: 'POST', body: JSON.stringify({ messageId, whatsappMessageId }) });
+}
+
+export async function resolveChatUser(whatsappMessageId) {
+  const { userId } = await call(`/chat/resolve-user?whatsappMessageId=${encodeURIComponent(whatsappMessageId)}`);
+  return userId;
+}
+
+export async function postAdminReply(userId, message) {
+  return call('/chat/admin-reply', { method: 'POST', body: JSON.stringify({ userId, message }) });
+}

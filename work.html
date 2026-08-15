@@ -10,6 +10,7 @@
     <script src="config.js"></script>
     <script type="module" src="auth.js"></script>
     <script src="notifications.js"></script>
+    <script src="whatsapp-button.js"></script>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
@@ -341,29 +342,28 @@
         }
 
         .commission-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            height: 100px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .commission-track {
+            transition: transform 0.6s ease;
         }
 
         .commission-item {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 14px;
-            background: var(--surface-alt);
-            border-radius: 12px;
-            transition: background 0.2s;
-            border-left: 3px solid var(--brand);
-        }
-
-        .commission-item:hover {
-            background: var(--brand-soft-hover);
+            gap: 10px;
+            padding: 6px 4px;
+            height: 44px;
+            box-sizing: border-box;
+            border-bottom: 1px solid var(--border-light, var(--border));
         }
 
         .commission-rank {
-            width: 36px;
-            height: 36px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             background: var(--brand);
             color: white;
@@ -371,33 +371,31 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 16px;
+            font-size: 11px;
             flex-shrink: 0;
-        }
-
-        .commission-rank.second {
-            background: #c0c0c0;
-        }
-
-        .commission-rank.third {
-            background: #cd7f32;
         }
 
         .commission-info {
             flex: 1;
-            margin-left: 12px;
+            min-width: 0;
         }
 
         .commission-name {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .commission-amount {
-            font-size: 16px;
-            font-weight: bold;
-            color: var(--brand);
+        .commission-phrase {
+            font-size: 11px;
+            color: var(--text-secondary, var(--text-muted));
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* Order Details Section */
@@ -549,9 +547,11 @@
         <div class="hall-of-fame-section">
             <div class="fame-section-title">
                 <i class="las la-star"></i>
-                Commission Leaderboard
+                Latest Merchants/Tellers in Africa
             </div>
-            <div class="commission-list" id="commissionList"></div>
+            <div class="commission-list">
+                <div class="commission-track" id="commissionTrack"></div>
+            </div>
         </div>
 
         <!-- Order Details Section -->
@@ -717,64 +717,77 @@
             }
         }
 
-        const names = [
-            'Kwame Adjei', 'Ama Mensah', 'Kwesi Boateng', 'Abena Asante', 'Yaw Owusu',
-            'Akosua Anane', 'Kofi Larbi', 'Efua Darkwa', 'Nana Ampah', 'Adwoa Seidu',
-            'Osei Darkwa', 'Akua Ofori', 'Ebo Mensah', 'Nana Akyea', 'Akosua Benoa',
-            'Kwadwo Anin', 'Ama Osei', 'Yaw Acquah', 'Abena Yeboah', 'Kofi Mensah'
-        ];
-
-        function generateRandomAmount() {
-            // Generate random amounts between 5000 and 50000
-            return Math.floor(Math.random() * 45000) + 5000;
+        function escapeHtmlMT(str) {
+            const div = document.createElement('div');
+            div.textContent = str == null ? '' : String(str);
+            return div.innerHTML;
         }
 
-        function generateLeaderboard() {
-            const list = document.getElementById('commissionList');
-            const leaderboard = [];
+        let merchantTickerEntries = [];
+        let merchantTickerStep = 0;
+        let merchantTickerIntervalId = null;
 
-            // Generate random leaderboard
-            for (let i = 0; i < 10; i++) {
-                leaderboard.push({
-                    name: names[Math.floor(Math.random() * names.length)],
-                    amount: generateRandomAmount()
-                });
+        function renderMerchantTickerTrack() {
+            const track = document.getElementById('commissionTrack');
+            if (!track) return;
+            if (!merchantTickerEntries.length) {
+                track.innerHTML = '<div class="commission-item"><div class="commission-info"><div class="commission-name">No activity yet</div></div></div>';
+                return;
             }
-
-            // Sort by amount descending
-            leaderboard.sort((a, b) => b.amount - a.amount);
-
-            // Render leaderboard
-            list.innerHTML = leaderboard.map((item, index) => {
-                let medalEmoji = '';
-                let rankClass = '';
-
-                if (index === 0) {
-                    medalEmoji = '🥇';
-                } else if (index === 1) {
-                    medalEmoji = '🥈';
-                    rankClass = ' second';
-                } else if (index === 2) {
-                    medalEmoji = '🥉';
-                    rankClass = ' third';
-                }
-
-                return `
-                    <div class="commission-item">
-                        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                            <div class="commission-rank${rankClass}">${medalEmoji || index + 1}</div>
-                            <div class="commission-info">
-                                <div class="commission-name">${item.name}</div>
-                            </div>
-                        </div>
-                        <div class="commission-amount">GHC ${item.amount.toLocaleString()}</div>
+            // Duplicate the first item at the end so stepping past the last real item
+            // scrolls onto a visual twin of item 0, then a transition-free snap back to
+            // the real item 0 (in stepMerchantTicker) is imperceptible - the classic
+            // seamless-marquee trick, avoids racing a separate reset timer against setInterval.
+            const items = merchantTickerEntries.length > 1 ? merchantTickerEntries.concat([merchantTickerEntries[0]]) : merchantTickerEntries;
+            track.innerHTML = items.map((item, index) => `
+                <div class="commission-item">
+                    <div class="commission-rank">${(index % merchantTickerEntries.length) + 1}</div>
+                    <div class="commission-info">
+                        <div class="commission-name">${escapeHtmlMT(item.name)} — ${escapeHtmlMT(item.role)}</div>
+                        <div class="commission-phrase">${escapeHtmlMT(item.activity_phrase)}</div>
                     </div>
-                `;
-            }).join('');
+                </div>
+            `).join('');
         }
 
-        // Initialize leaderboard
-        generateLeaderboard();
+        function stepMerchantTicker() {
+            const track = document.getElementById('commissionTrack');
+            if (!track || merchantTickerEntries.length < 2) return;
+            merchantTickerStep += 1;
+            track.style.transform = `translateY(-${merchantTickerStep * 44}px)`;
+            if (merchantTickerStep === merchantTickerEntries.length) {
+                // Just scrolled onto the duplicate item 0 - once that transition finishes,
+                // snap back to the real item 0 with no visible transition.
+                setTimeout(() => {
+                    track.style.transition = 'none';
+                    merchantTickerStep = 0;
+                    track.style.transform = 'translateY(0)';
+                    track.offsetHeight; // force reflow so the transition-none takes effect before re-enabling
+                    track.style.transition = 'transform 0.6s ease';
+                }, 650);
+            }
+        }
+
+        async function loadMerchantTicker() {
+            try {
+                const entries = await window.API.call('/merchant-ticker');
+                merchantTickerEntries = entries || [];
+                merchantTickerStep = 0;
+                renderMerchantTickerTrack();
+                const track = document.getElementById('commissionTrack');
+                if (track) { track.style.transition = 'none'; track.style.transform = 'translateY(0)'; requestAnimationFrame(() => { track.style.transition = 'transform 0.6s ease'; }); }
+                if (merchantTickerIntervalId) clearInterval(merchantTickerIntervalId);
+                if (merchantTickerEntries.length > 1) {
+                    merchantTickerIntervalId = setInterval(stepMerchantTicker, 2500);
+                }
+            } catch (err) {
+                console.warn('Failed to load merchant ticker:', err.message);
+            }
+        }
+
+        // Initialize ticker, then poll periodically for admin edits
+        loadMerchantTicker();
+        setInterval(loadMerchantTicker, 60000);
 
         function goBack() {
             window.location.href = 'home.html';

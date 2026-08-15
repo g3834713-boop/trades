@@ -10,6 +10,7 @@
     <script src="config.js"></script>
     <script type="module" src="auth.js"></script>
     <script src="notifications.js"></script>
+    <script src="whatsapp-button.js"></script>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
@@ -1101,31 +1102,8 @@
                 <i class="las la-crown"></i>
                 Hall of Fame
             </div>
-            <div class="fame-list">
-                <div class="fame-item">
-                    <div class="fame-rank">🥇</div>
-                    <div class="fame-info">
-                        <div class="fame-name">John Kwame</div>
-                        <div class="fame-earnings">GHC 245,000.00</div>
-                    </div>
-                    <div class="fame-avatar" style="background: #4361ee;"></div>
-                </div>
-                <div class="fame-item">
-                    <div class="fame-rank silver">🥈</div>
-                    <div class="fame-info">
-                        <div class="fame-name">Mary Adjoa</div>
-                        <div class="fame-earnings">GHC 189,000.00</div>
-                    </div>
-                    <div class="fame-avatar" style="background: #e74c3c;"></div>
-                </div>
-                <div class="fame-item">
-                    <div class="fame-rank bronze">🥉</div>
-                    <div class="fame-info">
-                        <div class="fame-name">Kwesi Mensah</div>
-                        <div class="fame-earnings">GHC 165,000.00</div>
-                    </div>
-                    <div class="fame-avatar" style="background: #4361ee;"></div>
-                </div>
+            <div class="fame-list" id="fameList">
+                <div class="fame-item"><div class="fame-info"><div class="fame-name">Loading…</div></div></div>
             </div>
         </div>
 
@@ -1841,6 +1819,39 @@
             });
         }
 
+        function escapeHtmlHF(str) {
+            const div = document.createElement('div');
+            div.textContent = str == null ? '' : String(str);
+            return div.innerHTML;
+        }
+
+        async function renderHallOfFame() {
+            const mount = document.getElementById('fameList');
+            if (!mount || typeof window.API === 'undefined') return;
+            try {
+                const entries = await window.API.getHallOfFame();
+                if (!entries.length) { mount.innerHTML = ''; return; }
+                mount.innerHTML = entries.map((e, i) => {
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : String(i + 1);
+                    const rankClass = i === 1 ? ' silver' : i === 2 ? ' bronze' : '';
+                    const avatarStyle = e.avatar_data
+                        ? `background-image:url('${e.avatar_data.replace(/'/g, "%27")}'); background-size:cover; background-position:center;`
+                        : '';
+                    return `
+                    <div class="fame-item">
+                        <div class="fame-rank${rankClass}">${medal}</div>
+                        <div class="fame-info">
+                            <div class="fame-name">${escapeHtmlHF(e.name)}</div>
+                            <div class="fame-earnings">GHC ${Number(e.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        </div>
+                        <div class="fame-avatar" style="${avatarStyle}"></div>
+                    </div>`;
+                }).join('');
+            } catch (err) {
+                console.warn('Failed to load hall of fame:', err.message);
+            }
+        }
+
         function applySupportSettings() {
             const settings = getAppSettings();
             const support = settings.support || {};
@@ -1872,6 +1883,8 @@
         window.addEventListener('DOMContentLoaded', async function() {
             applyTranslations();
             applySupportSettings();
+            renderHallOfFame();
+            setInterval(renderHallOfFame, 60000);
 
             // === Instantly show cached data so values never flash blank ===
             const cachedProfile = localStorage.getItem('cachedUserProfile');

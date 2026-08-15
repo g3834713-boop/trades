@@ -790,6 +790,54 @@ window.API = {
     return this.call(`/admin/easy-earns/photo-survey/prompts/${promptId}`, { method: 'DELETE' });
   },
 
+  // Hall of Fame (home page)
+  async getHallOfFame() {
+    return this.call('/hall-of-fame');
+  },
+  async getAdminHallOfFame() {
+    return this.call('/admin/hall-of-fame');
+  },
+  async addAdminHallOfFameEntry(data) {
+    return this.call('/admin/hall-of-fame', { method: 'POST', body: JSON.stringify(data) });
+  },
+  async updateAdminHallOfFameEntry(id, data) {
+    return this.call(`/admin/hall-of-fame/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  async deleteAdminHallOfFameEntry(id) {
+    return this.call(`/admin/hall-of-fame/${id}`, { method: 'DELETE' });
+  },
+
+  // Latest Merchants/Tellers ticker (work page)
+  async getMerchantTicker() {
+    return this.call('/merchant-ticker');
+  },
+  async getAdminMerchantTicker() {
+    return this.call('/admin/merchant-ticker');
+  },
+  async addAdminMerchantTickerEntry(data) {
+    return this.call('/admin/merchant-ticker', { method: 'POST', body: JSON.stringify(data) });
+  },
+  async updateAdminMerchantTickerEntry(id, data) {
+    return this.call(`/admin/merchant-ticker/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  async deleteAdminMerchantTickerEntry(id) {
+    return this.call(`/admin/merchant-ticker/${id}`, { method: 'DELETE' });
+  },
+
+  // Live Chat
+  async sendChatMessage(message) {
+    return this.call('/chat/messages', { method: 'POST', body: JSON.stringify({ message }) });
+  },
+  async getChatMessages() {
+    return this.call('/chat/messages');
+  },
+  async getAdminChatConversations() {
+    return this.call('/admin/chat/conversations');
+  },
+  async getAdminChatMessages(userId) {
+    return this.call(`/admin/chat/${userId}/messages`);
+  },
+
   // Daily check-in
   async getDailyCheckin() {
     return this.call('/checkin');

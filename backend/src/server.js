@@ -1,11 +1,13 @@
 import 'dotenv/config';
+import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import webpush from 'web-push';
+import { WebSocketServer } from 'ws';
 import { pool, query } from './db.js';
-import { requireAuth, requireAdmin } from './middleware/auth.js';
+import { requireAuth, requireAdmin, verifyToken } from './middleware/auth.js';
 import { canWithdrawAmount } from './verificationLimits.js';
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -173,7 +175,8 @@ async function getAllAppSettings() {
       generalSupportTelegram: '@DailyTrader',
       supportEmail: 'support@dailytrade.com',
       supportPhone: '',
-      supportLiveChat: 'Telegram: @DailyTrader'
+      supportLiveChat: 'Telegram: @DailyTrader',
+      supportWhatsappNumber: ''
     },
     dailyCheckinAmount: 5,
     // Beginner (URL) task reward shrinks the longer a user consecutively skips teller/
@@ -220,6 +223,8 @@ async function getAllAppSettings() {
       if (value != null && value !== '') settings.support.supportPhone = value;
     } else if (key === 'support_live_chat') {
       if (value != null && value !== '') settings.support.supportLiveChat = value;
+    } else if (key === 'support_whatsapp_number') {
+      if (value != null) settings.support.supportWhatsappNumber = value;
     } else if (key === 'daily_checkin_amount') {
       const parsed = Number(value);
       if (!Number.isNaN(parsed)) settings.dailyCheckinAmount = parsed;
@@ -939,6 +944,16 @@ app.post('/notifications/read-all', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+app.delete('/notifications/:id', requireAuth, async (req, res) => {
+  await query('delete from notifications where id = $1 and user_id = $2', [req.params.id, req.user.id]);
+  res.json({ ok: true });
+});
+
+app.delete('/notifications', requireAuth, async (req, res) => {
+  await query('delete from notifications where user_id = $1', [req.user.id]);
+  res.json({ ok: true });
+});
+
 // --- Web Push subscriptions ---
 app.post('/push/subscribe', requireAuth, async (req, res) => {
   const { endpoint, keys } = req.body.subscription || req.body;
@@ -1123,6 +1138,130 @@ app.post('/reminders/daily-checkin', requireSchedulerKey, async (req, res) => {
   }
 });
 
+// --- Live Chat ---
+// User-facing: send/read own conversation.
+app.post('/chat/messages', requireAuth, async (req, res) => {
+  try {
+    const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+    const { rows } = await query(
+      `insert into chat_messages (user_id, sender, message) values ($1, 'user', $2) returning *`,
+      [req.user.id, message]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Send chat message error:', err);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+app.get('/chat/messages', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(
+      'select id, sender, message, created_at from chat_messages where user_id = $1 order by created_at asc limit 200',
+      [req.user.id]
+    );
+    query("update chat_messages set is_read = true where user_id = $1 and sender = 'admin' and is_read = false", [req.user.id]).catch(() => {});
+    res.json(rows);
+  } catch (err) {
+    console.error('Get chat messages error:', err);
+    res.status(500).json({ error: 'Failed to load messages' });
+  }
+});
+
+// Bot-facing: relay pending user messages to WhatsApp, and post the admin's replies back.
+app.get('/chat/pending', requireSchedulerKey, async (req, res) => {
+  try {
+    const { rows } = await query(
+      `select cm.id, cm.user_id, cm.message, u.full_name
+       from chat_messages cm join app_users u on u.id = cm.user_id
+       where cm.sender = 'user' and cm.whatsapp_relayed = false
+       order by cm.created_at asc limit 50`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Get pending chat messages error:', err);
+    res.status(500).json({ error: 'Failed to load pending messages' });
+  }
+});
+
+app.post('/chat/relayed', requireSchedulerKey, async (req, res) => {
+  try {
+    const { messageId, whatsappMessageId } = req.body || {};
+    if (!messageId) return res.status(400).json({ error: 'messageId is required' });
+    await query(
+      'update chat_messages set whatsapp_relayed = true, whatsapp_message_id = $1 where id = $2',
+      [whatsappMessageId || null, messageId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Mark chat message relayed error:', err);
+    res.status(500).json({ error: 'Failed to update message' });
+  }
+});
+
+app.get('/chat/resolve-user', requireSchedulerKey, async (req, res) => {
+  try {
+    const { whatsappMessageId } = req.query;
+    if (!whatsappMessageId) return res.status(400).json({ error: 'whatsappMessageId is required' });
+    const { rows } = await query('select user_id from chat_messages where whatsapp_message_id = $1 limit 1', [whatsappMessageId]);
+    res.json({ userId: rows[0]?.user_id || null });
+  } catch (err) {
+    console.error('Resolve chat user error:', err);
+    res.status(500).json({ error: 'Failed to resolve user' });
+  }
+});
+
+app.post('/chat/admin-reply', requireSchedulerKey, async (req, res) => {
+  try {
+    const { userId, message } = req.body || {};
+    if (!userId || !message) return res.status(400).json({ error: 'userId and message are required' });
+    const { rows } = await query(
+      `insert into chat_messages (user_id, sender, message) values ($1, 'admin', $2) returning *`,
+      [userId, message]
+    );
+    const preview = message.length > 120 ? message.slice(0, 117) + '...' : message;
+    createNotification(userId, 'chat_reply', 'New message from Support', preview, { actionUrl: 'mine.html#chat' }).catch(() => {});
+    pushToUser(userId, { type: 'chat_reply', message: rows[0].message, created_at: rows[0].created_at });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Post admin reply error:', err);
+    res.status(500).json({ error: 'Failed to post reply' });
+  }
+});
+
+// Admin dashboard: read-only history browser (replies still only happen from WhatsApp).
+app.get('/admin/chat/conversations', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query(`
+      select u.id as user_id, u.full_name,
+        (select message from chat_messages where user_id = u.id order by created_at desc limit 1) as last_message,
+        (select created_at from chat_messages where user_id = u.id order by created_at desc limit 1) as last_message_at,
+        (select count(*)::int from chat_messages where user_id = u.id and sender = 'user' and is_read = false) as unread_count
+      from app_users u
+      where exists (select 1 from chat_messages where user_id = u.id)
+      order by last_message_at desc
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error('Get admin chat conversations error:', err);
+    res.status(500).json({ error: 'Failed to load conversations' });
+  }
+});
+
+app.get('/admin/chat/:userId/messages', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query(
+      'select id, sender, message, created_at from chat_messages where user_id = $1 order by created_at asc limit 200',
+      [req.params.userId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Get admin chat thread error:', err);
+    res.status(500).json({ error: 'Failed to load conversation' });
+  }
+});
+
 // Admin: write and send a one-off notification to every user
 app.post('/admin/notifications/broadcast', requireAuth, requireAdmin, async (req, res) => {
   const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
@@ -1260,6 +1399,9 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
   }
   if (support.supportLiveChat !== undefined) {
     await upsertAppSetting('support_live_chat', support.supportLiveChat);
+  }
+  if (support.supportWhatsappNumber !== undefined) {
+    await upsertAppSetting('support_whatsapp_number', support.supportWhatsappNumber);
   }
   if (dailyCheckinAmount !== undefined) {
     await upsertAppSetting('daily_checkin_amount', dailyCheckinAmount);
@@ -3384,6 +3526,51 @@ async function ensureSchema() {
     )
   `);
 
+  // Home-page "Hall of Fame" - admin-curated, first 3 by display_order get medal styling.
+  await query(`
+    create table if not exists hall_of_fame_entries (
+      id uuid primary key default gen_random_uuid(),
+      name text not null,
+      amount numeric(12,2) not null default 0,
+      avatar_data text,
+      display_order int not null default 0,
+      created_at timestamptz default now()
+    )
+  `);
+  await query('create index if not exists hall_of_fame_order_idx on hall_of_fame_entries(display_order)');
+
+  // Work-page "Latest Merchants/Tellers in Africa" ticker - admin-curated activity feed.
+  await query(`
+    create table if not exists merchant_ticker_entries (
+      id uuid primary key default gen_random_uuid(),
+      name text not null,
+      role text not null,
+      activity_phrase text not null,
+      display_order int not null default 0,
+      created_at timestamptz default now()
+    )
+  `);
+  await query('create index if not exists merchant_ticker_order_idx on merchant_ticker_entries(display_order)');
+
+  // Live Chat - user messages relay to the admin's personal WhatsApp (see whatsapp-bot/src/adminChat.js);
+  // whatsapp_message_id lets the bot durably resolve a quote-reply back to the right user
+  // even across bot restarts, instead of relying on in-process memory alone.
+  await query(`
+    create table if not exists chat_messages (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references app_users(id) on delete cascade,
+      sender text not null check (sender in ('user','admin')),
+      message text not null,
+      whatsapp_relayed boolean not null default false,
+      whatsapp_message_id text,
+      is_read boolean not null default false,
+      created_at timestamptz default now()
+    )
+  `);
+  await query('create index if not exists chat_messages_user_created_idx on chat_messages(user_id, created_at)');
+  await query('create index if not exists chat_messages_pending_idx on chat_messages(whatsapp_relayed) where sender = \'user\' and whatsapp_relayed = false');
+  await query('create index if not exists chat_messages_wa_id_idx on chat_messages(whatsapp_message_id) where whatsapp_message_id is not null');
+
   // Backfill referral codes for existing users who don't have one
   const { rows: usersWithoutCode } = await query("select id from app_users where referral_code is null or referral_code = ''");
   for (const u of usersWithoutCode) {
@@ -3981,6 +4168,144 @@ app.delete('/admin/easy-earns/photo-survey/prompts/:promptId', requireAuth, requ
   }
 });
 
+// --- Hall of Fame (home page) ---
+app.get('/hall-of-fame', async (req, res) => {
+  try {
+    const { rows } = await query('select id, name, amount, avatar_data, display_order from hall_of_fame_entries order by display_order asc, created_at asc');
+    res.json(rows);
+  } catch (err) {
+    console.error('Get hall of fame error:', err);
+    res.status(500).json({ error: 'Failed to load hall of fame' });
+  }
+});
+
+app.get('/admin/hall-of-fame', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query('select * from hall_of_fame_entries order by display_order asc, created_at asc');
+    res.json(rows);
+  } catch (err) {
+    console.error('Admin get hall of fame error:', err);
+    res.status(500).json({ error: 'Failed to load hall of fame' });
+  }
+});
+
+app.post('/admin/hall-of-fame', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { name, amount, avatar_data, display_order } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Name is required' });
+    const { rows } = await query(
+      `insert into hall_of_fame_entries (name, amount, avatar_data, display_order) values ($1,$2,$3,$4) returning *`,
+      [String(name).trim(), Number(amount) || 0, avatar_data || null, Number(display_order) || 0]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin add hall of fame entry error:', err);
+    res.status(500).json({ error: 'Failed to add hall of fame entry' });
+  }
+});
+
+app.put('/admin/hall-of-fame/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, amount, avatar_data, display_order } = req.body || {};
+    const { rows } = await query(
+      `update hall_of_fame_entries set
+         name = coalesce($1, name),
+         amount = coalesce($2, amount),
+         avatar_data = coalesce($3, avatar_data),
+         display_order = coalesce($4, display_order)
+       where id = $5 returning *`,
+      [name ? String(name).trim() : null, amount != null ? Number(amount) : null, avatar_data || null, display_order != null ? Number(display_order) : null, id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Entry not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin update hall of fame entry error:', err);
+    res.status(500).json({ error: 'Failed to update hall of fame entry' });
+  }
+});
+
+app.delete('/admin/hall-of-fame/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rowCount } = await query('delete from hall_of_fame_entries where id = $1', [req.params.id]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Entry not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin delete hall of fame entry error:', err);
+    res.status(500).json({ error: 'Failed to delete hall of fame entry' });
+  }
+});
+
+// --- Latest Merchants/Tellers ticker (work page) ---
+app.get('/merchant-ticker', async (req, res) => {
+  try {
+    const { rows } = await query('select id, name, role, activity_phrase, display_order from merchant_ticker_entries order by display_order asc, created_at asc');
+    res.json(rows);
+  } catch (err) {
+    console.error('Get merchant ticker error:', err);
+    res.status(500).json({ error: 'Failed to load merchant ticker' });
+  }
+});
+
+app.get('/admin/merchant-ticker', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query('select * from merchant_ticker_entries order by display_order asc, created_at asc');
+    res.json(rows);
+  } catch (err) {
+    console.error('Admin get merchant ticker error:', err);
+    res.status(500).json({ error: 'Failed to load merchant ticker' });
+  }
+});
+
+app.post('/admin/merchant-ticker', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { name, role, activity_phrase, display_order } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Name is required' });
+    if (!role || !String(role).trim()) return res.status(400).json({ error: 'Role is required' });
+    if (!activity_phrase || !String(activity_phrase).trim()) return res.status(400).json({ error: 'Activity phrase is required' });
+    const { rows } = await query(
+      `insert into merchant_ticker_entries (name, role, activity_phrase, display_order) values ($1,$2,$3,$4) returning *`,
+      [String(name).trim(), String(role).trim(), String(activity_phrase).trim(), Number(display_order) || 0]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin add merchant ticker entry error:', err);
+    res.status(500).json({ error: 'Failed to add merchant ticker entry' });
+  }
+});
+
+app.put('/admin/merchant-ticker/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, role, activity_phrase, display_order } = req.body || {};
+    const { rows } = await query(
+      `update merchant_ticker_entries set
+         name = coalesce($1, name),
+         role = coalesce($2, role),
+         activity_phrase = coalesce($3, activity_phrase),
+         display_order = coalesce($4, display_order)
+       where id = $5 returning *`,
+      [name ? String(name).trim() : null, role ? String(role).trim() : null, activity_phrase ? String(activity_phrase).trim() : null, display_order != null ? Number(display_order) : null, id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Entry not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Admin update merchant ticker entry error:', err);
+    res.status(500).json({ error: 'Failed to update merchant ticker entry' });
+  }
+});
+
+app.delete('/admin/merchant-ticker/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rowCount } = await query('delete from merchant_ticker_entries where id = $1', [req.params.id]);
+    if (rowCount === 0) return res.status(404).json({ error: 'Entry not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin delete merchant ticker entry error:', err);
+    res.status(500).json({ error: 'Failed to delete merchant ticker entry' });
+  }
+});
+
 // Admin: update a task
 app.put('/admin/tasks/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -4142,6 +4467,57 @@ async function ensureInitialTasks() {
   }
 }
 
+// A single instance holds every open chat WS connection, keyed by app_users.id -
+// fine on Render's free tier since there's only ever one backend process; a second
+// instance would need Redis pub/sub to fan a reply out to a connection held by the
+// OTHER instance, which is exactly the case the "no Redis needed" decision assumed
+// doesn't apply here.
+const chatSockets = new Map();
+
+function pushToUser(userId, payload) {
+  const ws = chatSockets.get(userId);
+  if (ws && ws.readyState === ws.OPEN) {
+    ws.send(JSON.stringify(payload));
+  }
+}
+
+const httpServer = http.createServer(app);
+const wss = new WebSocketServer({ noServer: true });
+
+httpServer.on('upgrade', (req, socket, head) => {
+  if (!req.url.startsWith('/ws/chat')) {
+    socket.destroy();
+    return;
+  }
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.emit('connection', ws, req);
+  });
+});
+
+wss.on('connection', (ws) => {
+  let userId = null;
+  let authTimeout = setTimeout(() => { if (!userId) ws.close(); }, 10000);
+
+  ws.on('message', async (data) => {
+    if (userId) return; // already authenticated - a chat WS only ever sends the token as its first message
+    clearTimeout(authTimeout);
+    try {
+      const { token } = JSON.parse(data.toString());
+      const user = await verifyToken(token);
+      if (!user) { ws.close(); return; }
+      userId = user.id;
+      chatSockets.set(userId, ws);
+    } catch (err) {
+      ws.close();
+    }
+  });
+
+  ws.on('close', () => {
+    clearTimeout(authTimeout);
+    if (userId && chatSockets.get(userId) === ws) chatSockets.delete(userId);
+  });
+});
+
 ensureSchema()
   .then(() => cleanupSeededTasks())
   .then((result) => {
@@ -4153,7 +4529,7 @@ ensureSchema()
     console.error('Schema init error:', error);
   })
   .finally(() => {
-    app.listen(port, () => {
+    httpServer.listen(port, () => {
       console.log(`API running on :${port}`);
     });
   });

@@ -27,6 +27,19 @@ export async function requireAuth(req, res, next) {
   }
 }
 
+// Shared by the WebSocket upgrade handshake (server.js), which needs the same
+// token verification requireAuth does but without the req/res/next Express shape.
+export async function verifyToken(token) {
+  if (!token) return null;
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return { id: user.id, email: user.email };
+  } catch (err) {
+    return null;
+  }
+}
+
 export function requireAdmin(req, res, next) {
   const admins = (process.env.ADMIN_EMAILS || '').split(',').map(v => v.trim()).filter(Boolean);
   if (!req.user || !admins.includes(req.user.email)) {

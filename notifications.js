@@ -65,10 +65,16 @@
       .notif-item { display:flex; gap:10px; padding:10px; border-radius:8px; border-left:3px solid transparent; }
       .notif-item.unread { border-left-color:var(--brand); background:rgba(67,97,238,0.06); }
       .notif-item-icon { font-size:18px; color:var(--brand); flex-shrink:0; margin-top:2px; }
+      .notif-item-body { flex:1; min-width:0; }
       .notif-item-title { font-weight:600; font-size:13px; color:var(--text-primary); }
       .notif-item-message { font-size:12px; color:var(--text-secondary); margin-top:2px; }
       .notif-item-time { font-size:11px; color:var(--text-secondary); margin-top:4px; opacity:0.8; }
+      .notif-item-delete { background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:16px;
+        flex-shrink:0; padding:2px 4px; opacity:0.6; align-self:flex-start; }
+      .notif-item-delete:hover { opacity:1; color:var(--danger-text, #e74c3c); }
       .notif-empty-state { text-align:center; padding:24px 12px; color:var(--text-secondary); font-size:13px; }
+      .notifications-modal-clear { background:rgba(255,255,255,0.2); border:none; color:#fff; font-size:11px;
+        font-weight:600; cursor:pointer; padding:6px 10px; border-radius:14px; margin-right:8px; }
       .push-prompt-banner { position:fixed; left:12px; right:12px; bottom:80px; z-index:998; background:var(--surface);
         border:1px solid var(--border); border-radius:12px; padding:12px 14px; box-shadow:0 8px 24px var(--shadow-strong);
         display:flex; align-items:center; gap:10px; font-size:13px; color:var(--text-primary); }
@@ -114,7 +120,10 @@
       <div class="notifications-modal-content">
         <div class="notifications-modal-header">
           <div class="notifications-modal-title">Notifications</div>
-          <button class="notifications-modal-close" onclick="closeNotificationsModal()"><i class="las la-times"></i></button>
+          <div style="display:flex; align-items:center;">
+            <button class="notifications-modal-clear" onclick="clearAllNotifications()">Clear all</button>
+            <button class="notifications-modal-close" onclick="closeNotificationsModal()"><i class="las la-times"></i></button>
+          </div>
         </div>
         <div style="padding:16px;">
           <div class="notifications-list-mount" id="notificationsListMount">
@@ -149,11 +158,12 @@
       return `
       <div class="notif-item ${n.is_read ? '' : 'unread'}" data-id="${escapeHtml(n.id)}" data-url="${escapeHtml(actionUrl)}" style="${actionUrl ? 'cursor:pointer;' : ''}">
         <div class="notif-item-icon"><i class="las ${ICONS[n.type] || 'la-bell'}"></i></div>
-        <div>
+        <div class="notif-item-body">
           <div class="notif-item-title">${escapeHtml(n.title)}</div>
           <div class="notif-item-message">${escapeHtml(n.message)}</div>
           <div class="notif-item-time">${timeAgo(n.created_at)}</div>
         </div>
+        <button class="notif-item-delete" data-delete-id="${escapeHtml(n.id)}" title="Delete"><i class="las la-times"></i></button>
       </div>`;
     }).join('');
     ensureListClickHandler();
@@ -167,6 +177,18 @@
     const mount = document.getElementById('notificationsListMount');
     if (!mount) return;
     mount.addEventListener('click', async (e) => {
+      const deleteBtn = e.target.closest('.notif-item-delete');
+      if (deleteBtn) {
+        const item = deleteBtn.closest('.notif-item');
+        const deleteId = deleteBtn.dataset.deleteId;
+        try { await window.API.call(`/notifications/${deleteId}`, { method: 'DELETE' }); } catch (err) { /* ignore - item stays if it fails */ return; }
+        if (item) {
+          if (item.classList.contains('unread')) { lastUnreadCount = Math.max(0, lastUnreadCount - 1); updateBadge(lastUnreadCount); }
+          item.remove();
+          if (!mount.querySelector('.notif-item')) mount.innerHTML = '<div class="notif-empty-state">No notifications yet</div>';
+        }
+        return;
+      }
       const item = e.target.closest('.notif-item');
       if (!item) return;
       const id = item.dataset.id;
@@ -203,6 +225,16 @@
     try { await window.API.call('/notifications/read-all', { method: 'POST' }); updateBadge(0); lastUnreadCount = 0; }
     catch (e) { /* ignore - next poll will resync */ }
   }
+
+  window.clearAllNotifications = async function () {
+    if (!confirm('Clear all notifications? This cannot be undone.')) return;
+    try {
+      await window.API.call('/notifications', { method: 'DELETE' });
+      renderNotificationList([]);
+      updateBadge(0);
+      lastUnreadCount = 0;
+    } catch (err) { console.warn('Clear all failed:', err.message); }
+  };
 
   window.openNotificationsModal = function () {
     const modal = document.getElementById('notificationsModal');

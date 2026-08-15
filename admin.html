@@ -597,6 +597,18 @@
                     <i class="las la-file-alt"></i>
                     <span>Reports</span>
                 </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('hall-of-fame')">
+                    <i class="las la-crown"></i>
+                    <span>Hall of Fame</span>
+                </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('merchant-ticker')">
+                    <i class="las la-globe-africa"></i>
+                    <span>Merchants/Tellers Ticker</span>
+                </a></li>
+                <li><a href="#" class="menu-link" onclick="switchSection('chats')">
+                    <i class="las la-comments"></i>
+                    <span>Chats</span>
+                </a></li>
                 <li><a href="#" class="menu-link" onclick="switchSection('settings')">
                     <i class="las la-cog"></i>
                     <span>Settings</span>
@@ -751,6 +763,61 @@
                         <div>Actions</div>
                     </div>
                     <div id="beginnerTasksTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Hall of Fame Section -->
+            <div class="content-section" id="hall-of-fame">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Hall of Fame</h2>
+                <p style="color: #666; margin-bottom: 20px; font-size: 13px;">Shown on the home page. The first 3 entries (by order) get gold/silver/bronze styling.</p>
+                <button class="btn btn-primary" style="margin-bottom: 20px;" onclick="openAddHallOfFameModal()">
+                    <i class="las la-plus"></i> Add Entry
+                </button>
+                <div class="table-container">
+                    <div class="table-header">
+                        <div>Order</div>
+                        <div>Name</div>
+                        <div>Amount</div>
+                        <div>Actions</div>
+                    </div>
+                    <div id="hallOfFameTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Merchant Ticker Section -->
+            <div class="content-section" id="merchant-ticker">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Latest Merchants/Tellers Ticker</h2>
+                <p style="color: #666; margin-bottom: 20px; font-size: 13px;">Shown as an auto-scrolling activity feed on the Work page.</p>
+                <button class="btn btn-primary" style="margin-bottom: 20px;" onclick="openAddMerchantTickerModal()">
+                    <i class="las la-plus"></i> Add Entry
+                </button>
+                <div class="table-container">
+                    <div class="table-header">
+                        <div>Order</div>
+                        <div>Name</div>
+                        <div>Role</div>
+                        <div>Activity Phrase</div>
+                        <div>Actions</div>
+                    </div>
+                    <div id="merchantTickerTableBody"></div>
+                </div>
+            </div>
+
+            <!-- Chats Section (read-only - replies happen from WhatsApp) -->
+            <div class="content-section" id="chats">
+                <h2 style="font-size: 20px; margin-bottom: 20px; color: #333;">Chats</h2>
+                <p style="color: #666; margin-bottom: 20px; font-size: 13px;">Read-only history. Reply to users from WhatsApp - your reply appears here and in their app automatically.</p>
+                <div id="chatConversationsList"></div>
+            </div>
+
+            <!-- Chat Thread Modal -->
+            <div class="modal" id="chatThreadModal">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-title" id="chatThreadModalTitle">Conversation</div>
+                    <div id="chatThreadMessages" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 8px 0;"></div>
+                    <div class="modal-buttons">
+                        <button class="btn" style="background: #ddd; color: #333;" onclick="closeChatThreadModal()">Close</button>
+                    </div>
                 </div>
             </div>
 
@@ -1002,6 +1069,11 @@
                     <div class="form-group">
                         <label class="form-label">Support Phone</label>
                         <input type="tel" class="form-input" id="supportPhone" placeholder="+233 XXX XXX XXX">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Support WhatsApp Number</label>
+                        <input type="tel" class="form-input" id="supportWhatsappNumber" placeholder="233XXXXXXXXX (country code, no + or spaces)">
+                        <div style="font-size: 12px; color: #777; margin-top: 4px;">Powers the floating WhatsApp button shown to users. Leave blank to hide the button.</div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Daily Check-in Amount (GHC)</label>
@@ -1459,6 +1531,68 @@
         </div>
     </div>
 
+    <!-- Add/Edit Hall of Fame Modal -->
+    <div class="modal" id="hallOfFameModal">
+        <div class="modal-content">
+            <div class="modal-title" id="hallOfFameModalTitle">Add Hall of Fame Entry</div>
+            <input type="hidden" id="hallOfFameEntryId">
+            <div class="form-group">
+                <label class="form-label">Name</label>
+                <input type="text" class="form-input" id="hallOfFameName" placeholder="e.g., John Kwame">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount (GHC)</label>
+                <input type="number" class="form-input" id="hallOfFameAmount" placeholder="245000" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Display Order</label>
+                <input type="number" class="form-input" id="hallOfFameOrder" min="0" step="1" value="0">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Avatar Photo</label>
+                <input type="file" class="form-input" id="hallOfFameAvatar" accept="image/*" onchange="previewHallOfFameAvatar()">
+                <div style="margin-top: 12px; text-align: center;">
+                    <img id="hallOfFameAvatarPreview" src="" alt="Preview" style="max-width: 100px; max-height: 100px; border-radius: 50%; display: none;">
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeHallOfFameModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveHallOfFameEntry()">Save Entry</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Merchant Ticker Modal -->
+    <div class="modal" id="merchantTickerModal">
+        <div class="modal-content">
+            <div class="modal-title" id="merchantTickerModalTitle">Add Merchant/Teller Entry</div>
+            <input type="hidden" id="merchantTickerEntryId">
+            <div class="form-group">
+                <label class="form-label">Name</label>
+                <input type="text" class="form-input" id="merchantTickerName" placeholder="e.g., Kwame Adjei">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Role</label>
+                <select class="form-input" id="merchantTickerRole">
+                    <option value="Merchant">Merchant</option>
+                    <option value="Teller">Teller</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Activity Phrase</label>
+                <input type="text" class="form-input" id="merchantTickerPhrase" placeholder="e.g., just joined as a Teller">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Display Order</label>
+                <input type="number" class="form-input" id="merchantTickerOrder" min="0" step="1" value="0">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeMerchantTickerModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveMerchantTickerEntry()">Save Entry</button>
+            </div>
+        </div>
+    </div>
+
     <!-- View Submissions Modal -->
     <div class="modal" id="submissionsModal">
         <div class="modal-content" style="max-width: 700px;">
@@ -1560,6 +1694,9 @@
                 'payments': 'Manage Payments',
                 'payouts': 'Manage Payouts',
                 'reports': 'Reports',
+                'hall-of-fame': 'Hall of Fame',
+                'merchant-ticker': 'Merchants/Tellers Ticker',
+                'chats': 'Chats',
                 'settings': 'Settings'
             };
             document.getElementById('pageTitle').textContent = titles[sectionId];
@@ -1575,6 +1712,9 @@
             if (sectionId === 'payments') loadPayments();
             if (sectionId === 'payouts') loadPayouts();
             if (sectionId === 'reports') loadReports();
+            if (sectionId === 'hall-of-fame') loadHallOfFame();
+            if (sectionId === 'merchant-ticker') loadMerchantTicker();
+            if (sectionId === 'chats') loadChatConversations();
         }
 
         // Load Dashboard
@@ -2331,6 +2471,271 @@
                 console.error('Failed to delete photo prompt:', error);
                 alert('Failed to delete prompt: ' + (error.message || 'Unknown error'));
             }
+        }
+
+        // --- Hall of Fame ---
+        let hallOfFameCache = [];
+
+        async function loadHallOfFame() {
+            try {
+                const entries = await window.API.getAdminHallOfFame();
+                hallOfFameCache = entries || [];
+                const body = document.getElementById('hallOfFameTableBody');
+                if (!body) return;
+                if (hallOfFameCache.length === 0) {
+                    body.innerHTML = '<div class="empty-state"><p>No entries added yet</p></div>';
+                    return;
+                }
+                body.innerHTML = hallOfFameCache.map(e => `
+                    <div class="table-row">
+                        <div class="table-cell">${e.display_order}</div>
+                        <div class="table-cell">${escapeHtml(e.name)}</div>
+                        <div class="table-cell">GHC ${parseFloat(e.amount || 0).toFixed(2)}</div>
+                        <div class="table-action">
+                            <button class="btn btn-secondary" onclick="openEditHallOfFameModal('${e.id}')">Edit</button>
+                            <button class="btn btn-danger" onclick="deleteHallOfFameEntry('${e.id}')">Delete</button>
+                        </div>
+                    </div>`).join('');
+            } catch (error) {
+                console.error('Failed to load hall of fame:', error);
+                document.getElementById('hallOfFameTableBody').innerHTML = '<div class="empty-state"><p>Failed to load entries</p></div>';
+            }
+        }
+
+        function openAddHallOfFameModal() {
+            document.getElementById('hallOfFameModalTitle').textContent = 'Add Hall of Fame Entry';
+            document.getElementById('hallOfFameEntryId').value = '';
+            document.getElementById('hallOfFameName').value = '';
+            document.getElementById('hallOfFameAmount').value = '';
+            document.getElementById('hallOfFameOrder').value = hallOfFameCache.length;
+            document.getElementById('hallOfFameAvatar').value = '';
+            document.getElementById('hallOfFameAvatarPreview').style.display = 'none';
+            document.getElementById('hallOfFameModal').classList.add('show');
+        }
+
+        function openEditHallOfFameModal(id) {
+            const entry = hallOfFameCache.find(e => e.id === id);
+            if (!entry) return;
+            document.getElementById('hallOfFameModalTitle').textContent = 'Edit Hall of Fame Entry';
+            document.getElementById('hallOfFameEntryId').value = entry.id;
+            document.getElementById('hallOfFameName').value = entry.name;
+            document.getElementById('hallOfFameAmount').value = entry.amount;
+            document.getElementById('hallOfFameOrder').value = entry.display_order;
+            document.getElementById('hallOfFameAvatar').value = '';
+            const preview = document.getElementById('hallOfFameAvatarPreview');
+            if (entry.avatar_data) { preview.src = entry.avatar_data; preview.style.display = 'block'; }
+            else { preview.style.display = 'none'; }
+            document.getElementById('hallOfFameModal').classList.add('show');
+        }
+
+        function closeHallOfFameModal() {
+            document.getElementById('hallOfFameModal').classList.remove('show');
+        }
+
+        function previewHallOfFameAvatar() {
+            const fileInput = document.getElementById('hallOfFameAvatar');
+            const preview = document.getElementById('hallOfFameAvatarPreview');
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => { preview.src = e.target.result; preview.style.display = 'block'; };
+                reader.readAsDataURL(fileInput.files[0]);
+            }
+        }
+
+        async function saveHallOfFameEntry() {
+            const id = document.getElementById('hallOfFameEntryId').value;
+            const name = document.getElementById('hallOfFameName').value.trim();
+            const amount = parseFloat(document.getElementById('hallOfFameAmount').value);
+            const display_order = parseInt(document.getElementById('hallOfFameOrder').value, 10) || 0;
+            const fileInput = document.getElementById('hallOfFameAvatar');
+
+            if (!name || isNaN(amount)) {
+                alert('Please fill in name and amount');
+                return;
+            }
+
+            try {
+                let avatar_data = null;
+                if (fileInput.files && fileInput.files[0]) {
+                    avatar_data = await compressImage(fileInput.files[0], 200, 200, 0.8);
+                }
+                const payload = { name, amount, display_order };
+                if (avatar_data) payload.avatar_data = avatar_data;
+
+                if (id) await window.API.updateAdminHallOfFameEntry(id, payload);
+                else await window.API.addAdminHallOfFameEntry(payload);
+
+                closeHallOfFameModal();
+                await loadHallOfFame();
+            } catch (error) {
+                console.error('Failed to save hall of fame entry:', error);
+                alert('Failed to save entry: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        async function deleteHallOfFameEntry(id) {
+            if (!confirm('Delete this hall of fame entry?')) return;
+            try {
+                await window.API.deleteAdminHallOfFameEntry(id);
+                await loadHallOfFame();
+            } catch (error) {
+                console.error('Failed to delete hall of fame entry:', error);
+                alert('Failed to delete entry: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        // --- Merchant/Teller Ticker ---
+        let merchantTickerCache = [];
+
+        async function loadMerchantTicker() {
+            try {
+                const entries = await window.API.getAdminMerchantTicker();
+                merchantTickerCache = entries || [];
+                const body = document.getElementById('merchantTickerTableBody');
+                if (!body) return;
+                if (merchantTickerCache.length === 0) {
+                    body.innerHTML = '<div class="empty-state"><p>No entries added yet</p></div>';
+                    return;
+                }
+                body.innerHTML = merchantTickerCache.map(e => `
+                    <div class="table-row">
+                        <div class="table-cell">${e.display_order}</div>
+                        <div class="table-cell">${escapeHtml(e.name)}</div>
+                        <div class="table-cell">${escapeHtml(e.role)}</div>
+                        <div class="table-cell">${escapeHtml(e.activity_phrase)}</div>
+                        <div class="table-action">
+                            <button class="btn btn-secondary" onclick="openEditMerchantTickerModal('${e.id}')">Edit</button>
+                            <button class="btn btn-danger" onclick="deleteMerchantTickerEntry('${e.id}')">Delete</button>
+                        </div>
+                    </div>`).join('');
+            } catch (error) {
+                console.error('Failed to load merchant ticker:', error);
+                document.getElementById('merchantTickerTableBody').innerHTML = '<div class="empty-state"><p>Failed to load entries</p></div>';
+            }
+        }
+
+        function openAddMerchantTickerModal() {
+            document.getElementById('merchantTickerModalTitle').textContent = 'Add Merchant/Teller Entry';
+            document.getElementById('merchantTickerEntryId').value = '';
+            document.getElementById('merchantTickerName').value = '';
+            document.getElementById('merchantTickerRole').value = 'Merchant';
+            document.getElementById('merchantTickerPhrase').value = '';
+            document.getElementById('merchantTickerOrder').value = merchantTickerCache.length;
+            document.getElementById('merchantTickerModal').classList.add('show');
+        }
+
+        function openEditMerchantTickerModal(id) {
+            const entry = merchantTickerCache.find(e => e.id === id);
+            if (!entry) return;
+            document.getElementById('merchantTickerModalTitle').textContent = 'Edit Merchant/Teller Entry';
+            document.getElementById('merchantTickerEntryId').value = entry.id;
+            document.getElementById('merchantTickerName').value = entry.name;
+            document.getElementById('merchantTickerRole').value = entry.role;
+            document.getElementById('merchantTickerPhrase').value = entry.activity_phrase;
+            document.getElementById('merchantTickerOrder').value = entry.display_order;
+            document.getElementById('merchantTickerModal').classList.add('show');
+        }
+
+        function closeMerchantTickerModal() {
+            document.getElementById('merchantTickerModal').classList.remove('show');
+        }
+
+        async function saveMerchantTickerEntry() {
+            const id = document.getElementById('merchantTickerEntryId').value;
+            const name = document.getElementById('merchantTickerName').value.trim();
+            const role = document.getElementById('merchantTickerRole').value;
+            const activity_phrase = document.getElementById('merchantTickerPhrase').value.trim();
+            const display_order = parseInt(document.getElementById('merchantTickerOrder').value, 10) || 0;
+
+            if (!name || !activity_phrase) {
+                alert('Please fill in name and activity phrase');
+                return;
+            }
+
+            try {
+                const payload = { name, role, activity_phrase, display_order };
+                if (id) await window.API.updateAdminMerchantTickerEntry(id, payload);
+                else await window.API.addAdminMerchantTickerEntry(payload);
+
+                closeMerchantTickerModal();
+                await loadMerchantTicker();
+            } catch (error) {
+                console.error('Failed to save merchant ticker entry:', error);
+                alert('Failed to save entry: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        async function deleteMerchantTickerEntry(id) {
+            if (!confirm('Delete this entry?')) return;
+            try {
+                await window.API.deleteAdminMerchantTickerEntry(id);
+                await loadMerchantTicker();
+            } catch (error) {
+                console.error('Failed to delete merchant ticker entry:', error);
+                alert('Failed to delete entry: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        // --- Chats (read-only - replies happen from WhatsApp, see whatsapp-bot/src/adminChat.js) ---
+        async function loadChatConversations() {
+            const mount = document.getElementById('chatConversationsList');
+            if (!mount) return;
+            try {
+                const conversations = await window.API.getAdminChatConversations();
+                if (!conversations.length) {
+                    mount.innerHTML = '<div class="empty-state"><p>No conversations yet</p></div>';
+                    return;
+                }
+                mount.innerHTML = `<div class="table-container">
+                    <div class="table-header">
+                        <div>User</div>
+                        <div>Last Message</div>
+                        <div>Time</div>
+                        <div>Unread</div>
+                    </div>
+                    <div>${conversations.map(c => `
+                        <div class="table-row" style="cursor: pointer;" onclick="openChatThread('${c.user_id}', '${escapeHtml(c.full_name || 'User').replace(/'/g, "\\'")}')">
+                            <div class="table-cell">${escapeHtml(c.full_name || 'User')}</div>
+                            <div class="table-cell" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;">${escapeHtml(c.last_message || '')}</div>
+                            <div class="table-cell">${c.last_message_at ? new Date(c.last_message_at).toLocaleString() : ''}</div>
+                            <div class="table-cell">${c.unread_count > 0 ? `<span style="background:#f8d7da;color:#721c24;padding:2px 8px;border-radius:10px;font-size:12px;">${c.unread_count}</span>` : '-'}</div>
+                        </div>`).join('')}</div>
+                </div>`;
+            } catch (error) {
+                console.error('Failed to load chat conversations:', error);
+                mount.innerHTML = '<div class="empty-state"><p>Failed to load conversations</p></div>';
+            }
+        }
+
+        async function openChatThread(userId, userName) {
+            document.getElementById('chatThreadModalTitle').textContent = `Conversation with ${userName}`;
+            const mount = document.getElementById('chatThreadMessages');
+            mount.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">Loading…</div>';
+            document.getElementById('chatThreadModal').classList.add('show');
+            try {
+                const messages = await window.API.getAdminChatMessages(userId);
+                if (!messages.length) {
+                    mount.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">No messages</div>';
+                    return;
+                }
+                mount.innerHTML = messages.map(m => {
+                    const isUser = m.sender === 'user';
+                    return `<div style="align-self:${isUser ? 'flex-start' : 'flex-end'}; max-width:80%;">
+                        <div style="padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.4;
+                            background:${isUser ? '#f0f0f0' : '#4361ee'}; color:${isUser ? '#333' : '#fff'};">
+                            ${escapeHtml(m.message)}
+                        </div>
+                        <div style="font-size:10px;color:#999;margin-top:2px;">${new Date(m.created_at).toLocaleString()}</div>
+                    </div>`;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to load chat thread:', error);
+                mount.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">Failed to load conversation</div>';
+            }
+        }
+
+        function closeChatThreadModal() {
+            document.getElementById('chatThreadModal').classList.remove('show');
         }
 
         // Export tasks and assignments as CSV
@@ -3613,6 +4018,7 @@
             document.getElementById('cfoTelegram').value = settings.support.cfoTelegram;
             document.getElementById('supportEmail').value = settings.support.supportEmail;
             document.getElementById('supportPhone').value = settings.support.supportPhone || '';
+            document.getElementById('supportWhatsappNumber').value = settings.support.supportWhatsappNumber || '';
             document.getElementById('dailyCheckinAmount').value = settings.dailyCheckinAmount || DEFAULT_SETTINGS.dailyCheckinAmount;
             document.getElementById('beginnerPenaltyThreshold').value = settings.beginnerPenaltyThreshold ?? 5;
             document.getElementById('beginnerPenaltyStepPercent').value = settings.beginnerPenaltyStepPercent ?? 10;
@@ -3632,6 +4038,7 @@
             const cfoTelegram = document.getElementById('cfoTelegram').value.trim() || DEFAULT_SETTINGS.support.cfoTelegram;
             const supportEmail = document.getElementById('supportEmail').value.trim() || DEFAULT_SETTINGS.support.supportEmail;
             const supportPhone = document.getElementById('supportPhone').value.trim();
+            const supportWhatsappNumber = document.getElementById('supportWhatsappNumber').value.trim();
             const dailyCheckinAmount = parseFloat(document.getElementById('dailyCheckinAmount').value) || DEFAULT_SETTINGS.dailyCheckinAmount;
             const beginnerPenaltyThreshold = parseInt(document.getElementById('beginnerPenaltyThreshold').value, 10) || 5;
             const beginnerPenaltyStepPercent = parseFloat(document.getElementById('beginnerPenaltyStepPercent').value) || 0;
@@ -3646,7 +4053,8 @@
                 financeManagerTelegram,
                 cfoTelegram,
                 supportEmail,
-                supportPhone
+                supportPhone,
+                supportWhatsappNumber
             };
 
             saveAppSettings({ commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount, notificationsTaskReward, homeScreenTaskReward, defaultPaymentNumber, defaultPaymentMethod });

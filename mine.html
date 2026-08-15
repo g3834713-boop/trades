@@ -10,6 +10,7 @@
     <script src="config.js"></script>
     <script type="module" src="auth.js"></script>
     <script src="notifications.js"></script>
+    <script src="whatsapp-button.js"></script>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
     <style>
@@ -696,6 +697,13 @@
             </div>
             <i class="las la-chevron-right"></i>
         </div>
+        <div class="menu-item" onclick="navigateTo('chat')">
+            <div class="menu-item-left">
+                <i class="las la-comment-dots"></i>
+                <span>Live Chat</span>
+            </div>
+            <i class="las la-chevron-right"></i>
+        </div>
         <div class="menu-item" onclick="navigateTo('about')">
             <div class="menu-item-left">
                 <i class="las la-info-circle"></i>
@@ -905,6 +913,29 @@
             </div>
             <div class="modal-buttons">
                 <button class="btn-cancel" onclick="closeActionModal('supportModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Chat Modal -->
+    <div class="action-modal" id="chatModal">
+        <div class="modal-container" style="display: flex; flex-direction: column; max-height: 80vh;">
+            <div class="modal-header">
+                <i class="las la-comment-dots"></i>
+                Live Chat
+            </div>
+            <div class="info-box">
+                Message our support team - we typically reply within a few minutes during working hours.
+            </div>
+            <div id="chatMessagesList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 8px 2px; min-height: 200px; max-height: 45vh;">
+                <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">Loading conversation…</div>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+                <input type="text" class="form-input" id="chatMessageInput" placeholder="Type a message..." style="flex: 1;" onkeydown="if(event.key==='Enter'){event.preventDefault();sendChatMessage();}">
+                <button class="btn-submit" style="width: auto; padding: 0 16px;" onclick="sendChatMessage()"><i class="las la-paper-plane"></i></button>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeChatModal()">Close</button>
             </div>
         </div>
     </div>
@@ -1433,6 +1464,10 @@
                 case 'support':
                     openActionModal('supportModal');
                     loadSupportInfo();
+                    break;
+                case 'chat':
+                    openActionModal('chatModal');
+                    openLiveChat();
                     break;
                 case 'about':
                     openActionModal('aboutModal');
@@ -1987,7 +2022,7 @@
 
                 // Deep-link support: e.g. mine.html#verify, mine.html#security
                 const deepLinkSection = window.location.hash.replace('#', '');
-                const validNavigateToSections = ['recharge', 'withdraw', 'account', 'security', 'funding', 'invite', 'verify', 'language', 'support', 'about'];
+                const validNavigateToSections = ['recharge', 'withdraw', 'account', 'security', 'funding', 'invite', 'verify', 'language', 'support', 'about', 'chat'];
                 if (validNavigateToSections.includes(deepLinkSection)) {
                     navigateTo(deepLinkSection);
                 }
@@ -2220,6 +2255,101 @@
                 telegramBlock.style.display = 'block';
             } else {
                 telegramBlock.style.display = 'none';
+            }
+        }
+
+        // Live Chat - looks like a normal support chat; replies are actually handled by
+        // an admin from WhatsApp behind the scenes (see whatsapp-bot/src/adminChat.js),
+        // but nothing here references that.
+        let chatSocket = null;
+        let chatReconnectTimeoutId = null;
+        let chatMessagesCache = [];
+
+        function escapeHtmlChat(str) {
+            const div = document.createElement('div');
+            div.textContent = str == null ? '' : String(str);
+            return div.innerHTML;
+        }
+
+        function renderChatMessages() {
+            const mount = document.getElementById('chatMessagesList');
+            if (!mount) return;
+            if (!chatMessagesCache.length) {
+                mount.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">Send a message to get started</div>';
+                return;
+            }
+            mount.innerHTML = chatMessagesCache.map(m => {
+                const isUser = m.sender === 'user';
+                return `
+                    <div style="align-self: ${isUser ? 'flex-end' : 'flex-start'}; max-width: 80%;">
+                        <div style="padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4;
+                            background: ${isUser ? 'var(--brand)' : 'var(--surface-alt)'}; color: ${isUser ? '#fff' : 'var(--text-primary)'};">
+                            ${escapeHtmlChat(m.message)}
+                        </div>
+                    </div>`;
+            }).join('');
+            mount.scrollTop = mount.scrollHeight;
+        }
+
+        function connectChatSocket(token) {
+            if (chatSocket) { chatSocket.onclose = null; chatSocket.close(); }
+            const wsUrl = window.CONFIG.API_URL.replace(/^http/, 'ws') + '/ws/chat';
+            chatSocket = new WebSocket(wsUrl);
+            chatSocket.onopen = () => chatSocket.send(JSON.stringify({ token }));
+            chatSocket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'chat_reply') {
+                        chatMessagesCache.push({ sender: 'admin', message: data.message, created_at: data.created_at });
+                        renderChatMessages();
+                    }
+                } catch (err) { /* ignore malformed frame */ }
+            };
+            chatSocket.onclose = () => {
+                // Only reconnect while the chat modal is still open - closeChatModal()
+                // sets chatSocket to null first, so this becomes a no-op after closing.
+                if (document.getElementById('chatModal').classList.contains('show')) {
+                    chatReconnectTimeoutId = setTimeout(() => connectChatSocket(token), 3000);
+                }
+            };
+        }
+
+        async function openLiveChat() {
+            const mount = document.getElementById('chatMessagesList');
+            if (mount) mount.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">Loading conversation…</div>';
+            try {
+                chatMessagesCache = await window.API.getChatMessages();
+                renderChatMessages();
+            } catch (err) {
+                console.error('Failed to load chat messages:', err);
+                if (mount) mount.innerHTML = '<div style="text-align: center; color: var(--danger-text); font-size: 13px; padding: 20px 0;">Failed to load conversation</div>';
+            }
+            try {
+                const session = await window.AuthService.getSession();
+                if (session?.access_token) connectChatSocket(session.access_token);
+            } catch (err) {
+                console.warn('Live chat: could not open live connection, will still work on reopen:', err.message);
+            }
+        }
+
+        function closeChatModal() {
+            closeActionModal('chatModal');
+            if (chatReconnectTimeoutId) { clearTimeout(chatReconnectTimeoutId); chatReconnectTimeoutId = null; }
+            if (chatSocket) { chatSocket.onclose = null; chatSocket.close(); chatSocket = null; }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatMessageInput');
+            const message = input.value.trim();
+            if (!message) return;
+            input.value = '';
+            chatMessagesCache.push({ sender: 'user', message, created_at: new Date().toISOString() });
+            renderChatMessages();
+            try {
+                await window.API.sendChatMessage(message);
+            } catch (err) {
+                console.error('Failed to send chat message:', err);
+                alert('Failed to send message. Please try again.');
             }
         }
 

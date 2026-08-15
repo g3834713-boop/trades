@@ -5,6 +5,7 @@ import { pushScheduleSlot, getBeginnerTaskProducts, getTellerProducts, getTodayS
 import { formatBeginnerTaskMessage, formatTellerTaskMessage, formatDayStartMessage } from './messageTemplates.js';
 import { renderTaskNumberCard, renderTellerPackageCard } from './cardImage.js';
 import { startHealthServer } from './healthServer.js';
+import { startAdminChatBridge } from './adminChat.js';
 
 // Baileys' low-level frame decoder can throw a raw, synchronous crypto exception
 // (`Unsupported state or unable to authenticate data`) that no local try/catch can
@@ -195,6 +196,9 @@ function handleReady(sock) {
     scheduleDayStartAnnouncement(sock);
     scheduleCheckinReminder(sock);
   }
+  // Independent of TARGET_JID (the announcement channel) - relays to the admin's
+  // personal WhatsApp instead, see adminChat.js. No-ops gracefully if unconfigured.
+  startAdminChatBridge(sock);
 }
 
 // This bot already stays warm via an external uptime pinger hitting healthServer.js,

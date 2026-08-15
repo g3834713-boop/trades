@@ -57,6 +57,25 @@ The WhatsApp login itself is saved to Postgres (a `bot_whatsapp_session` table t
 creates automatically), not to local files - so restarting the process does **not**
 require re-scanning the QR code, unless the phone actually unlinks the device.
 
+## Live Chat (users message support, you reply from WhatsApp)
+
+Set `WHATSAPP_ADMIN_JID` to *your own* personal WhatsApp number (different from
+`WHATSAPP_TARGET_JID` above, which is the group/channel) - format is
+`<countrycode><number, no + or spaces>@s.whatsapp.net`, e.g. a Ghana number
+`+233 55 123 4567` becomes `233551234567@s.whatsapp.net`. Leave it blank to disable
+the feature entirely; everything else keeps working.
+
+Once set, any message a user sends from the app's Live Chat gets forwarded to you as a
+WhatsApp DM with their name as a header. **Reply by swiping to reply on that specific
+message** (normal WhatsApp gesture) - this is what lets the bot route your answer back
+to the right person even if several users have messaged recently. If you just type a
+reply without swiping, it goes to whichever user messaged most recently, which is fine
+if you're only in one conversation at a time but risky with several going at once.
+
+Set this only on Render's dashboard, never anywhere web-facing - unlike the "contact us"
+WhatsApp number configurable in the admin panel (a public, low-stakes value), this one
+controls where private user messages get forwarded and who can send replies as you.
+
 ## Adding more content
 
 - **More product names for beginner tasks**: admin panel -> Beginner Tasks -> add more
