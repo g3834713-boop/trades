@@ -118,7 +118,7 @@ async function creditEasyEarnReward({ userId, category, taskId, amount, details 
   const EASY_EARN_LABELS = { video: 'Video', quiz: 'Quiz', poll: 'Poll', photo_survey: 'Photo Survey' };
   await createNotification(userId, 'easy_earn_reward', 'Easy Earn reward',
     `You've earned GHC ${Number(amount).toFixed(2)} from your Easy Earn ${EASY_EARN_LABELS[category] || category} task.`,
-    { category, taskId, amount });
+    { category, taskId, amount, actionUrl: 'task-ideas.html' });
 }
 
 async function cleanupSeededTasks() {
@@ -441,7 +441,7 @@ app.post('/users/sync', requireAuth, async (req, res) => {
               [referrerId, `Referral bonus for inviting ${email}`]
             );
             await createNotification(referrerId, 'referral_bonus', 'Referral bonus earned',
-              `You've earned a GHC 2.00 referral bonus for inviting ${email}.`, { referredEmail: email });
+              `You've earned a GHC 2.00 referral bonus for inviting ${email}.`, { referredEmail: email, actionUrl: 'mine.html#invite' });
           }
         }
       }
@@ -706,7 +706,8 @@ app.post('/admin/users/:userId/verification/require', requireAuth, requireAdmin,
 
   if (required) {
     await createNotification(req.params.userId, 'verification_required', 'Identity verification required',
-      'Please complete identity verification to unlock full access to your account. Submit your documents in the Mine section.');
+      'Please complete identity verification to unlock full access to your account. Submit your documents in the Mine section.',
+      { actionUrl: 'mine.html#verify' });
   }
 
   res.json({ ok: true });
@@ -725,7 +726,8 @@ app.post('/admin/users/:userId/totp/require', requireAuth, requireAdmin, async (
 
   if (required) {
     await createNotification(req.params.userId, 'totp_required', '2FA setup required',
-      "For your account's security, please set up two-factor authentication (2FA) in Security Center.");
+      "For your account's security, please set up two-factor authentication (2FA) in Security Center.",
+      { actionUrl: 'mine.html#security' });
   }
 
   res.json({ ok: true });
@@ -900,7 +902,8 @@ app.post('/checkin', requireAuth, async (req, res) => {
       await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, id]);
       await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [id, 'daily_checkin', amount, 'Daily check-in bonus']);
       await createNotification(id, 'checkin_bonus', 'Daily check-in bonus',
-        `You've claimed your GHC ${Number(amount).toFixed(2)} daily check-in bonus.`);
+        `You've claimed your GHC ${Number(amount).toFixed(2)} daily check-in bonus.`,
+        { actionUrl: 'tasks.html#checkin' });
     }
 
     const { rows } = await query('select balance, bonus from wallets where user_id = $1', [id]);
@@ -1074,15 +1077,17 @@ app.post('/schedule/slots', requireSchedulerKey, async (req, res) => {
 
     try {
       const TASK_TYPE_LABELS = { beginner: 'Beginner Task', teller: 'Teller Package', product: 'Product Task' };
+      const TASK_TYPE_ACTION_URLS = { beginner: 'tasks.html#beginner-tasks', teller: 'tasks.html#teller-packages', product: 'tasks.html' };
       const broadcastMsg = `A new ${TASK_TYPE_LABELS[task_type] || 'task'} is now open.`;
+      const actionUrl = TASK_TYPE_ACTION_URLS[task_type] || 'tasks.html';
       await query(
         `insert into notifications (user_id, type, title, message, metadata)
          select id, 'task_available', 'New task slot available', $1, $2 from app_users`,
-        [broadcastMsg, JSON.stringify({ task_type, starts_at, ends_at })]
+        [broadcastMsg, JSON.stringify({ task_type, starts_at, ends_at, actionUrl })]
       );
       const { rows: subscribedUsers } = await query('select distinct user_id from push_subscriptions');
       for (const u of subscribedUsers) {
-        sendPushToUser(u.user_id, 'New task slot available', broadcastMsg).catch(() => {});
+        sendPushToUser(u.user_id, 'New task slot available', broadcastMsg, actionUrl).catch(() => {});
       }
     } catch (notifyErr) {
       console.error('Failed to broadcast task_available notifications:', notifyErr);
@@ -1103,13 +1108,13 @@ app.post('/reminders/day-starting', requireSchedulerKey, async (req, res) => {
     const message = "Today's tasks open at 8:00 AM and run until 6:00 PM. Get ready to earn!";
     const { rows: allUsers } = await query('select id from app_users');
     await query(
-      `insert into notifications (user_id, type, title, message)
-       select id, 'day_starting', $1, $2 from app_users`,
-      [title, message]
+      `insert into notifications (user_id, type, title, message, metadata)
+       select id, 'day_starting', $1, $2, $3 from app_users`,
+      [title, message, JSON.stringify({ actionUrl: 'tasks.html' })]
     );
     const { rows: subscribedUsers } = await query('select distinct user_id from push_subscriptions');
     for (const u of subscribedUsers) {
-      sendPushToUser(u.user_id, title, message).catch(() => {});
+      sendPushToUser(u.user_id, title, message, 'tasks.html').catch(() => {});
     }
     res.json({ ok: true, notifiedCount: allUsers.length });
   } catch (err) {
@@ -1536,7 +1541,7 @@ app.post('/withdrawals', requireAuth, async (req, res) => {
 
   await createNotification(id, 'withdrawal_requested', 'Withdrawal requested',
     `Your GHC ${numericAmount.toFixed(2)} withdrawal request has been submitted and is awaiting approval.`,
-    { withdrawalId: rows[0].id, amount: numericAmount });
+    { withdrawalId: rows[0].id, amount: numericAmount, actionUrl: 'mine.html#funding' });
 
   res.json(rows[0]);
 });
@@ -1640,7 +1645,7 @@ app.post('/payments/:id/transaction', requireAuth, async (req, res) => {
   if (rows.length === 0) return res.status(404).json({ error: 'Payment not found' });
   await createNotification(userId, 'deposit_requested', 'Deposit submitted',
     `Your GHC ${Number(rows[0].amount).toFixed(2)} deposit is awaiting confirmation.`,
-    { paymentId: rows[0].id, amount: rows[0].amount });
+    { paymentId: rows[0].id, amount: rows[0].amount, actionUrl: 'mine.html#funding' });
   res.json(rows[0]);
 });
 
@@ -1692,7 +1697,7 @@ app.post('/admin/withdrawals/:id/approve', requireAuth, requireAdmin, async (req
 
   await createNotification(withdrawal.user_id, 'withdrawal_approved', 'Withdrawal approved',
     `You've withdrawn GHC ${Number(withdrawal.amount).toFixed(2)}. Your withdrawal has been approved and processed.`,
-    { withdrawalId, amount: withdrawal.amount });
+    { withdrawalId, amount: withdrawal.amount, actionUrl: 'mine.html#funding' });
 
   res.json(updatedRows[0]);
 });
@@ -1724,7 +1729,7 @@ app.post('/admin/withdrawals/:id/reject', requireAuth, requireAdmin, async (req,
     ? `Your GHC ${Number(withdrawal.amount).toFixed(2)} withdrawal request was rejected: ${reason}`
     : `Your GHC ${Number(withdrawal.amount).toFixed(2)} withdrawal request was rejected.`;
   await createNotification(withdrawal.user_id, 'withdrawal_rejected', 'Withdrawal rejected', rejectMsg,
-    { withdrawalId, amount: withdrawal.amount, reason: reason || null });
+    { withdrawalId, amount: withdrawal.amount, reason: reason || null, actionUrl: 'mine.html#funding' });
 
   res.json(updatedRows[0]);
 });
@@ -1749,7 +1754,7 @@ app.post('/admin/payments/:id/complete', requireAuth, requireAdmin, async (req, 
 
   await createNotification(payment.user_id, 'deposit_confirmed', 'Deposit confirmed',
     `Your GHC ${Number(payment.amount).toFixed(2)} deposit has been confirmed and credited to your balance.`,
-    { paymentId: payment.id, amount: payment.amount });
+    { paymentId: payment.id, amount: payment.amount, actionUrl: 'mine.html#funding' });
 
   res.json({ ok: true });
 });
@@ -1770,7 +1775,7 @@ app.delete('/admin/payments/:id', requireAuth, requireAdmin, async (req, res) =>
     ? `Your GHC ${Number(payment.amount).toFixed(2)} deposit request was declined: ${reason}`
     : `Your GHC ${Number(payment.amount).toFixed(2)} deposit request was declined.`;
   await createNotification(payment.user_id, 'deposit_declined', 'Deposit declined', message,
-    { paymentId: payment.id, amount: payment.amount, reason: reason || null });
+    { paymentId: payment.id, amount: payment.amount, reason: reason || null, actionUrl: 'mine.html#funding' });
 
   res.json({ ok: true });
 });
@@ -1794,7 +1799,7 @@ app.post('/admin/deposits', requireAuth, requireAdmin, async (req, res) => {
     : amount > 0
       ? `You've deposited GHC ${Number(amount).toFixed(2)}. It has been credited to your balance.`
       : `A bonus of GHC ${Number(bonus).toFixed(2)} has been credited to your account.`;
-  await createNotification(userId, 'deposit_credit', 'Balance credited', depositMsg, { amount, bonus });
+  await createNotification(userId, 'deposit_credit', 'Balance credited', depositMsg, { amount, bonus, actionUrl: 'mine.html#funding' });
 
   res.json({ ok: true });
 });
@@ -2559,7 +2564,7 @@ app.post('/teller/withdraw', requireAuth, async (req, res) => {
   );
   await createNotification(userId, 'teller_withdraw', 'Teller balance withdrawn',
     `GHC ${tellerBalance.toFixed(2)} has been moved from your teller balance to your main balance.`,
-    { amount: tellerBalance });
+    { amount: tellerBalance, actionUrl: 'mine.html#funding' });
 
   const { rows: finalWallet } = await query('select balance from wallets where user_id = $1', [userId]);
   res.json({ ok: true, balance: Number(finalWallet[0]?.balance || 0) });
@@ -2970,7 +2975,7 @@ app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
 
     await createNotification(userId, 'beginner_task_reward', 'Task reward earned',
       `You've earned GHC ${rewardAmount.toFixed(2)} for completing "${task.title}".`,
-      { taskId, amount: rewardAmount, reduced });
+      { taskId, amount: rewardAmount, reduced, actionUrl: 'tasks.html#beginner-tasks' });
 
     res.json({
       ok: true,
@@ -3119,7 +3124,7 @@ async function advanceOrderProcessing(orderId, userId) {
         );
         await createNotification(userId, 'order_reward', 'Order completed',
           `Your ${taskOrProduct} order has been completed - GHC ${totalReturn.toFixed(2)} has been credited to your bonus balance.`,
-          { orderId, taskOrProduct, amount: totalReturn });
+          { orderId, taskOrProduct, amount: totalReturn, actionUrl: 'mine.html#funding' });
 
         // Mark task/product assignment as completed
         if (order.task_id) {
@@ -3722,7 +3727,7 @@ async function claimOneTimeTask(userId, taskKey, amount, title, message) {
   }
   await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, userId]);
   await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [userId, 'one_time_task', amount, title]);
-  await createNotification(userId, 'one_time_task_reward', title, message, { taskKey, amount });
+  await createNotification(userId, 'one_time_task_reward', title, message, { taskKey, amount, actionUrl: 'task-ideas.html' });
 }
 
 app.post('/one-time-tasks/notifications/claim', requireAuth, async (req, res) => {
