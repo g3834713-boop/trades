@@ -1016,6 +1016,26 @@
                         <input type="number" class="form-input" id="homeScreenTaskReward" value="2" min="0" step="0.01">
                     </div>
 
+                    <h3 style="font-size: 15px; margin: 20px 0 12px; color: #333;">Default Payment Number</h3>
+                    <div style="font-size: 12px; color: #777; margin-bottom: 12px; line-height: 1.5;">
+                        Used for any user who doesn't have their own individually-assigned payment number
+                        (set per user via "Set Payment Number" on the Users page, which still takes priority when set).
+                        Leave blank to require every user to have an individual number before they can deposit.
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Payment Number</label>
+                        <input type="text" class="form-input" id="defaultPaymentNumber" placeholder="e.g., 0202022202">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Payment Method</label>
+                        <select class="form-select" id="defaultPaymentMethod">
+                            <option value="">Select method</option>
+                            <option value="mtn">MTN Mobile Money</option>
+                            <option value="vodafone">Vodafone Cash</option>
+                            <option value="bank">Bank Transfer</option>
+                        </select>
+                    </div>
+
                     <h3 style="font-size: 15px; margin: 20px 0 12px; color: #333;">Beginner Task Reward Penalty</h3>
                     <div style="font-size: 12px; color: #777; margin-bottom: 12px; line-height: 1.5;">
                         If a user consecutively skips this many teller/product tasks in a row, their beginner (URL) task
@@ -3599,6 +3619,8 @@
             document.getElementById('beginnerPenaltyFloorPercent').value = settings.beginnerPenaltyFloorPercent ?? 50;
             document.getElementById('notificationsTaskReward').value = settings.notificationsTaskReward ?? 2;
             document.getElementById('homeScreenTaskReward').value = settings.homeScreenTaskReward ?? 2;
+            document.getElementById('defaultPaymentNumber').value = settings.defaultPaymentNumber || '';
+            document.getElementById('defaultPaymentMethod').value = settings.defaultPaymentMethod || '';
         }
 
         function saveSettings() {
@@ -3616,6 +3638,8 @@
             const beginnerPenaltyFloorPercent = parseFloat(document.getElementById('beginnerPenaltyFloorPercent').value) || 0;
             const notificationsTaskReward = parseFloat(document.getElementById('notificationsTaskReward').value) || 0;
             const homeScreenTaskReward = parseFloat(document.getElementById('homeScreenTaskReward').value) || 0;
+            const defaultPaymentNumber = document.getElementById('defaultPaymentNumber').value.trim();
+            const defaultPaymentMethod = document.getElementById('defaultPaymentMethod').value.trim();
 
             const support = {
                 financeTelegram,
@@ -3625,7 +3649,7 @@
                 supportPhone
             };
 
-            saveAppSettings({ commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount, notificationsTaskReward, homeScreenTaskReward });
+            saveAppSettings({ commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount, notificationsTaskReward, homeScreenTaskReward, defaultPaymentNumber, defaultPaymentMethod });
 
             // Persist to the real server-side settings - this is what every page (Customer
             // Service, home.html's support notices, etc.) actually reads from, not the
@@ -3637,7 +3661,8 @@
                         body: JSON.stringify({
                             commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount,
                             beginnerPenaltyThreshold, beginnerPenaltyStepPercent, beginnerPenaltyFloorPercent,
-                            notificationsTaskReward, homeScreenTaskReward
+                            notificationsTaskReward, homeScreenTaskReward,
+                            defaultPaymentNumber, defaultPaymentMethod
                         })
                     });
                     await loadAdminSettings();

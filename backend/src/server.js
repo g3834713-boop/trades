@@ -185,7 +185,12 @@ async function getAllAppSettings() {
     // One-time bonus task rewards - each pays out once per user ever, independent of the
     // daily Easy Earn rotation.
     notificationsTaskReward: 2,
-    homeScreenTaskReward: 2
+    homeScreenTaskReward: 2,
+    // Fallback used by /payments when a user has no individually-assigned payment
+    // number (see user_payment_numbers) - keeps deposits working for new users before
+    // admin gets around to assigning them one individually.
+    defaultPaymentNumber: '',
+    defaultPaymentMethod: ''
   };
 
   for (const row of rows) {
@@ -233,6 +238,10 @@ async function getAllAppSettings() {
     } else if (key === 'home_screen_task_reward') {
       const parsed = Number(value);
       if (!Number.isNaN(parsed)) settings.homeScreenTaskReward = parsed;
+    } else if (key === 'default_payment_number') {
+      if (value != null) settings.defaultPaymentNumber = value;
+    } else if (key === 'default_payment_method') {
+      if (value != null) settings.defaultPaymentMethod = value;
     }
   }
 
@@ -1213,7 +1222,9 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
     beginnerPenaltyStepPercent,
     beginnerPenaltyFloorPercent,
     notificationsTaskReward,
-    homeScreenTaskReward
+    homeScreenTaskReward,
+    defaultPaymentNumber,
+    defaultPaymentMethod
   } = req.body;
 
   if (commissionRate !== undefined) {
@@ -1267,6 +1278,12 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
   }
   if (homeScreenTaskReward !== undefined) {
     await upsertAppSetting('home_screen_task_reward', homeScreenTaskReward);
+  }
+  if (defaultPaymentNumber !== undefined) {
+    await upsertAppSetting('default_payment_number', defaultPaymentNumber);
+  }
+  if (defaultPaymentMethod !== undefined) {
+    await upsertAppSetting('default_payment_method', defaultPaymentMethod);
   }
 
   res.json({ ok: true });
@@ -1387,33 +1404,36 @@ app.post('/payments', requireAuth, async (req, res) => {
   const { amount, method, phone } = req.body;
   const { id } = req.user;
 
+  // A user's own individually-assigned number always wins if set; otherwise fall back
+  // to the platform-wide default so a brand-new user isn't stuck unable to deposit at
+  // all just because admin hasn't gotten to assigning them one individually yet.
   const { rows: paymentNumberRows } = await query(
-    'select payment_number from user_payment_numbers where user_id = $1',
+    'select payment_number, method from user_payment_numbers where user_id = $1',
     [id]
   );
 
-  if (paymentNumberRows.length === 0) {
-    return res.status(400).json({ error: 'No payment number assigned. Please contact support.' });
+  let paymentNumber, paymentNumberMethod;
+  if (paymentNumberRows.length > 0) {
+    paymentNumber = paymentNumberRows[0].payment_number;
+    paymentNumberMethod = paymentNumberRows[0].method;
+  } else {
+    const settings = await getAllAppSettings();
+    paymentNumber = settings.defaultPaymentNumber || null;
+    paymentNumberMethod = settings.defaultPaymentMethod || null;
   }
 
-  const paymentNumber = paymentNumberRows[0].payment_number;
+  if (!paymentNumber) {
+    return res.status(400).json({ error: 'No payment number assigned. Please contact support.' });
+  }
 
   const { rows: paymentRows } = await query(
     `insert into payments (user_id, amount, method, phone, payment_number)
      values ($1, $2, $3, $4, $5)
-     returning id`,
+     returning *`,
     [id, amount, method, phone, paymentNumber]
   );
 
-  const { rows } = await query(
-    `select p.*, upn.method as payment_number_method
-     from payments p
-     left join user_payment_numbers upn on upn.user_id = p.user_id
-     where p.id = $1`,
-    [paymentRows[0].id]
-  );
-
-  res.json(rows[0]);
+  res.json({ ...paymentRows[0], payment_number_method: paymentNumberMethod });
 });
 
 // Admin: list payment numbers
