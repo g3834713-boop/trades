@@ -785,9 +785,9 @@
             }
         }
 
-        // Initialize ticker, then poll periodically for admin edits
-        loadMerchantTicker();
-        setInterval(loadMerchantTicker, 60000);
+        // Initialized from the DOMContentLoaded handler below, once window.API is
+        // guaranteed ready (a bare top-level call here ran before auth.js's module
+        // script finished loading, silently failing every time - confirmed live).
 
         function goBack() {
             window.location.href = 'home.html';
@@ -907,7 +907,8 @@
                     console.error('Non-critical error, staying on page');
                 }
             }
-            generateLeaderboard();
+            loadMerchantTicker();
+            setInterval(loadMerchantTicker, 60000);
         });
 
         // Listen for finance updates
