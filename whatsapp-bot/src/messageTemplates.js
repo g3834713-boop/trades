@@ -16,3 +16,11 @@ export function formatTellerTaskMessage(taskNumber) {
     `⏱ Duration: 50 minutes`
   );
 }
+
+export function formatDayStartMessage() {
+  return (
+    `*DailyTrade*\n\n` +
+    `🔔 Today's tasks open at 8:00 AM and run until 6:00 PM.\n\n` +
+    `Get ready to earn!`
+  );
+}

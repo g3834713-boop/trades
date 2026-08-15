@@ -44,3 +44,14 @@ export async function getTellerProducts() {
 export async function getTodaySlots() {
   return call('/schedule/today');
 }
+
+// Fired once a day at 7:30am - in-app/push heads-up that today's task window is
+// about to open. Separate from the WhatsApp channel post the bot sends itself.
+export async function triggerDayStartAnnouncement() {
+  return call('/reminders/day-starting', { method: 'POST' });
+}
+
+// Fired once a day in the afternoon - reminds only users who haven't checked in yet.
+export async function triggerCheckinReminder() {
+  return call('/reminders/daily-checkin', { method: 'POST' });
+}

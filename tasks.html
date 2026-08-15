@@ -870,6 +870,13 @@
             if (lastBeginnerTasks) renderBeginnerTasks(lastBeginnerTasks);
             if (catalogProducts.length) renderProductCatalog(catalogProducts);
 
+            // Deep-link support: e.g. tasks.html#checkin, arrived at from a
+            // check-in-reminder notification - scroll straight to the button.
+            if (window.location.hash === '#checkin') {
+                const checkinEl = document.getElementById('checkinButtonContainer');
+                if (checkinEl) checkinEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
             // Check for pending orders in background (non-blocking)
             resumePendingOrders().catch(err => {
                 console.error('Error resuming pending orders:', err);

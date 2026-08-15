@@ -144,15 +144,40 @@
     const mount = document.getElementById('notificationsListMount');
     if (!mount) return;
     if (!list.length) { mount.innerHTML = '<div class="notif-empty-state">No notifications yet</div>'; return; }
-    mount.innerHTML = list.map(n => `
-      <div class="notif-item ${n.is_read ? '' : 'unread'}">
+    mount.innerHTML = list.map(n => {
+      const actionUrl = n.metadata?.actionUrl || '';
+      return `
+      <div class="notif-item ${n.is_read ? '' : 'unread'}" data-id="${escapeHtml(n.id)}" data-url="${escapeHtml(actionUrl)}" style="${actionUrl ? 'cursor:pointer;' : ''}">
         <div class="notif-item-icon"><i class="las ${ICONS[n.type] || 'la-bell'}"></i></div>
         <div>
           <div class="notif-item-title">${escapeHtml(n.title)}</div>
           <div class="notif-item-message">${escapeHtml(n.message)}</div>
           <div class="notif-item-time">${timeAgo(n.created_at)}</div>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+    ensureListClickHandler();
+  }
+
+  // Delegated click handler, wired once - survives re-renders since it's on the
+  // (never-replaced) mount container, not the individual item elements.
+  let listClickHandlerBound = false;
+  function ensureListClickHandler() {
+    if (listClickHandlerBound) return;
+    const mount = document.getElementById('notificationsListMount');
+    if (!mount) return;
+    mount.addEventListener('click', async (e) => {
+      const item = e.target.closest('.notif-item');
+      if (!item) return;
+      const id = item.dataset.id;
+      const url = item.dataset.url;
+      if (id) {
+        try { await window.API.call(`/notifications/${id}/read`, { method: 'POST' }); } catch (err) { /* ignore */ }
+        item.classList.remove('unread');
+      }
+      if (url) window.location.href = url;
+    });
+    listClickHandlerBound = true;
   }
 
   function updateBadge(count) {

@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { connectWhatsApp } from './whatsapp.js';
 import { generateDailySchedule } from './scheduler.js';
-import { pushScheduleSlot, getBeginnerTaskProducts, getTellerProducts, getTodaySlots } from './apiClient.js';
-import { formatBeginnerTaskMessage, formatTellerTaskMessage } from './messageTemplates.js';
+import { pushScheduleSlot, getBeginnerTaskProducts, getTellerProducts, getTodaySlots, triggerDayStartAnnouncement, triggerCheckinReminder } from './apiClient.js';
+import { formatBeginnerTaskMessage, formatTellerTaskMessage, formatDayStartMessage } from './messageTemplates.js';
 import { renderTaskNumberCard, renderTellerPackageCard } from './cardImage.js';
 import { startHealthServer } from './healthServer.js';
 
@@ -136,6 +136,41 @@ function scheduleNextDayKickoff(sock) {
   }, next8am.getTime() - Date.now());
 }
 
+// Both reminder timers below clear any previously-armed instance before re-arming,
+// same as scheduleDay()'s armedTimeouts guard - onReady can fire more than once
+// (reconnects, redeploys), and without this a duplicate timer would double-send
+// the announcement/reminder to every user when it eventually fires.
+let dayStartTimeoutId = null;
+
+function scheduleDayStartAnnouncement(sock) {
+  if (dayStartTimeoutId) clearTimeout(dayStartTimeoutId);
+  const next = new Date();
+  next.setHours(7, 30, 0, 0);
+  if (next.getTime() <= Date.now()) next.setDate(next.getDate() + 1);
+
+  dayStartTimeoutId = setTimeout(() => {
+    triggerDayStartAnnouncement().catch(err => console.error('Failed to trigger day-starting reminder:', err.message));
+    if (sock && TARGET_JID) {
+      sock.sendMessage(TARGET_JID, { text: formatDayStartMessage() }).catch(err => console.error('Failed to post day-starting message to WhatsApp:', err.message));
+    }
+    scheduleDayStartAnnouncement(sock);
+  }, next.getTime() - Date.now());
+}
+
+let checkinReminderTimeoutId = null;
+
+function scheduleCheckinReminder(sock) {
+  if (checkinReminderTimeoutId) clearTimeout(checkinReminderTimeoutId);
+  const next = new Date();
+  next.setHours(14, 0, 0, 0);
+  if (next.getTime() <= Date.now()) next.setDate(next.getDate() + 1);
+
+  checkinReminderTimeoutId = setTimeout(() => {
+    triggerCheckinReminder().catch(err => console.error('Failed to trigger check-in reminder:', err.message));
+    scheduleCheckinReminder(sock);
+  }, next.getTime() - Date.now());
+}
+
 const botState = { sock: null };
 
 // Shared by the initial connect and any exception-triggered reconnect, so both go
@@ -146,6 +181,8 @@ function handleReady(sock) {
   if (TARGET_JID) {
     scheduleDay(sock);
     scheduleNextDayKickoff(sock);
+    scheduleDayStartAnnouncement(sock);
+    scheduleCheckinReminder(sock);
   }
 }
 

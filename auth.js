@@ -382,6 +382,13 @@ window.API = {
     return this.call(`/admin/users/${userId}/verification`);
   },
 
+  async sendAdminBroadcast(title, message) {
+    return this.call('/admin/notifications/broadcast', {
+      method: 'POST',
+      body: JSON.stringify({ title, message })
+    });
+  },
+
   async requireUserVerification(userId, required) {
     return this.call(`/admin/users/${userId}/verification/require`, {
       method: 'POST',

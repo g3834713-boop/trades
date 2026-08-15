@@ -113,8 +113,9 @@ async function creditEasyEarnReward({ userId, category, taskId, amount, details 
     'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
     [userId, 'easy_earn', amount, `Easy Earn reward (${category})`]
   );
+  const EASY_EARN_LABELS = { video: 'Video', quiz: 'Quiz', poll: 'Poll', photo_survey: 'Photo Survey' };
   await createNotification(userId, 'easy_earn_reward', 'Easy Earn reward',
-    `You've earned GHC ${Number(amount).toFixed(2)} from your Easy Earn ${category} task.`,
+    `You've earned GHC ${Number(amount).toFixed(2)} from your Easy Earn ${EASY_EARN_LABELS[category] || category} task.`,
     { category, taskId, amount });
 }
 
@@ -250,7 +251,7 @@ async function upsertAppSetting(key, value) {
 // Best-effort OS-level push to every device a user has granted permission on - failures
 // here (expired subscription, no VAPID keys configured yet, etc.) must never bubble up
 // to whatever money-moving action triggered the notification.
-async function sendPushToUser(userId, title, message) {
+async function sendPushToUser(userId, title, message, url = null) {
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return;
   try {
     const { rows } = await query('select * from push_subscriptions where user_id = $1', [userId]);
@@ -258,7 +259,7 @@ async function sendPushToUser(userId, title, message) {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          JSON.stringify({ title, body: message })
+          JSON.stringify({ title, body: message, url })
         );
       } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
@@ -282,7 +283,7 @@ async function createNotification(userId, type, title, message, metadata = null)
       `insert into notifications (user_id, type, title, message, metadata) values ($1, $2, $3, $4, $5)`,
       [userId, type, title, message, metadata ? JSON.stringify(metadata) : null]
     );
-    await sendPushToUser(userId, title, message);
+    await sendPushToUser(userId, title, message, metadata?.actionUrl || null);
   } catch (err) {
     console.error('Failed to create notification:', type, err.message);
   }
@@ -691,7 +692,7 @@ app.post('/admin/users/:userId/verification/require', requireAuth, requireAdmin,
 
   if (required) {
     await createNotification(req.params.userId, 'verification_required', 'Identity verification required',
-      'Admin has requested that you complete identity verification. Please submit your documents in the Mine section.');
+      'Please complete identity verification to unlock full access to your account. Submit your documents in the Mine section.');
   }
 
   res.json({ ok: true });
@@ -710,7 +711,7 @@ app.post('/admin/users/:userId/totp/require', requireAuth, requireAdmin, async (
 
   if (required) {
     await createNotification(req.params.userId, 'totp_required', '2FA setup required',
-      'Admin has requested that you set up an authenticator app (2FA) for your account. Please complete setup in Security Center.');
+      "For your account's security, please set up two-factor authentication (2FA) in Security Center.");
   }
 
   res.json({ ok: true });
@@ -1048,7 +1049,8 @@ app.post('/schedule/slots', requireSchedulerKey, async (req, res) => {
     );
 
     try {
-      const broadcastMsg = `A new ${task_type} task slot is now open.`;
+      const TASK_TYPE_LABELS = { beginner: 'Beginner Task', teller: 'Teller Package', product: 'Product Task' };
+      const broadcastMsg = `A new ${TASK_TYPE_LABELS[task_type] || 'task'} is now open.`;
       await query(
         `insert into notifications (user_id, type, title, message, metadata)
          select id, 'task_available', 'New task slot available', $1, $2 from app_users`,
@@ -1066,6 +1068,74 @@ app.post('/schedule/slots', requireSchedulerKey, async (req, res) => {
   } catch (err) {
     console.error('Push schedule slot error:', err);
     res.status(500).json({ error: 'Failed to save schedule slot' });
+  }
+});
+
+// Bot calls this once a day at 7:30am - a heads-up that today's task window is
+// about to open, sent to every user (unconditional, unlike the check-in reminder below).
+app.post('/reminders/day-starting', requireSchedulerKey, async (req, res) => {
+  try {
+    const title = 'Tasks opening soon';
+    const message = "Today's tasks open at 8:00 AM and run until 6:00 PM. Get ready to earn!";
+    const { rows: allUsers } = await query('select id from app_users');
+    await query(
+      `insert into notifications (user_id, type, title, message)
+       select id, 'day_starting', $1, $2 from app_users`,
+      [title, message]
+    );
+    const { rows: subscribedUsers } = await query('select distinct user_id from push_subscriptions');
+    for (const u of subscribedUsers) {
+      sendPushToUser(u.user_id, title, message).catch(() => {});
+    }
+    res.json({ ok: true, notifiedCount: allUsers.length });
+  } catch (err) {
+    console.error('Day-starting reminder broadcast failed:', err);
+    res.status(500).json({ error: 'Failed to send reminders' });
+  }
+});
+
+// Bot calls this once a day in the afternoon - reminds only users who haven't
+// checked in yet today, each with a deep link straight to the check-in button.
+app.post('/reminders/daily-checkin', requireSchedulerKey, async (req, res) => {
+  try {
+    const title = 'Daily check-in reminder';
+    const message = "You haven't checked in today - claim your daily bonus before it's gone!";
+    const { rows: eligible } = await query(
+      `select id from app_users u
+       where not exists (select 1 from daily_checkins d where d.user_id = u.id and d.checkin_date = current_date)`
+    );
+    for (const u of eligible) {
+      await createNotification(u.id, 'checkin_reminder', title, message, { actionUrl: 'tasks.html#checkin' });
+    }
+    res.json({ ok: true, remindedCount: eligible.length });
+  } catch (err) {
+    console.error('Daily check-in reminder broadcast failed:', err);
+    res.status(500).json({ error: 'Failed to send reminders' });
+  }
+});
+
+// Admin: write and send a one-off notification to every user
+app.post('/admin/notifications/broadcast', requireAuth, requireAdmin, async (req, res) => {
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  if (!title || !message) {
+    return res.status(400).json({ error: 'Title and message are required' });
+  }
+  try {
+    const { rows: allUsers } = await query('select id from app_users');
+    await query(
+      `insert into notifications (user_id, type, title, message)
+       select id, 'admin_broadcast', $1, $2 from app_users`,
+      [title, message]
+    );
+    const { rows: subscribedUsers } = await query('select distinct user_id from push_subscriptions');
+    for (const u of subscribedUsers) {
+      sendPushToUser(u.user_id, title, message).catch(() => {});
+    }
+    res.json({ ok: true, notifiedCount: allUsers.length });
+  } catch (err) {
+    console.error('Admin broadcast failed:', err);
+    res.status(500).json({ error: 'Failed to send broadcast' });
   }
 });
 
@@ -1558,10 +1628,10 @@ app.post('/admin/deposits', requireAuth, requireAdmin, async (req, res) => {
   }
 
   const depositMsg = amount > 0 && bonus > 0
-    ? `Admin credited GHC ${Number(amount).toFixed(2)} to your balance and GHC ${Number(bonus).toFixed(2)} to your bonus.`
+    ? `GHC ${Number(amount).toFixed(2)} has been credited to your balance and GHC ${Number(bonus).toFixed(2)} to your bonus.`
     : amount > 0
       ? `You've deposited GHC ${Number(amount).toFixed(2)}. It has been credited to your balance.`
-      : `Admin credited GHC ${Number(bonus).toFixed(2)} to your bonus.`;
+      : `A bonus of GHC ${Number(bonus).toFixed(2)} has been credited to your account.`;
   await createNotification(userId, 'deposit_credit', 'Balance credited', depositMsg, { amount, bonus });
 
   res.json({ ok: true });

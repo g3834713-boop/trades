@@ -1035,6 +1035,21 @@
                     </div>
 
                     <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+
+                    <h3 style="font-size: 15px; margin: 28px 0 12px; color: #333; border-top: 1px solid #eee; padding-top: 20px;">Send Notification to Everyone</h3>
+                    <div style="font-size: 12px; color: #777; margin-bottom: 12px; line-height: 1.5;">
+                        Write a one-off message and send it to every user's notification bell (and push, for anyone
+                        who's enabled it). This sends immediately - it isn't a saved setting.
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-input" id="broadcastTitle" placeholder="e.g. Scheduled Maintenance">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Message</label>
+                        <textarea class="form-textarea" id="broadcastMessage" placeholder="Write the notification message..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendAdminBroadcast()">Send to All Users</button>
                 </div>
             </div>
         </div>
@@ -3633,6 +3648,26 @@
                     alert('Settings saved locally but failed to persist to server: ' + (err.message || 'Unknown error'));
                 }
             })();
+        }
+
+        async function sendAdminBroadcast() {
+            const title = document.getElementById('broadcastTitle').value.trim();
+            const message = document.getElementById('broadcastMessage').value.trim();
+            if (!title || !message) {
+                alert('Please enter both a title and a message.');
+                return;
+            }
+            if (!confirm(`Send this notification to every user?\n\n"${title}"\n${message}`)) return;
+
+            try {
+                const result = await window.API.sendAdminBroadcast(title, message);
+                alert(`Sent to ${result.notifiedCount} user(s).`);
+                document.getElementById('broadcastTitle').value = '';
+                document.getElementById('broadcastMessage').value = '';
+            } catch (err) {
+                console.error('Failed to send broadcast:', err);
+                alert(err.message || 'Failed to send broadcast');
+            }
         }
 
         async function filterUsers() {
