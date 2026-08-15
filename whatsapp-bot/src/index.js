@@ -125,12 +125,23 @@ function scheduleDay(sock) {
   }
 }
 
+// Unlike scheduleDay() and the two reminder timers below, this one had NO
+// clear-before-rearm guard - if onReady fired multiple times before 8am (confirmed live:
+// the WhatsApp session table shows at least 6 separate reconnects between midnight and
+// 8am), each call armed a fully independent setTimeout targeting 8am, none of which
+// cancelled the others. All of them firing back-to-back at 8am meant scheduleDay() got
+// called repeatedly right at the boundary, each call clearing the slot the previous one
+// had just armed a moment earlier - the classic same-bug-class as scheduleDay() itself
+// already had fixed, just missed here.
+let nextDayKickoffTimeoutId = null;
+
 function scheduleNextDayKickoff(sock) {
+  if (nextDayKickoffTimeoutId) clearTimeout(nextDayKickoffTimeoutId);
   const next8am = new Date();
   next8am.setHours(8, 0, 0, 0);
   if (next8am.getTime() <= Date.now()) next8am.setDate(next8am.getDate() + 1);
 
-  setTimeout(() => {
+  nextDayKickoffTimeoutId = setTimeout(() => {
     scheduleDay(sock);
     scheduleNextDayKickoff(sock);
   }, next8am.getTime() - Date.now());
