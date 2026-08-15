@@ -55,3 +55,10 @@ export async function triggerDayStartAnnouncement() {
 export async function triggerCheckinReminder() {
   return call('/reminders/daily-checkin', { method: 'POST' });
 }
+
+// No auth needed - /health is public. Used purely as a keep-alive ping, so a
+// failure here is expected/harmless while the backend is mid cold-start.
+export async function pingBackend() {
+  const res = await fetch(`${API_URL}/health`);
+  return res.ok;
+}

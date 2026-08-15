@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { connectWhatsApp } from './whatsapp.js';
 import { generateDailySchedule } from './scheduler.js';
-import { pushScheduleSlot, getBeginnerTaskProducts, getTellerProducts, getTodaySlots, triggerDayStartAnnouncement, triggerCheckinReminder } from './apiClient.js';
+import { pushScheduleSlot, getBeginnerTaskProducts, getTellerProducts, getTodaySlots, triggerDayStartAnnouncement, triggerCheckinReminder, pingBackend } from './apiClient.js';
 import { formatBeginnerTaskMessage, formatTellerTaskMessage, formatDayStartMessage } from './messageTemplates.js';
 import { renderTaskNumberCard, renderTellerPackageCard } from './cardImage.js';
 import { startHealthServer } from './healthServer.js';
@@ -197,12 +197,29 @@ function handleReady(sock) {
   }
 }
 
+// This bot already stays warm via an external uptime pinger hitting healthServer.js,
+// but the backend has no equivalent - confirmed live via Render logs: task slots land
+// roughly 30+ minutes apart, well past Render free tier's ~15min idle spin-down, so a
+// slot's first backend call (getBeginnerTaskProducts/getTodaySlots) would sometimes hit
+// a cold instance mid-restart and fail with 429/502, silently skipping that slot's post.
+// Piggybacking a keep-alive ping on this already-alive process avoids needing a second
+// external pinger account just for the backend.
+const BACKEND_PING_INTERVAL_MS = 10 * 60 * 1000;
+
+function startBackendKeepAlive() {
+  pingBackend().catch(err => console.error('Backend keep-alive ping failed:', err.message));
+  setInterval(() => {
+    pingBackend().catch(err => console.error('Backend keep-alive ping failed:', err.message));
+  }, BACKEND_PING_INTERVAL_MS);
+}
+
 async function main() {
   if (!TARGET_JID) {
     console.warn('WHATSAPP_TARGET_JID is not set yet - connect once, then run `npm run list-groups` to find it.');
   }
 
   startHealthServer(undefined, botState);
+  startBackendKeepAlive();
 
   await connectWhatsApp({ onReady: handleReady });
 }
