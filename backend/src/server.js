@@ -179,6 +179,9 @@ async function getAllAppSettings() {
       supportWhatsappNumber: ''
     },
     dailyCheckinAmount: 5,
+    // Minimum quantity a user can enter for a custom unit order (1 unit = 1 GHC) on
+    // the Teller Packages / Product Tasks section.
+    tellerUnitMinimum: 50,
     // Beginner (URL) task reward shrinks the longer a user consecutively skips teller/
     // product tasks - nudges people who exclusively farm the free tier toward the paid
     // one, without paying out more (a pure cost-reduction lever, not a giveaway).
@@ -228,6 +231,9 @@ async function getAllAppSettings() {
     } else if (key === 'daily_checkin_amount') {
       const parsed = Number(value);
       if (!Number.isNaN(parsed)) settings.dailyCheckinAmount = parsed;
+    } else if (key === 'teller_unit_minimum') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) settings.tellerUnitMinimum = parsed;
     } else if (key === 'beginner_penalty_threshold') {
       const parsed = Number(value);
       if (!Number.isNaN(parsed)) settings.beginnerPenaltyThreshold = parsed;
@@ -1362,6 +1368,7 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
     platformName,
     support = {},
     dailyCheckinAmount,
+    tellerUnitMinimum,
     beginnerPenaltyThreshold,
     beginnerPenaltyStepPercent,
     beginnerPenaltyFloorPercent,
@@ -1411,6 +1418,9 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
   if (dailyCheckinAmount !== undefined) {
     await upsertAppSetting('daily_checkin_amount', dailyCheckinAmount);
   }
+  if (tellerUnitMinimum !== undefined) {
+    await upsertAppSetting('teller_unit_minimum', tellerUnitMinimum);
+  }
   if (beginnerPenaltyThreshold !== undefined) {
     await upsertAppSetting('beginner_penalty_threshold', beginnerPenaltyThreshold);
   }
@@ -1434,6 +1444,69 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
   }
 
   res.json({ ok: true });
+});
+
+// Admin: manage the commission-by-order-size ranges used to price custom unit orders
+// (see teller_unit_commission_ranges - seeded in ensureSchema() from real product pricing).
+app.get('/admin/teller-unit-ranges', requireAuth, requireAdmin, async (req, res) => {
+  const { rows } = await query('select * from teller_unit_commission_ranges order by min_units asc');
+  res.json(rows);
+});
+
+app.post('/admin/teller-unit-ranges', requireAuth, requireAdmin, async (req, res) => {
+  const { minUnits, maxUnits, commissionPercent } = req.body || {};
+  const min = parseInt(minUnits, 10);
+  const max = maxUnits === null || maxUnits === undefined || maxUnits === '' ? null : parseInt(maxUnits, 10);
+  const commission = Number(commissionPercent);
+  if (!Number.isInteger(min) || min < 1 || Number.isNaN(commission) || commission < 0) {
+    return res.status(400).json({ error: 'minUnits (>=1) and commissionPercent (>=0) are required' });
+  }
+  if (max !== null && (!Number.isInteger(max) || max < min)) {
+    return res.status(400).json({ error: 'maxUnits must be an integer >= minUnits, or omitted for no upper bound' });
+  }
+  const { rows } = await query(
+    `insert into teller_unit_commission_ranges (min_units, max_units, commission_percent) values ($1, $2, $3) returning *`,
+    [min, max, commission]
+  );
+  res.json(rows[0]);
+});
+
+app.put('/admin/teller-unit-ranges/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { minUnits, maxUnits, commissionPercent } = req.body || {};
+  const min = parseInt(minUnits, 10);
+  const max = maxUnits === null || maxUnits === undefined || maxUnits === '' ? null : parseInt(maxUnits, 10);
+  const commission = Number(commissionPercent);
+  if (!Number.isInteger(min) || min < 1 || Number.isNaN(commission) || commission < 0) {
+    return res.status(400).json({ error: 'minUnits (>=1) and commissionPercent (>=0) are required' });
+  }
+  if (max !== null && (!Number.isInteger(max) || max < min)) {
+    return res.status(400).json({ error: 'maxUnits must be an integer >= minUnits, or omitted for no upper bound' });
+  }
+  const { rows } = await query(
+    `update teller_unit_commission_ranges set min_units = $1, max_units = $2, commission_percent = $3 where id = $4 returning *`,
+    [min, max, commission, id]
+  );
+  if (rows.length === 0) return res.status(404).json({ error: 'Range not found' });
+  res.json(rows[0]);
+});
+
+app.delete('/admin/teller-unit-ranges/:id', requireAuth, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  await query('delete from teller_unit_commission_ranges where id = $1', [id]);
+  res.json({ ok: true });
+});
+
+// Public: lets tasks.html show the minimum order size and (implicitly) validate before
+// submitting - the ranges themselves aren't sensitive, they just formalize what the
+// visible product prices/commissions already imply.
+app.get('/teller-unit-order/config', requireAuth, async (req, res) => {
+  const settings = await getAllAppSettings();
+  const { rows } = await query('select min_units, max_units, commission_percent from teller_unit_commission_ranges order by min_units asc');
+  res.json({
+    minimumUnits: Number(settings.tellerUnitMinimum) || 1,
+    ranges: rows.map(r => ({ minUnits: r.min_units, maxUnits: r.max_units, commissionPercent: Number(r.commission_percent) }))
+  });
 });
 
 app.get('/users/me/checkin', requireAuth, async (req, res) => {
@@ -3030,6 +3103,83 @@ app.post('/orders/start', requireAuth, async (req, res) => {
   }
 });
 
+// Custom unit order (1 unit = 1 GHC) - unlike /orders/start above, this does validation,
+// commission lookup, and the wallet deduction all in one request instead of trusting
+// client-supplied interest/totalReturn across two separate calls, since the commission
+// here depends on an admin-editable range table rather than a fixed, publicly-displayed
+// product price.
+app.post('/orders/start-unit', requireAuth, async (req, res) => {
+  const { id: userId } = req.user;
+  const units = parseInt(req.body?.units, 10);
+
+  if (!Number.isInteger(units) || units < 1) {
+    return res.status(400).json({ error: 'A whole number of units is required' });
+  }
+
+  const scheduleError = await requireActiveScheduleType('teller', 'Product tasks are not open right now. Check the WhatsApp announcement for the next open time.');
+  if (scheduleError) {
+    return res.status(400).json({ error: scheduleError });
+  }
+
+  try {
+    const settings = await getAllAppSettings();
+    const minimumUnits = Number(settings.tellerUnitMinimum) || 1;
+    if (units < minimumUnits) {
+      return res.status(400).json({ error: `Minimum order is ${minimumUnits} units` });
+    }
+
+    const { rows: walletRows } = await query('select balance from wallets where user_id = $1', [userId]);
+    const balance = Number(walletRows[0]?.balance || 0);
+    if (balance < units) {
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
+
+    const { rows: rangeRows } = await query(
+      `select commission_percent from teller_unit_commission_ranges
+       where min_units <= $1 and (max_units is null or max_units >= $1)
+       order by min_units desc limit 1`,
+      [units]
+    );
+    // Falls back to the highest-min_units range rather than erroring the user's order
+    // if admin editing has left a gap that doesn't cover this quantity.
+    let commissionPercent = Number(rangeRows[0]?.commission_percent);
+    if (Number.isNaN(commissionPercent)) {
+      const { rows: fallbackRows } = await query(
+        'select commission_percent from teller_unit_commission_ranges order by min_units desc limit 1'
+      );
+      commissionPercent = Number(fallbackRows[0]?.commission_percent) || 0;
+    }
+
+    const interest = Math.round((units * commissionPercent / 100) * 100) / 100;
+    const totalReturn = Math.round((units + interest) * 100) / 100;
+
+    await query('update wallets set balance = balance - $1, updated_at = now() where user_id = $2', [units, userId]);
+    await query(
+      'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
+      [userId, 'teller_unit_order_cost', units, `Custom unit order: ${units} units`]
+    );
+
+    const { rows } = await query(
+      `insert into order_processing (user_id, units, cost, interest, total_return, current_step, total_steps)
+       values ($1, $2, $3, $4, $5, 0, 15)
+       returning id`,
+      [userId, units, units, interest, totalReturn]
+    );
+    const orderId = rows[0].id;
+
+    setTimeout(() => {
+      advanceOrderProcessing(orderId, userId).catch(err => {
+        console.error('Error advancing unit order:', err);
+      });
+    }, 1000);
+
+    res.json({ ok: true, orderId, cost: units, interest, totalReturn, commissionPercent });
+  } catch (error) {
+    console.error('Error starting unit order:', error);
+    res.status(500).json({ error: 'Failed to start order' });
+  }
+});
+
 // Order processing: Get current status and progress
 // The only complete record of a user's finished orders - advanceOrderProcessing() only
 // marks task_assignments/product_assignments complete when a matching assignment row
@@ -3039,9 +3189,9 @@ app.post('/orders/start', requireAuth, async (req, res) => {
 app.get('/orders/my', requireAuth, async (req, res) => {
   const { id } = req.user;
   const { rows } = await query(
-    `select op.id, op.task_id, op.product_id, op.cost, op.interest, op.total_return,
+    `select op.id, op.task_id, op.product_id, op.units, op.cost, op.interest, op.total_return,
             op.status, op.completed_at, op.created_at,
-            coalesce(p.name, t.title) as title,
+            coalesce(p.name, t.title, case when op.units is not null then 'Custom Unit Order (' || op.units || ' units)' else null end) as title,
             p.image as product_image
      from order_processing op
      left join products p on p.id = op.product_id
@@ -3117,14 +3267,16 @@ async function advanceOrderProcessing(orderId, userId) {
         );
 
         // Record transaction
-        const taskOrProduct = order.task_id ? 'task' : 'product';
+        const taskOrProduct = order.units ? 'unit order' : (order.task_id ? 'task' : 'product');
+        const completionMessage = order.units
+          ? `Your custom order of ${order.units} units has been completed - GHC ${totalReturn.toFixed(2)} has been credited to your bonus balance.`
+          : `Your ${taskOrProduct} order has been completed - GHC ${totalReturn.toFixed(2)} has been credited to your bonus balance.`;
         await query(
           `insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)`,
           [userId, 'order_reward', totalReturn, `Order completed - ${taskOrProduct} reward`]
         );
-        await createNotification(userId, 'order_reward', 'Order completed',
-          `Your ${taskOrProduct} order has been completed - GHC ${totalReturn.toFixed(2)} has been credited to your bonus balance.`,
-          { orderId, taskOrProduct, amount: totalReturn, actionUrl: 'mine.html#funding' });
+        await createNotification(userId, 'order_reward', 'Order completed', completionMessage,
+          { orderId, taskOrProduct, amount: totalReturn, units: order.units || undefined, actionUrl: 'mine.html#funding' });
 
         // Mark task/product assignment as completed
         if (order.task_id) {
@@ -3487,6 +3639,32 @@ async function ensureSchema() {
   `);
   await query('create index if not exists order_processing_user_idx on order_processing(user_id)');
   await query('create index if not exists order_processing_status_idx on order_processing(status)');
+  // Null for ordinary catalog (product/task) orders - set to the ordered quantity for
+  // custom unit orders, which have no task_id/product_id of their own.
+  await query('alter table order_processing add column if not exists units integer');
+
+  // Admin-editable commission-by-order-size table for custom unit orders (1 unit = 1
+  // GHC) - lets a 300-unit order earn a rate consistent with what a similarly-priced
+  // real product pays, even though no product is priced at exactly 300 GHC.
+  await query(`
+    create table if not exists teller_unit_commission_ranges (
+      id uuid primary key default gen_random_uuid(),
+      min_units integer not null,
+      max_units integer,
+      commission_percent numeric(5,2) not null,
+      created_at timestamptz default now()
+    )
+  `);
+  const { rows: existingRanges } = await query('select count(*) as count from teller_unit_commission_ranges');
+  if (Number(existingRanges[0]?.count || 0) === 0) {
+    // Seeded from the real products table at design time: 200-500 GHC products pay
+    // 15%, every product from 1000-40000 GHC pays 40% - these two ranges reproduce
+    // that exact split for order sizes that don't match a real product's price.
+    await query(
+      `insert into teller_unit_commission_ranges (min_units, max_units, commission_percent) values
+       (1, 999, 15.00), (1000, null, 40.00)`
+    );
+  }
 
   // User-facing notifications (bell icon, polled every ~15s by the frontend).
   await query(`

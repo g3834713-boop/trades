@@ -1080,6 +1080,32 @@
                         <input type="number" class="form-input" id="dailyCheckinAmount" value="5" min="0" step="0.01">
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Minimum Units (Custom Unit Order)</label>
+                        <input type="number" class="form-input" id="tellerUnitMinimum" value="50" min="1" step="1">
+                        <div style="font-size: 12px; color: #777; margin-top: 4px;">Smallest order a user can place on the "Custom Unit Order" card (1 unit = GHC 1.00).</div>
+                    </div>
+
+                    <h3 style="font-size: 15px; margin: 20px 0 12px; color: #333;">Custom Unit Order - Commission Ranges</h3>
+                    <div style="font-size: 12px; color: #777; margin-bottom: 12px; line-height: 1.5;">
+                        Sets the return rate for a custom unit order based on how many units (GHC) were ordered.
+                        Keep these consistent with real product prices/commissions in Product Management - e.g. today's
+                        products pay 15% from 200-500 GHC and 40% from 1000 GHC and up, so a 300-unit custom order
+                        should also earn 15%.
+                    </div>
+                    <button class="btn btn-primary" style="margin-bottom: 12px;" onclick="openAddTellerUnitRangeModal()">
+                        <i class="las la-plus"></i> Add Range
+                    </button>
+                    <div class="table-container">
+                        <div class="table-header" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                            <div>Min Units</div>
+                            <div>Max Units</div>
+                            <div>Commission %</div>
+                            <div>Actions</div>
+                        </div>
+                        <div id="tellerUnitRangesTableBody"></div>
+                    </div>
+
+                    <div class="form-group">
                         <label class="form-label">"Allow Notifications" Task Reward (GHC)</label>
                         <input type="number" class="form-input" id="notificationsTaskReward" value="2" min="0" step="0.01">
                     </div>
@@ -1527,6 +1553,30 @@
             <div class="modal-buttons">
                 <button class="btn" style="background: #ddd; color: #333;" onclick="closePhotoPromptModal()">Cancel</button>
                 <button class="btn btn-primary" onclick="savePhotoPrompt()">Save Prompt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Teller Unit Commission Range Modal -->
+    <div class="modal" id="tellerUnitRangeModal">
+        <div class="modal-content">
+            <div class="modal-title" id="tellerUnitRangeModalTitle">Add Commission Range</div>
+            <input type="hidden" id="tellerUnitRangeId">
+            <div class="form-group">
+                <label class="form-label">Min Units</label>
+                <input type="number" class="form-input" id="tellerUnitRangeMin" min="1" step="1" placeholder="e.g., 1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Max Units (leave blank for no upper bound)</label>
+                <input type="number" class="form-input" id="tellerUnitRangeMax" min="1" step="1" placeholder="e.g., 999">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Commission %</label>
+                <input type="number" class="form-input" id="tellerUnitRangeCommission" min="0" step="0.01" placeholder="e.g., 15">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #ddd; color: #333;" onclick="closeTellerUnitRangeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTellerUnitRange()">Save Range</button>
             </div>
         </div>
     </div>
@@ -2581,6 +2631,100 @@
             } catch (error) {
                 console.error('Failed to delete hall of fame entry:', error);
                 alert('Failed to delete entry: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        // --- Custom Unit Order - Commission Ranges ---
+        let tellerUnitRangesCache = [];
+
+        async function loadTellerUnitRanges() {
+            try {
+                const ranges = await window.API.getAdminTellerUnitRanges();
+                tellerUnitRangesCache = ranges || [];
+                const body = document.getElementById('tellerUnitRangesTableBody');
+                if (!body) return;
+                if (tellerUnitRangesCache.length === 0) {
+                    body.innerHTML = '<div class="empty-state"><p>No ranges configured yet</p></div>';
+                    return;
+                }
+                body.innerHTML = tellerUnitRangesCache.map(r => `
+                    <div class="table-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+                        <div class="table-cell">${r.min_units}</div>
+                        <div class="table-cell">${r.max_units == null ? 'No limit' : r.max_units}</div>
+                        <div class="table-cell">${parseFloat(r.commission_percent).toFixed(2)}%</div>
+                        <div class="table-action">
+                            <button class="btn btn-secondary" onclick="openEditTellerUnitRangeModal('${r.id}')">Edit</button>
+                            <button class="btn btn-danger" onclick="deleteTellerUnitRange('${r.id}')">Delete</button>
+                        </div>
+                    </div>`).join('');
+            } catch (error) {
+                console.error('Failed to load teller unit ranges:', error);
+                const body = document.getElementById('tellerUnitRangesTableBody');
+                if (body) body.innerHTML = '<div class="empty-state"><p>Failed to load ranges</p></div>';
+            }
+        }
+
+        function openAddTellerUnitRangeModal() {
+            document.getElementById('tellerUnitRangeModalTitle').textContent = 'Add Commission Range';
+            document.getElementById('tellerUnitRangeId').value = '';
+            document.getElementById('tellerUnitRangeMin').value = '';
+            document.getElementById('tellerUnitRangeMax').value = '';
+            document.getElementById('tellerUnitRangeCommission').value = '';
+            document.getElementById('tellerUnitRangeModal').classList.add('show');
+        }
+
+        function openEditTellerUnitRangeModal(id) {
+            const range = tellerUnitRangesCache.find(r => r.id === id);
+            if (!range) return;
+            document.getElementById('tellerUnitRangeModalTitle').textContent = 'Edit Commission Range';
+            document.getElementById('tellerUnitRangeId').value = range.id;
+            document.getElementById('tellerUnitRangeMin').value = range.min_units;
+            document.getElementById('tellerUnitRangeMax').value = range.max_units == null ? '' : range.max_units;
+            document.getElementById('tellerUnitRangeCommission').value = range.commission_percent;
+            document.getElementById('tellerUnitRangeModal').classList.add('show');
+        }
+
+        function closeTellerUnitRangeModal() {
+            document.getElementById('tellerUnitRangeModal').classList.remove('show');
+        }
+
+        async function saveTellerUnitRange() {
+            const id = document.getElementById('tellerUnitRangeId').value;
+            const minUnits = parseInt(document.getElementById('tellerUnitRangeMin').value, 10);
+            const maxRaw = document.getElementById('tellerUnitRangeMax').value.trim();
+            const maxUnits = maxRaw === '' ? null : parseInt(maxRaw, 10);
+            const commissionPercent = parseFloat(document.getElementById('tellerUnitRangeCommission').value);
+
+            if (!Number.isInteger(minUnits) || minUnits < 1 || isNaN(commissionPercent) || commissionPercent < 0) {
+                alert('Enter a valid Min Units (>=1) and Commission % (>=0)');
+                return;
+            }
+            if (maxUnits !== null && (!Number.isInteger(maxUnits) || maxUnits < minUnits)) {
+                alert('Max Units must be a whole number >= Min Units, or left blank');
+                return;
+            }
+
+            try {
+                const payload = { minUnits, maxUnits, commissionPercent };
+                if (id) await window.API.updateAdminTellerUnitRange(id, payload);
+                else await window.API.addAdminTellerUnitRange(payload);
+
+                closeTellerUnitRangeModal();
+                await loadTellerUnitRanges();
+            } catch (error) {
+                console.error('Failed to save teller unit range:', error);
+                alert('Failed to save range: ' + (error.message || 'Unknown error'));
+            }
+        }
+
+        async function deleteTellerUnitRange(id) {
+            if (!confirm('Delete this commission range?')) return;
+            try {
+                await window.API.deleteAdminTellerUnitRange(id);
+                await loadTellerUnitRanges();
+            } catch (error) {
+                console.error('Failed to delete teller unit range:', error);
+                alert('Failed to delete range: ' + (error.message || 'Unknown error'));
             }
         }
 
@@ -4020,6 +4164,7 @@
             document.getElementById('supportPhone').value = settings.support.supportPhone || '';
             document.getElementById('supportWhatsappNumber').value = settings.support.supportWhatsappNumber || '';
             document.getElementById('dailyCheckinAmount').value = settings.dailyCheckinAmount || DEFAULT_SETTINGS.dailyCheckinAmount;
+            document.getElementById('tellerUnitMinimum').value = settings.tellerUnitMinimum || 50;
             document.getElementById('beginnerPenaltyThreshold').value = settings.beginnerPenaltyThreshold ?? 5;
             document.getElementById('beginnerPenaltyStepPercent').value = settings.beginnerPenaltyStepPercent ?? 10;
             document.getElementById('beginnerPenaltyFloorPercent').value = settings.beginnerPenaltyFloorPercent ?? 50;
@@ -4040,6 +4185,7 @@
             const supportPhone = document.getElementById('supportPhone').value.trim();
             const supportWhatsappNumber = document.getElementById('supportWhatsappNumber').value.trim();
             const dailyCheckinAmount = parseFloat(document.getElementById('dailyCheckinAmount').value) || DEFAULT_SETTINGS.dailyCheckinAmount;
+            const tellerUnitMinimum = parseInt(document.getElementById('tellerUnitMinimum').value, 10) || 50;
             const beginnerPenaltyThreshold = parseInt(document.getElementById('beginnerPenaltyThreshold').value, 10) || 5;
             const beginnerPenaltyStepPercent = parseFloat(document.getElementById('beginnerPenaltyStepPercent').value) || 0;
             const beginnerPenaltyFloorPercent = parseFloat(document.getElementById('beginnerPenaltyFloorPercent').value) || 0;
@@ -4057,7 +4203,7 @@
                 supportWhatsappNumber
             };
 
-            saveAppSettings({ commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount, notificationsTaskReward, homeScreenTaskReward, defaultPaymentNumber, defaultPaymentMethod });
+            saveAppSettings({ commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount, tellerUnitMinimum, notificationsTaskReward, homeScreenTaskReward, defaultPaymentNumber, defaultPaymentMethod });
 
             // Persist to the real server-side settings - this is what every page (Customer
             // Service, home.html's support notices, etc.) actually reads from, not the
@@ -4067,7 +4213,7 @@
                     await window.API.call('/admin/settings', {
                         method: 'POST',
                         body: JSON.stringify({
-                            commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount,
+                            commissionRate, minWithdrawal, platformName, support, dailyCheckinAmount, tellerUnitMinimum,
                             beginnerPenaltyThreshold, beginnerPenaltyStepPercent, beginnerPenaltyFloorPercent,
                             notificationsTaskReward, homeScreenTaskReward,
                             defaultPaymentNumber, defaultPaymentMethod
@@ -4149,6 +4295,7 @@
         window.addEventListener('DOMContentLoaded', async function() {
             const isLocalAdmin = sessionStorage.getItem('adminLoggedIn') === 'true';
             loadAdminSettings();
+            loadTellerUnitRanges();
 
             try {
                 if (typeof window.AuthService === 'undefined') {
@@ -4178,6 +4325,7 @@
                 }
 
                 loadAdminSettings();
+                loadTellerUnitRanges();
                 loadDashboard();
             } catch (error) {
                 console.error('Error loading admin panel:', error);

@@ -803,6 +803,16 @@
         <div class="product-section-title" id="tellerPackagesTitle" style="display: none;">Teller Packages</div>
         <div id="tellerPackagesSection" class="product-grid" style="display: none;"></div>
 
+        <!-- Custom Unit Order - kept as its own static card (not rebuilt by
+             renderProductCatalog's innerHTML swap) so a user's in-progress typing
+             survives the ~45s schedule-refresh re-render. -->
+        <div class="beginner-task-card" id="customUnitOrderCard" style="display: none;">
+            <div class="beginner-task-header"><i class="las la-calculator"></i> Custom Unit Order</div>
+            <div class="beginner-task-description">Enter how many units you want. 1 unit = GHC 1.00. <span id="customUnitOrderMinHint"></span></div>
+            <input type="number" class="beginner-task-url-input" id="customUnitOrderInput" placeholder="Enter units" min="1" step="1">
+            <button class="beginner-task-submit-btn" id="customUnitOrderBtn" onclick="placeUnitOrder()">Place Order</button>
+        </div>
+
         <!-- Filter Buttons -->
         <div class="filter-buttons">
             <button class="filter-btn active" onclick="switchFilter('pending', this)">To Be Completed</button>
@@ -860,8 +870,9 @@
             const catalogReady = loadCatalog();
             const productCatalogReady = loadProductCatalog();
             const scheduleReady = refreshSchedule();
+            const unitOrderConfigReady = loadUnitOrderConfig();
 
-            await Promise.allSettled([balanceReady, tasksReady, beginnerReady, catalogReady, productCatalogReady, scheduleReady]);
+            await Promise.allSettled([balanceReady, tasksReady, beginnerReady, catalogReady, productCatalogReady, scheduleReady, unitOrderConfigReady]);
 
             refreshTaskStats();
             updateAward();
@@ -1024,6 +1035,12 @@
             // rest of the time (before the bot posts, and again once the slot ends),
             // matching how the beginner-task section disappears outside its own slot.
             const open = isScheduleOpenFor('teller');
+
+            // Independent of the catalog card grid below - a unit order doesn't need
+            // any admin-created products to exist, only an open teller slot.
+            const unitOrderCard = document.getElementById('customUnitOrderCard');
+            if (unitOrderCard) unitOrderCard.style.display = open ? 'block' : 'none';
+
             if (!products || products.length === 0 || !open) {
                 title.style.display = 'none';
                 grid.style.display = 'none';
@@ -1045,6 +1062,74 @@
                     <button class="product-card-button" onclick="completeTask('${product.id}', 'true')">Place Order</button>
                 </div>
             `).join('');
+        }
+
+        let unitOrderMinimum = 1;
+
+        async function loadUnitOrderConfig() {
+            try {
+                const config = await window.API.getTellerUnitOrderConfig();
+                unitOrderMinimum = parseInt(config.minimumUnits, 10) || 1;
+                const hint = document.getElementById('customUnitOrderMinHint');
+                if (hint) hint.textContent = `Minimum: ${unitOrderMinimum} units.`;
+                const input = document.getElementById('customUnitOrderInput');
+                if (input) input.min = unitOrderMinimum;
+            } catch (error) {
+                console.error('Failed to load unit order config:', error);
+            }
+        }
+
+        async function placeUnitOrder() {
+            const input = document.getElementById('customUnitOrderInput');
+            const btn = document.getElementById('customUnitOrderBtn');
+            const units = parseInt(input.value, 10);
+
+            if (!Number.isInteger(units) || units < 1 || String(input.value).includes('.')) {
+                alert('Enter a whole number of units');
+                return;
+            }
+            if (units < unitOrderMinimum) {
+                alert(`Minimum order is ${unitOrderMinimum} units`);
+                return;
+            }
+
+            try {
+                const wallet = await window.API.getWallet();
+                const balance = parseFloat(wallet.balance || 0);
+                if (balance < units) {
+                    alert(`Insufficient balance. You need GHC ${units.toFixed(2)} to place this order. Your balance: GHC ${balance.toFixed(2)}`);
+                    return;
+                }
+            } catch (error) {
+                console.error('Failed to check balance before unit order:', error);
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Calculating profit...';
+
+            try {
+                // Cosmetic minimum delay - real API latency counts toward it, so this
+                // never feels instant even though the numbers are usually back quickly.
+                const minDelay = new Promise(resolve => setTimeout(resolve, 1800));
+                const [orderResult] = await Promise.all([window.API.startUnitOrder(units), minDelay]);
+
+                document.getElementById('orderCost').textContent = orderResult.cost.toFixed(2);
+                document.getElementById('orderInterest').textContent = orderResult.interest.toFixed(2);
+                document.getElementById('orderTotal').textContent = orderResult.totalReturn.toFixed(2);
+
+                updateBalance();
+                input.value = '';
+                window.localStorage.setItem('pendingOrderId', orderResult.orderId);
+                // pollOrderStatus() reads task.amount on completion - pass a minimal
+                // shim since a unit order has no real task/product record.
+                showProcessingModal(`Custom Unit Order (${units} units)`, orderResult.orderId, orderResult.totalReturn, { amount: units }, false);
+            } catch (error) {
+                console.error('Failed to place unit order:', error);
+                alert(error.message || 'Failed to place order');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Place Order';
+            }
         }
 
         async function loadBeginnerTasks() {

@@ -927,6 +927,30 @@ window.API = {
 
   async getOrderStatus(orderId) {
     return this.call(`/orders/${orderId}/status`);
+  },
+
+  async getTellerUnitOrderConfig() {
+    return this.call('/teller-unit-order/config');
+  },
+
+  async startUnitOrder(units) {
+    return this.call('/orders/start-unit', {
+      method: 'POST',
+      body: JSON.stringify({ units })
+    });
+  },
+
+  async getAdminTellerUnitRanges() {
+    return this.call('/admin/teller-unit-ranges');
+  },
+  async addAdminTellerUnitRange(data) {
+    return this.call('/admin/teller-unit-ranges', { method: 'POST', body: JSON.stringify(data) });
+  },
+  async updateAdminTellerUnitRange(id, data) {
+    return this.call(`/admin/teller-unit-ranges/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  async deleteAdminTellerUnitRange(id) {
+    return this.call(`/admin/teller-unit-ranges/${id}`, { method: 'DELETE' });
   }
 };
 
