@@ -711,6 +711,16 @@ window.API = {
     return this.call('/one-time-tasks/home-screen/claim', { method: 'POST', body: JSON.stringify({ standalone: true }) });
   },
 
+  async getOnboardingStatus() {
+    return this.call('/users/me/onboarding-status');
+  },
+  async acceptTerms() {
+    return this.call('/users/me/accept-terms', { method: 'POST' });
+  },
+  async completeOnboarding() {
+    return this.call('/users/me/complete-onboarding', { method: 'POST' });
+  },
+
   async getScheduleCurrent() {
     return this.call('/schedule/current');
   },

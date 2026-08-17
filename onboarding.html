@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DailyTrade - Get Started</title>
+    <script src="theme.js"></script>
+    <script src="config.js"></script>
+    <script type="module" src="auth.js"></script>
+    <script src="pwa-install.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
+    <style>
+        :root {
+            --bg: #f5f5f5;
+            --surface: #ffffff;
+            --surface-alt: #f9f9f9;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border: #e0e0e0;
+            --border-light: #dddddd;
+            --brand: #4361ee;
+            --brand-hover: #3451d4;
+            --shadow: rgba(0, 0, 0, 0.08);
+            --shadow-strong: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f1115;
+            --surface: #1a1d24;
+            --surface-alt: #20242c;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --border: #2d3139;
+            --border-light: #2d3139;
+            --brand: #6b83ff;
+            --brand-hover: #8299ff;
+            --shadow: rgba(0, 0, 0, 0.35);
+            --shadow-strong: rgba(0, 0, 0, 0.45);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { overflow-x: hidden; width: 100%; }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .loading-screen {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; gap: 14px;
+        }
+        .spinner {
+            width: 36px; height: 36px; border: 3px solid var(--border);
+            border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .wizard-header { padding: 28px 20px 0; text-align: center; }
+        .wizard-logo { font-size: 22px; font-weight: 800; color: var(--brand); }
+
+        .progress-dots { display: flex; justify-content: center; gap: 8px; padding: 16px 0 4px; }
+        .progress-dot {
+            width: 8px; height: 8px; border-radius: 50%; background: var(--border);
+            transition: background 0.2s, transform 0.2s;
+        }
+        .progress-dot.active { background: var(--brand); transform: scale(1.3); }
+        .progress-dot.done { background: var(--brand); }
+
+        .wizard-container {
+            min-height: calc(100vh - 90px); display: flex; align-items: center;
+            justify-content: center; padding: 12px 16px 40px;
+        }
+        .wizard-card {
+            background: var(--surface); border-radius: 16px; padding: 30px 24px;
+            max-width: 420px; width: 100%; box-shadow: 0 4px 20px var(--shadow); text-align: center;
+        }
+        .step-icon { font-size: 42px; color: var(--brand); margin-bottom: 14px; display: block; }
+        .step-title { font-size: 19px; font-weight: 700; margin-bottom: 10px; }
+        .step-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 18px; }
+        .step-reward { font-size: 13px; font-weight: 700; color: var(--brand); margin-bottom: 14px; }
+
+        .primary-btn {
+            width: 100%; padding: 14px; border: none; border-radius: 10px;
+            background: var(--brand); color: #fff; font-size: 15px; font-weight: 700;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .primary-btn:hover:not(:disabled) { background: var(--brand-hover); }
+        .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .secondary-link {
+            display: block; margin-top: 14px; font-size: 13px; color: var(--text-muted);
+            text-decoration: none; cursor: pointer; background: none; border: none; width: 100%;
+        }
+        .secondary-link:hover { color: var(--text-secondary); }
+
+        .external-link-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 12px 18px; border-radius: 10px; background: var(--surface-alt);
+            border: 1px solid var(--border); color: var(--text-primary); text-decoration: none;
+            font-size: 14px; font-weight: 600; margin-bottom: 10px;
+        }
+
+        .status-complete {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 12px; background: rgba(46, 204, 113, 0.12); color: #1e9e56;
+            border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 14px;
+        }
+
+        .wizard-step { display: none; }
+    </style>
+</head>
+<body>
+    <div id="loadingScreen" class="loading-screen">
+        <div class="spinner"></div>
+        <div style="color: var(--text-muted); font-size: 13px;">Loading…</div>
+    </div>
+
+    <div id="wizardRoot" style="display:none;">
+        <div class="wizard-header">
+            <div class="wizard-logo">DailyTrade</div>
+        </div>
+        <div class="progress-dots" id="progressDots"></div>
+        <div class="wizard-container">
+            <div class="wizard-card">
+
+                <div class="wizard-step" id="step1">
+                    <i class="las la-rocket step-icon"></i>
+                    <div class="step-title">Apply to Start Earning</div>
+                    <div class="step-desc">You're almost ready. Complete a few quick steps to unlock tasks and start earning on DailyTrade.</div>
+                    <button class="primary-btn" id="applyBtn" onclick="handleApply()">Apply Now</button>
+                </div>
+
+                <div class="wizard-step" id="step2">
+                    <i class="las la-file-contract step-icon"></i>
+                    <div class="step-title">Terms &amp; Conditions</div>
+                    <div class="step-desc">Please review our Terms of Service and Privacy Policy before continuing.</div>
+                    <a href="terms.html" target="_blank" rel="noopener" class="external-link-btn"><i class="las la-external-link-alt"></i> Read Terms of Service</a>
+                    <a href="privacy.html" target="_blank" rel="noopener" class="external-link-btn"><i class="las la-external-link-alt"></i> Read Privacy Policy</a>
+                    <button class="primary-btn" id="acceptTermsBtn" onclick="handleAcceptTerms()" style="margin-top:8px;">I Accept</button>
+                </div>
+
+                <div class="wizard-step" id="step3">
+                    <i class="lab la-whatsapp step-icon"></i>
+                    <div class="step-title">Join Our WhatsApp Channel</div>
+                    <div class="step-desc">Get instant updates the moment new tasks open, straight to WhatsApp.</div>
+                    <a href="#" target="_blank" rel="noopener" class="external-link-btn" id="whatsappChannelBtn"><i class="lab la-whatsapp"></i> Join Channel</a>
+                    <button class="primary-btn" id="joinedBtn" onclick="handleJoinedWhatsapp()" style="margin-top:8px;">I've Joined</button>
+                </div>
+
+                <div class="wizard-step" id="step4">
+                    <i class="las la-bell step-icon"></i>
+                    <div class="step-title">Enable Notifications</div>
+                    <div class="step-desc">Turn on notifications so you never miss a task announcement or payment update.</div>
+                    <div class="step-reward" id="notifReward"></div>
+                    <div id="notifAction"></div>
+                    <button class="secondary-link" id="notifSkip" onclick="goToStep(5)">Skip for now</button>
+                </div>
+
+                <div class="wizard-step" id="step5">
+                    <i class="las la-mobile-alt step-icon"></i>
+                    <div class="step-title">Add to Home Screen</div>
+                    <div class="step-desc">Add DailyTrade to your home screen for quick access, like a real app.</div>
+                    <div class="step-reward" id="homeReward"></div>
+                    <div id="homeAction"></div>
+                    <button class="secondary-link" id="homeSkip" onclick="goToStep(6)">Skip for now</button>
+                </div>
+
+                <div class="wizard-step" id="step6">
+                    <i class="las la-check-circle step-icon" style="color:#2ecc71;"></i>
+                    <div class="step-title">You're All Set!</div>
+                    <div class="step-desc">Your account is ready. Head over to tasks and start earning.</div>
+                    <button class="primary-btn" id="finishBtn" onclick="handleFinish()">Start Earning</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ALLOWED_NEXT = ['tasks.html', 'work.html', 'task-ideas.html', 'teller.html'];
+        function getNextUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const next = params.get('next');
+            return ALLOWED_NEXT.includes(next) ? next : 'tasks.html';
+        }
+
+        const TOTAL_STEPS = 6;
+        let currentStep = 1;
+        let oneTimeStatus = { notifications: { claimed: false, amount: 0 }, homeScreen: { claimed: false, amount: 0 } };
+        let siteSettings = {};
+
+        function updateProgressDots() {
+            const container = document.getElementById('progressDots');
+            container.innerHTML = '';
+            for (let i = 1; i <= TOTAL_STEPS; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'progress-dot' + (i === currentStep ? ' active' : (i < currentStep ? ' done' : ''));
+                container.appendChild(dot);
+            }
+        }
+
+        function goToStep(n) {
+            // Admin hasn't configured a channel link yet - nothing to show, skip straight through.
+            if (n === 3 && !siteSettings.whatsappChannelLink) {
+                n = 4;
+            }
+            document.querySelectorAll('.wizard-step').forEach(el => el.style.display = 'none');
+            currentStep = n;
+            const stepEl = document.getElementById('step' + n);
+            if (stepEl) stepEl.style.display = 'block';
+            updateProgressDots();
+            if (n === 4) renderNotificationsStep();
+            if (n === 5) renderHomeScreenStep();
+        }
+
+        async function handleApply() {
+            const btn = document.getElementById('applyBtn');
+            btn.disabled = true;
+            btn.textContent = 'Setting up your account…';
+            await new Promise(resolve => setTimeout(resolve, 1800));
+            btn.disabled = false;
+            btn.textContent = 'Apply Now';
+            goToStep(2);
+        }
+
+        async function handleAcceptTerms() {
+            const btn = document.getElementById('acceptTermsBtn');
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+            try {
+                await window.API.acceptTerms();
+                goToStep(3);
+            } catch (err) {
+                alert('Failed to save: ' + (err.message || 'Unknown error'));
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'I Accept';
+            }
+        }
+
+        function handleJoinedWhatsapp() {
+            goToStep(4);
+        }
+
+        // --- Notifications step - mirrors task-ideas.html's renderNotificationsCard()/startNotificationsTask() ---
+        function renderNotificationsStep() {
+            const rewardEl = document.getElementById('notifReward');
+            const actionEl = document.getElementById('notifAction');
+            const skipEl = document.getElementById('notifSkip');
+            const info = oneTimeStatus.notifications || { claimed: false, amount: 0 };
+            rewardEl.textContent = `Reward: GHC ${parseFloat(info.amount || 0).toFixed(2)}`;
+
+            if (info.claimed) {
+                actionEl.innerHTML = '<div class="status-complete"><i class="las la-check-circle"></i> Completed</div>';
+                skipEl.style.display = 'none';
+                return;
+            }
+            skipEl.style.display = 'block';
+            if (!('Notification' in window)) {
+                actionEl.innerHTML = '<div class="step-desc" style="margin-bottom:0;">Not supported on this browser.</div>';
+            } else if (Notification.permission === 'denied') {
+                actionEl.innerHTML = '<div class="step-desc" style="margin-bottom:0;">Notifications are blocked for this site. Enable them in your browser settings, then reload this page.</div>';
+            } else if (Notification.permission === 'granted') {
+                actionEl.innerHTML = '<button class="primary-btn" onclick="claimNotifications()">Claim Reward</button>';
+            } else {
+                actionEl.innerHTML = '<button class="primary-btn" onclick="startNotifications()">Allow Notifications</button>';
+            }
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+            return outputArray;
+        }
+
+        async function startNotifications() {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    alert('Notifications were not allowed. You can enable them later from your browser settings.');
+                    renderNotificationsStep();
+                    return;
+                }
+                const registration = await navigator.serviceWorker.register('sw.js');
+                await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(window.CONFIG.VAPID_PUBLIC_KEY)
+                });
+                await window.API.call('/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription }) });
+                await claimNotifications();
+            } catch (err) {
+                console.error('Failed to enable notifications:', err);
+                alert('Could not enable notifications: ' + err.message);
+                renderNotificationsStep();
+            }
+        }
+
+        async function claimNotifications() {
+            try {
+                const result = await window.API.claimNotificationsTask();
+                oneTimeStatus.notifications = { claimed: true, amount: result.amount };
+                renderNotificationsStep();
+            } catch (err) {
+                alert(err.message || 'Failed to claim reward');
+                renderNotificationsStep();
+            }
+        }
+
+        // --- Home screen step - mirrors task-ideas.html's renderHomeScreenCard()/isStandalonePwa() ---
+        function isStandalonePwa() {
+            return window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+        }
+
+        function renderHomeScreenStep() {
+            const rewardEl = document.getElementById('homeReward');
+            const actionEl = document.getElementById('homeAction');
+            const skipEl = document.getElementById('homeSkip');
+            const info = oneTimeStatus.homeScreen || { claimed: false, amount: 0 };
+            rewardEl.textContent = `Reward: GHC ${parseFloat(info.amount || 0).toFixed(2)}`;
+
+            if (info.claimed) {
+                actionEl.innerHTML = '<div class="status-complete"><i class="las la-check-circle"></i> Completed</div>';
+                skipEl.style.display = 'none';
+                return;
+            }
+            skipEl.style.display = 'block';
+            if (isStandalonePwa()) {
+                actionEl.innerHTML = '<button class="primary-btn" onclick="claimHomeScreen()">Claim Reward</button>';
+            } else if (window.__deferredInstallPrompt) {
+                actionEl.innerHTML = '<button class="primary-btn" onclick="triggerInstallPrompt()">Install App</button>';
+            } else {
+                const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                const instructions = isIos
+                    ? 'Tap the Share icon in Safari, then "Add to Home Screen."'
+                    : 'Open your browser menu and choose "Add to Home Screen" or "Install App."';
+                actionEl.innerHTML = `<div class="step-desc" style="margin-bottom:0;">${instructions} Then open DailyTrade from the home screen icon and come back here to claim.</div>`;
+            }
+        }
+
+        async function triggerInstallPrompt() {
+            const promptEvent = window.__deferredInstallPrompt;
+            if (!promptEvent) { renderHomeScreenStep(); return; }
+            promptEvent.prompt();
+            try {
+                const choice = await promptEvent.userChoice;
+                window.__deferredInstallPrompt = null;
+                if (choice.outcome === 'accepted') {
+                    document.getElementById('homeAction').innerHTML =
+                        '<div class="step-desc" style="margin-bottom:0;">Great! Now open DailyTrade from the icon you just added, then come back here to claim.</div>';
+                } else {
+                    renderHomeScreenStep();
+                }
+            } catch (err) {
+                console.error('Install prompt failed:', err);
+                renderHomeScreenStep();
+            }
+        }
+
+        async function claimHomeScreen() {
+            try {
+                const result = await window.API.claimHomeScreenTask();
+                oneTimeStatus.homeScreen = { claimed: true, amount: result.amount };
+                renderHomeScreenStep();
+            } catch (err) {
+                alert(err.message || 'Failed to claim reward');
+                renderHomeScreenStep();
+            }
+        }
+
+        async function handleFinish() {
+            const btn = document.getElementById('finishBtn');
+            btn.disabled = true;
+            btn.textContent = 'Finishing…';
+            try {
+                await window.API.completeOnboarding();
+                window.location.href = getNextUrl();
+            } catch (err) {
+                alert('Failed to finish: ' + (err.message || 'Unknown error'));
+                btn.disabled = false;
+                btn.textContent = 'Start Earning';
+            }
+        }
+
+        async function init() {
+            let retries = 0;
+            while (typeof window.AuthService === 'undefined' && retries < 10) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                retries++;
+            }
+            if (typeof window.AuthService === 'undefined') {
+                window.location.href = 'index.html';
+                return;
+            }
+            const session = await window.AuthService.getSession();
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                const [onboardingStatus, otStatus, allSettings] = await Promise.all([
+                    window.API.getOnboardingStatus(),
+                    window.API.getOneTimeTaskStatus(),
+                    window.API.call('/settings')
+                ]);
+                oneTimeStatus = otStatus;
+                siteSettings = allSettings;
+
+                if (onboardingStatus.onboardingCompleted) {
+                    window.location.href = getNextUrl();
+                    return;
+                }
+
+                const whatsappBtn = document.getElementById('whatsappChannelBtn');
+                if (whatsappBtn) whatsappBtn.href = siteSettings.whatsappChannelLink || '#';
+
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('wizardRoot').style.display = 'block';
+
+                goToStep(onboardingStatus.termsAcceptedAt ? 3 : 1);
+            } catch (err) {
+                console.error('Failed to load onboarding status:', err);
+                document.getElementById('loadingScreen').innerHTML =
+                    '<div style="color: var(--text-muted); font-size: 14px; text-align:center; padding: 20px;">' +
+                    'Something went wrong loading this page.<br><br>' +
+                    '<button class="primary-btn" style="width:auto; padding:10px 24px;" onclick="window.location.reload()">Retry</button></div>';
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>

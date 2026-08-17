@@ -182,6 +182,10 @@ async function getAllAppSettings() {
     // Minimum quantity a user can enter for a custom unit order (1 unit = 1 GHC) on
     // the Teller Packages / Product Tasks section.
     tellerUnitMinimum: 50,
+    // Public "Invite via link" URL for the WhatsApp announcement channel - shown to
+    // users during onboarding. Distinct from WHATSAPP_TARGET_JID (the bot's internal
+    // posting target) and from support.supportWhatsappNumber (1:1 support contact).
+    whatsappChannelLink: '',
     // Beginner (URL) task reward shrinks the longer a user consecutively skips teller/
     // product tasks - nudges people who exclusively farm the free tier toward the paid
     // one, without paying out more (a pure cost-reduction lever, not a giveaway).
@@ -234,6 +238,8 @@ async function getAllAppSettings() {
     } else if (key === 'teller_unit_minimum') {
       const parsed = Number(value);
       if (!Number.isNaN(parsed)) settings.tellerUnitMinimum = parsed;
+    } else if (key === 'whatsapp_channel_link') {
+      if (value != null) settings.whatsappChannelLink = value;
     } else if (key === 'beginner_penalty_threshold') {
       const parsed = Number(value);
       if (!Number.isNaN(parsed)) settings.beginnerPenaltyThreshold = parsed;
@@ -465,16 +471,41 @@ app.get('/users/me', requireAuth, async (req, res) => {
   const { rows } = await query(
     `select u.id, u.email, u.full_name, u.phone, u.created_at,
             u.avatar_url, u.verification_required, u.verification_status, u.verification_requested_at,
-            u.totp_required, u.totp_enrolled_at,
+            u.totp_required, u.totp_enrolled_at, u.onboarding_completed, u.terms_accepted_at,
             u.referral_code, w.balance, w.bonus
      from app_users u
      left join wallets w on u.id = w.user_id
      where u.id = $1`,
     [req.user.id]
   );
-  
+
   if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
   res.json(rows[0]);
+});
+
+// Onboarding gate - a small dedicated status route (rather than folding into GET
+// /users/me) so the task-page guards only need to check one boolean, not parse a full
+// profile payload every page load.
+app.get('/users/me/onboarding-status', requireAuth, async (req, res) => {
+  const { rows } = await query(
+    'select onboarding_completed, terms_accepted_at from app_users where id = $1',
+    [req.user.id]
+  );
+  if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+  res.json({
+    onboardingCompleted: rows[0].onboarding_completed,
+    termsAcceptedAt: rows[0].terms_accepted_at
+  });
+});
+
+app.post('/users/me/accept-terms', requireAuth, async (req, res) => {
+  await query('update app_users set terms_accepted_at = now() where id = $1', [req.user.id]);
+  res.json({ ok: true });
+});
+
+app.post('/users/me/complete-onboarding', requireAuth, async (req, res) => {
+  await query('update app_users set onboarding_completed = true where id = $1', [req.user.id]);
+  res.json({ ok: true });
 });
 
 // Update user profile
@@ -1369,6 +1400,7 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
     support = {},
     dailyCheckinAmount,
     tellerUnitMinimum,
+    whatsappChannelLink,
     beginnerPenaltyThreshold,
     beginnerPenaltyStepPercent,
     beginnerPenaltyFloorPercent,
@@ -1420,6 +1452,9 @@ app.post('/admin/settings', requireAuth, requireAdmin, async (req, res) => {
   }
   if (tellerUnitMinimum !== undefined) {
     await upsertAppSetting('teller_unit_minimum', tellerUnitMinimum);
+  }
+  if (whatsappChannelLink !== undefined) {
+    await upsertAppSetting('whatsapp_channel_link', whatsappChannelLink);
   }
   if (beginnerPenaltyThreshold !== undefined) {
     await upsertAppSetting('beginner_penalty_threshold', beginnerPenaltyThreshold);
@@ -3566,6 +3601,12 @@ async function ensureSchema() {
   await query('alter table app_users add column if not exists verification_requested_at timestamptz');
   await query('alter table app_users add column if not exists totp_required boolean not null default false');
   await query('alter table app_users add column if not exists totp_enrolled_at timestamptz');
+  // Onboarding gate - blocks access to tasks/work/task-ideas/teller until the user has
+  // walked through onboarding.html once. Defaults false for every existing row too,
+  // which is intentional - the gate triggers on first attempted task-page visit, not
+  // signup timing, so already-registered users see it the next time they try to earn.
+  await query('alter table app_users add column if not exists onboarding_completed boolean not null default false');
+  await query('alter table app_users add column if not exists terms_accepted_at timestamptz');
   // Captured once at first signup (never overwritten on later syncs) - used only to spot
   // referral bonus farming from the same device/network, not stored for any other purpose.
   await query('alter table app_users add column if not exists signup_ip text');
