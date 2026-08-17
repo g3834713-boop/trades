@@ -263,6 +263,30 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Covers the whole viewport from the very first paint (present in the static
+           HTML, not injected by JS) so the real page never flashes before the session/
+           onboarding guard has actually passed - removed only once it has. */
+        .auth-guard-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .auth-guard-overlay .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--spinner-track);
+            border-top: 4px solid var(--brand);
+            border-radius: 50%;
+            animation: authGuardSpin 0.8s linear infinite;
+        }
+        @keyframes authGuardSpin {
+            to { transform: rotate(360deg); }
+        }
+
         .loader-text {
             position: absolute;
             top: 50%;
@@ -532,6 +556,7 @@
     </style>
 </head>
 <body>
+    <div class="auth-guard-overlay" id="authGuardOverlay"><div class="loading-spinner"></div></div>
     <!-- Header -->
     <div class="header">
         <div class="header-left">
@@ -871,6 +896,10 @@
                 } catch (e) {
                     console.warn('Onboarding status check failed:', e);
                 }
+
+                // Guard passed - safe to reveal the real page now.
+                const guardOverlay = document.getElementById('authGuardOverlay');
+                if (guardOverlay) guardOverlay.remove();
 
                 // Sync user to backend (fire and forget)
                 window.API.call('/users/sync', { method: 'POST' }).catch(e => console.warn('User sync failed:', e));
