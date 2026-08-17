@@ -1887,7 +1887,7 @@
 
         async function resetUserAccount(userId, userName) {
             const displayName = userName || 'this user';
-            const confirmed = confirm(`Reset ${displayName}'s account data?\n\nThis will clear balances, bonuses, transactions, tasks, products, payments, withdrawals, check-ins, and verification state so the account behaves like a fresh new user.`);
+            const confirmed = confirm(`Reset ${displayName}'s account data?\n\nThis clears balances, bonuses, transactions, tasks, products, orders, payments, withdrawals, check-ins, teller progress, Easy Earn history, one-time bonus claims, notifications, chat history, push subscriptions, verification state, 2FA requirement, and onboarding status - the account keeps only its login and goes back to behaving like a brand new user. This cannot be undone.`);
             if (!confirmed) return;
 
             try {

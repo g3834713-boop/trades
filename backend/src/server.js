@@ -686,11 +686,30 @@ app.post('/admin/users/:userId/reset-data', requireAuth, requireAdmin, async (re
     await client.query('delete from identity_verifications where user_id = $1', [userId]);
     await client.query('delete from referrals where referrer_id = $1 or referred_id = $1', [userId]);
     await client.query('delete from user_payment_numbers where user_id = $1', [userId]);
+    // Everything below was added by later features and had never been folded into this
+    // reset - each one left real per-user state behind that a "fresh account" reset
+    // should also clear.
+    await client.query('delete from beginner_task_submissions where user_id = $1', [userId]);
+    await client.query('delete from easy_earn_submissions where user_id = $1', [userId]);
+    await client.query('delete from easy_earn_daily_claims where user_id = $1', [userId]);
+    await client.query('delete from easy_earn_photo_submissions where user_id = $1', [userId]);
+    await client.query('delete from one_time_task_claims where user_id = $1', [userId]);
+    await client.query('delete from order_processing where user_id = $1', [userId]);
+    await client.query('delete from teller_product_assignments where user_id = $1', [userId]);
+    await client.query('delete from notifications where user_id = $1', [userId]);
+    await client.query('delete from push_subscriptions where user_id = $1', [userId]);
+    await client.query('delete from chat_messages where user_id = $1', [userId]);
 
     await client.query(
       `insert into wallets (user_id, balance, bonus, updated_at)
        values ($1, 0, 0, now())
        on conflict (user_id) do update set balance = 0, bonus = 0, updated_at = now()` ,
+      [userId]
+    );
+    await client.query(
+      `insert into teller_wallets (user_id, balance, last_withdrawn_level, updated_at)
+       values ($1, 0, 0, now())
+       on conflict (user_id) do update set balance = 0, last_withdrawn_level = 0, updated_at = now()`,
       [userId]
     );
 
@@ -700,7 +719,11 @@ app.post('/admin/users/:userId/reset-data', requireAuth, requireAdmin, async (re
            verification_required = false,
            verification_status = 'none',
            verification_requested_at = null,
-           referred_by = null
+           referred_by = null,
+           totp_required = false,
+           totp_enrolled_at = null,
+           onboarding_completed = false,
+           terms_accepted_at = null
        where id = $1`,
       [userId]
     );
