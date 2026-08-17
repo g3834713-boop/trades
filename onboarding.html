@@ -61,8 +61,15 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .wizard-header { padding: 28px 20px 0; text-align: center; }
+        .wizard-header { padding: 20px 20px 0; text-align: center; position: relative; }
         .wizard-logo { font-size: 22px; font-weight: 800; color: var(--brand); }
+        .wizard-close {
+            position: absolute; top: 14px; right: 16px; width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center; border-radius: 50%;
+            background: var(--surface-alt); color: var(--text-muted); font-size: 16px;
+            text-decoration: none; border: 1px solid var(--border);
+        }
+        .wizard-close:hover { color: var(--text-secondary); }
 
         .progress-dots { display: flex; justify-content: center; gap: 8px; padding: 16px 0 4px; }
         .progress-dot {
@@ -123,6 +130,9 @@
 
     <div id="wizardRoot" style="display:none;">
         <div class="wizard-header">
+            <a href="home.html" class="wizard-close" title="Finish later - your progress is saved">
+                <i class="las la-times"></i>
+            </a>
             <div class="wizard-logo">DailyTrade</div>
         </div>
         <div class="progress-dots" id="progressDots"></div>
@@ -257,7 +267,9 @@
             rewardEl.textContent = `Reward: GHC ${parseFloat(info.amount || 0).toFixed(2)}`;
 
             if (info.claimed) {
-                actionEl.innerHTML = '<div class="status-complete"><i class="las la-check-circle"></i> Completed</div>';
+                actionEl.innerHTML =
+                    '<div class="status-complete"><i class="las la-check-circle"></i> Completed</div>' +
+                    '<button class="primary-btn" onclick="goToStep(5)">Continue</button>';
                 skipEl.style.display = 'none';
                 return;
             }
@@ -329,7 +341,9 @@
             rewardEl.textContent = `Reward: GHC ${parseFloat(info.amount || 0).toFixed(2)}`;
 
             if (info.claimed) {
-                actionEl.innerHTML = '<div class="status-complete"><i class="las la-check-circle"></i> Completed</div>';
+                actionEl.innerHTML =
+                    '<div class="status-complete"><i class="las la-check-circle"></i> Completed</div>' +
+                    '<button class="primary-btn" onclick="goToStep(6)">Continue</button>';
                 skipEl.style.display = 'none';
                 return;
             }
