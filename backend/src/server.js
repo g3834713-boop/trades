@@ -111,6 +111,7 @@ async function creditEasyEarnReward({ userId, category, taskId, amount, details 
   }
 
   await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, userId]);
+  pushWalletUpdate(userId).catch(() => {});
   await query(
     'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
     [userId, 'easy_earn', amount, `Easy Earn reward (${category})`]
@@ -446,6 +447,7 @@ app.post('/users/sync', requireAuth, async (req, res) => {
               'update wallets set bonus = bonus + 2.00, updated_at = now() where user_id = $1',
               [referrerId]
             );
+            pushWalletUpdate(referrerId).catch(() => {});
             // Record transaction for referrer
             await query(
               `insert into transactions (user_id, type, amount, reason)
@@ -729,6 +731,10 @@ app.post('/admin/users/:userId/reset-data', requireAuth, requireAdmin, async (re
     );
 
     await client.query('COMMIT');
+    // Only after commit - pushing "balance is now 0" before the transaction is
+    // confirmed durable would be wrong if a later step in it had rolled back.
+    pushWalletUpdate(userId).catch(() => {});
+    pushTellerWalletUpdate(userId).catch(() => {});
     res.json({ ok: true, message: 'User data reset successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -856,7 +862,8 @@ app.post('/wallet/transfer-bonus', requireAuth, async (req, res) => {
     'update wallets set balance = balance + $1, bonus = bonus - $1, updated_at = now() where user_id = $2',
     [numericAmount, id]
   );
-  
+  pushWalletUpdate(id).catch(() => {});
+
   await query(
     'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
     [id, 'bonus_transfer', numericAmount, 'Bonus transferred to balance']
@@ -891,7 +898,8 @@ app.post('/wallet/deduct', requireAuth, async (req, res) => {
     'update wallets set balance = balance - $1, updated_at = now() where user_id = $2',
     [numericAmount, id]
   );
-  
+  pushWalletUpdate(id).catch(() => {});
+
   await query(
     'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
     [id, 'task_cost', numericAmount, reason || 'Task cost']
@@ -915,7 +923,8 @@ app.post('/wallet/add-bonus', requireAuth, requireAdmin, async (req, res) => {
     'update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2',
     [numericAmount, id]
   );
-  
+  pushWalletUpdate(id).catch(() => {});
+
   await query(
     'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
     [id, 'bonus', numericAmount, reason || 'Task completion bonus']
@@ -960,6 +969,7 @@ app.post('/checkin', requireAuth, async (req, res) => {
 
     if (amount > 0) {
       await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, id]);
+      pushWalletUpdate(id).catch(() => {});
       await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [id, 'daily_checkin', amount, 'Daily check-in bonus']);
       await createNotification(id, 'checkin_bonus', 'Daily check-in bonus',
         `You've claimed your GHC ${Number(amount).toFixed(2)} daily check-in bonus.`,
@@ -1611,6 +1621,7 @@ app.post('/users/me/checkin', requireAuth, async (req, res) => {
     'update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2',
     [amount, userId]
   );
+  pushWalletUpdate(userId).catch(() => {});
   await query(
     `insert into transactions (user_id, type, amount, reason)
      values ($1, 'daily_checkin', $2, $3)`,
@@ -1824,6 +1835,7 @@ app.post('/admin/withdrawals/:id/approve', requireAuth, requireAdmin, async (req
   );
 
   await query('update wallets set balance = balance - $1, updated_at = now() where user_id = $2', [withdrawal.amount, withdrawal.user_id]);
+  pushWalletUpdate(withdrawal.user_id).catch(() => {});
   await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [withdrawal.user_id, 'withdrawal', withdrawal.amount, 'Withdrawal approved']);
 
   await createNotification(withdrawal.user_id, 'withdrawal_approved', 'Withdrawal approved',
@@ -1880,6 +1892,7 @@ app.post('/admin/payments/:id/complete', requireAuth, requireAdmin, async (req, 
   const payment = rows[0];
 
   await query('update wallets set balance = balance + $1, updated_at = now() where user_id = $2', [payment.amount, payment.user_id]);
+  pushWalletUpdate(payment.user_id).catch(() => {});
   await query('insert into deposits (user_id, amount, bonus, reason) values ($1, $2, 0, $3)', [payment.user_id, payment.amount, 'Payment confirmed']);
   await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [payment.user_id, 'deposit', payment.amount, 'Payment confirmed']);
 
@@ -1917,6 +1930,7 @@ app.post('/admin/deposits', requireAuth, requireAdmin, async (req, res) => {
   if (amount <= 0 && bonus <= 0) return res.status(400).json({ error: 'Amount or bonus required' });
 
   await query('update wallets set balance = balance + $1, bonus = bonus + $2, updated_at = now() where user_id = $3', [amount, bonus, userId]);
+  pushWalletUpdate(userId).catch(() => {});
   await query('insert into deposits (user_id, amount, bonus, reason) values ($1, $2, $3, $4)', [userId, amount, bonus, reason || 'Account top-up']);
   if (amount > 0) {
     await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [userId, 'deposit', amount, reason || 'Account top-up']);
@@ -2559,6 +2573,7 @@ app.post('/teller/assignments/:id/start', requireAuth, async (req, res) => {
     'update wallets set balance = balance - $1, updated_at = now() where user_id = $2',
     [price, userId]
   );
+  pushWalletUpdate(userId).catch(() => {});
   await query(
     'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
     [userId, 'teller_task_cost', price, `Teller task started: ${task.name}`]
@@ -2631,6 +2646,7 @@ app.post('/teller/assignments/:id/complete', requireAuth, async (req, res) => {
      on conflict (user_id) do update set balance = teller_wallets.balance + excluded.balance, updated_at = now()`,
     [userId, totalReturn]
   );
+  pushTellerWalletUpdate(userId).catch(() => {});
 
   await query(
     'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
@@ -2685,10 +2701,12 @@ app.post('/teller/withdraw', requireAuth, async (req, res) => {
     'update wallets set balance = balance + $1, updated_at = now() where user_id = $2',
     [tellerBalance, userId]
   );
+  pushWalletUpdate(userId).catch(() => {});
   await query(
     'update teller_wallets set balance = 0, last_withdrawn_level = $1, updated_at = now() where user_id = $2',
     [highestCompletedLevel, userId]
   );
+  pushTellerWalletUpdate(userId).catch(() => {});
   await query(
     'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
     [userId, 'teller_withdraw', tellerBalance, 'Teller balance withdrawn to main wallet']
@@ -3095,6 +3113,7 @@ app.post('/beginner-tasks/:id/claim', requireAuth, async (req, res) => {
       `update wallets set balance = balance + $1 where user_id = $2`,
       [rewardAmount, userId]
     );
+    pushWalletUpdate(userId).catch(() => {});
 
     await query(
       `insert into transactions (user_id, type, amount, reason)
@@ -3212,6 +3231,7 @@ app.post('/orders/start-unit', requireAuth, async (req, res) => {
     const totalReturn = Math.round((units + interest) * 100) / 100;
 
     await query('update wallets set balance = balance - $1, updated_at = now() where user_id = $2', [units, userId]);
+    pushWalletUpdate(userId).catch(() => {});
     await query(
       'insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)',
       [userId, 'teller_unit_order_cost', units, `Custom unit order: ${units} units`]
@@ -3323,6 +3343,7 @@ async function advanceOrderProcessing(orderId, userId) {
           `update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2`,
           [totalReturn, userId]
         );
+        pushWalletUpdate(userId).catch(() => {});
 
         // Record transaction
         const taskOrProduct = order.units ? 'unit order' : (order.task_id ? 'task' : 'product');
@@ -3968,6 +3989,7 @@ async function claimOneTimeTask(userId, taskKey, amount, title, message) {
     throw err;
   }
   await query('update wallets set bonus = bonus + $1, updated_at = now() where user_id = $2', [amount, userId]);
+  pushWalletUpdate(userId).catch(() => {});
   await query('insert into transactions (user_id, type, amount, reason) values ($1, $2, $3, $4)', [userId, 'one_time_task', amount, title]);
   await createNotification(userId, 'one_time_task_reward', title, message, { taskKey, amount, actionUrl: 'task-ideas.html' });
 }
@@ -4714,17 +4736,40 @@ async function ensureInitialTasks() {
   }
 }
 
-// A single instance holds every open chat WS connection, keyed by app_users.id -
-// fine on Render's free tier since there's only ever one backend process; a second
-// instance would need Redis pub/sub to fan a reply out to a connection held by the
-// OTHER instance, which is exactly the case the "no Redis needed" decision assumed
-// doesn't apply here.
-const chatSockets = new Map();
+// A single instance holds every open live-events WS connection (chat replies, wallet
+// balance changes), keyed by app_users.id - fine on Render's free tier since there's
+// only ever one backend process; a second instance would need Redis pub/sub to fan an
+// event out to a connection held by the OTHER instance, which is exactly the case the
+// "no Redis needed" decision assumed doesn't apply here.
+const liveSockets = new Map();
 
 function pushToUser(userId, payload) {
-  const ws = chatSockets.get(userId);
+  const ws = liveSockets.get(userId);
   if (ws && ws.readyState === ws.OPEN) {
     ws.send(JSON.stringify(payload));
+  }
+}
+
+// Fire-and-forget, same philosophy as sendPushToUser/createNotification nearby - a
+// missed live-balance frame must never break the money-moving action that triggered
+// it (the REST fetch on next page load is always the source of truth regardless).
+async function pushWalletUpdate(userId) {
+  try {
+    const { rows } = await query('select balance, bonus from wallets where user_id = $1', [userId]);
+    if (rows.length === 0) return;
+    pushToUser(userId, { type: 'balance_update', balance: Number(rows[0].balance), bonus: Number(rows[0].bonus) });
+  } catch (err) {
+    console.error('pushWalletUpdate failed:', err.message);
+  }
+}
+
+async function pushTellerWalletUpdate(userId) {
+  try {
+    const { rows } = await query('select balance from teller_wallets where user_id = $1', [userId]);
+    if (rows.length === 0) return;
+    pushToUser(userId, { type: 'teller_balance_update', balance: Number(rows[0].balance) });
+  } catch (err) {
+    console.error('pushTellerWalletUpdate failed:', err.message);
   }
 }
 
@@ -4732,7 +4777,7 @@ const httpServer = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 
 httpServer.on('upgrade', (req, socket, head) => {
-  if (!req.url.startsWith('/ws/chat')) {
+  if (!req.url.startsWith('/ws/live')) {
     socket.destroy();
     return;
   }
@@ -4746,14 +4791,14 @@ wss.on('connection', (ws) => {
   let authTimeout = setTimeout(() => { if (!userId) ws.close(); }, 10000);
 
   ws.on('message', async (data) => {
-    if (userId) return; // already authenticated - a chat WS only ever sends the token as its first message
+    if (userId) return; // already authenticated - this socket only ever sends the token as its first message
     clearTimeout(authTimeout);
     try {
       const { token } = JSON.parse(data.toString());
       const user = await verifyToken(token);
       if (!user) { ws.close(); return; }
       userId = user.id;
-      chatSockets.set(userId, ws);
+      liveSockets.set(userId, ws);
     } catch (err) {
       ws.close();
     }
@@ -4761,7 +4806,7 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     clearTimeout(authTimeout);
-    if (userId && chatSockets.get(userId) === ws) chatSockets.delete(userId);
+    if (userId && liveSockets.get(userId) === ws) liveSockets.delete(userId);
   });
 });
 

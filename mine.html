@@ -11,6 +11,8 @@
     <script type="module" src="auth.js"></script>
     <script src="notifications.js"></script>
     <script src="pwa-install.js"></script>
+    <script src="live-socket.js"></script>
+    <script src="pull-to-refresh.js"></script>
     <script src="whatsapp-button.js"></script>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" />
@@ -2261,9 +2263,10 @@
 
         // Live Chat - looks like a normal support chat; replies are actually handled by
         // an admin from WhatsApp behind the scenes (see whatsapp-bot/src/adminChat.js),
-        // but nothing here references that.
-        let chatSocket = null;
-        let chatReconnectTimeoutId = null;
+        // but nothing here references that. The live connection itself is owned by
+        // live-socket.js (shared across pages, connects on page load) - this file just
+        // listens for the CustomEvent it dispatches on an incoming reply.
+        let liveChatReplyListenerBound = false;
         let chatMessagesCache = [];
 
         function escapeHtmlChat(str) {
@@ -2292,27 +2295,14 @@
             mount.scrollTop = mount.scrollHeight;
         }
 
-        function connectChatSocket(token) {
-            if (chatSocket) { chatSocket.onclose = null; chatSocket.close(); }
-            const wsUrl = window.CONFIG.API_URL.replace(/^http/, 'ws') + '/ws/chat';
-            chatSocket = new WebSocket(wsUrl);
-            chatSocket.onopen = () => chatSocket.send(JSON.stringify({ token }));
-            chatSocket.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data.type === 'chat_reply') {
-                        chatMessagesCache.push({ sender: 'admin', message: data.message, created_at: data.created_at });
-                        renderChatMessages();
-                    }
-                } catch (err) { /* ignore malformed frame */ }
-            };
-            chatSocket.onclose = () => {
-                // Only reconnect while the chat modal is still open - closeChatModal()
-                // sets chatSocket to null first, so this becomes a no-op after closing.
-                if (document.getElementById('chatModal').classList.contains('show')) {
-                    chatReconnectTimeoutId = setTimeout(() => connectChatSocket(token), 3000);
-                }
-            };
+        function ensureLiveChatReplyListener() {
+            if (liveChatReplyListenerBound) return;
+            window.addEventListener('liveChatReply', (event) => {
+                const data = event.detail || {};
+                chatMessagesCache.push({ sender: 'admin', message: data.message, created_at: data.created_at });
+                renderChatMessages();
+            });
+            liveChatReplyListenerBound = true;
         }
 
         async function openLiveChat() {
@@ -2325,18 +2315,13 @@
                 console.error('Failed to load chat messages:', err);
                 if (mount) mount.innerHTML = '<div style="text-align: center; color: var(--danger-text); font-size: 13px; padding: 20px 0;">Failed to load conversation</div>';
             }
-            try {
-                const session = await window.AuthService.getSession();
-                if (session?.access_token) connectChatSocket(session.access_token);
-            } catch (err) {
-                console.warn('Live chat: could not open live connection, will still work on reopen:', err.message);
-            }
+            // live-socket.js already holds the connection open for the whole page -
+            // just make sure this listener is wired once.
+            ensureLiveChatReplyListener();
         }
 
         function closeChatModal() {
             closeActionModal('chatModal');
-            if (chatReconnectTimeoutId) { clearTimeout(chatReconnectTimeoutId); chatReconnectTimeoutId = null; }
-            if (chatSocket) { chatSocket.onclose = null; chatSocket.close(); chatSocket = null; }
         }
 
         async function sendChatMessage() {
