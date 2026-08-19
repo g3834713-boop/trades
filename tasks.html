@@ -425,6 +425,23 @@
             display: flex !important;
         }
 
+        #insufficientBalanceModal {
+            display: none !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #insufficientBalanceModal.show {
+            display: flex !important;
+        }
+
         /* Beginner Tasks Styles */
         .beginner-task-card {
             background: var(--brand);
@@ -1122,7 +1139,7 @@
                 const wallet = await window.API.getWallet();
                 const balance = parseFloat(wallet.balance || 0);
                 if (balance < units) {
-                    alert(`Insufficient balance. You need GHC ${units.toFixed(2)} to place this order. Your balance: GHC ${balance.toFixed(2)}`);
+                    showInsufficientBalanceModal(units);
                     return;
                 }
             } catch (error) {
@@ -1529,6 +1546,18 @@
                 processingBanner.style.display = 'flex';
             }
             processingState.visible = false;
+        }
+
+        function showInsufficientBalanceModal(amountNeeded) {
+            const msgEl = document.getElementById('insufficientBalanceMessage');
+            if (msgEl) msgEl.textContent = `You need GHC ${amountNeeded.toFixed(2)} to place this order. Recharge your account to continue.`;
+            const modal = document.getElementById('insufficientBalanceModal');
+            if (modal) modal.classList.add('show');
+        }
+
+        function closeInsufficientBalanceModal() {
+            const modal = document.getElementById('insufficientBalanceModal');
+            if (modal) modal.classList.remove('show');
         }
 
         function reopenProcessingModal() {
@@ -1954,7 +1983,7 @@
                 
                 // Check if user has enough balance
                 if (balance < task.amount) {
-                    alert(`Insufficient balance. You need GHC ${task.amount.toFixed(2)} to complete this task. Your balance: GHC ${balance.toFixed(2)}`);
+                    showInsufficientBalanceModal(task.amount);
                     return;
                 }
 
@@ -2230,6 +2259,21 @@
                     Claim Rewards
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Insufficient Balance Modal -->
+    <div id="insufficientBalanceModal">
+        <div style="background: var(--surface); color: var(--text-primary); border-radius: 12px; padding: 30px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 4px 20px var(--shadow-strong);">
+            <i class="las la-wallet" style="font-size: 36px; color: var(--brand); margin-bottom: 10px; display: block;"></i>
+            <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px;">Insufficient Balance</div>
+            <div id="insufficientBalanceMessage" style="color: var(--text-secondary); font-size: 14px; line-height: 1.5; margin-bottom: 20px;"></div>
+            <button onclick="window.location.href='mine.html#recharge'" style="background: var(--brand); color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; width: 100%; margin-bottom: 10px;">
+                Recharge Now
+            </button>
+            <button onclick="closeInsufficientBalanceModal()" style="background: var(--surface-alt); color: var(--text-primary); border: none; padding: 12px 30px; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; width: 100%;">
+                Cancel
+            </button>
         </div>
     </div>
 
