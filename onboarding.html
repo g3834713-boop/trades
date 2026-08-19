@@ -279,7 +279,13 @@
             } else if (Notification.permission === 'denied') {
                 actionEl.innerHTML = '<div class="step-desc" style="margin-bottom:0;">Notifications are blocked for this site. Enable them in your browser settings, then reload this page.</div>';
             } else if (Notification.permission === 'granted') {
-                actionEl.innerHTML = '<button class="primary-btn" onclick="claimNotifications()">Claim Reward</button>';
+                // Browser permission being 'granted' does NOT mean a push subscription
+                // was ever actually created server-side - e.g. the user may have toggled
+                // it on via their browser/phone's own settings, bypassing this button
+                // entirely. startNotifications() always (re-)subscribes before claiming -
+                // requestPermission() itself resolves instantly with no prompt when
+                // already granted, so this is safe and fast either way.
+                actionEl.innerHTML = '<button class="primary-btn" onclick="startNotifications()">Claim Reward</button>';
             } else {
                 actionEl.innerHTML = '<button class="primary-btn" onclick="startNotifications()">Allow Notifications</button>';
             }
