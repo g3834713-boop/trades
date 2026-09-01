@@ -1,7 +1,13 @@
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { renderTaskNumberCard, renderTellerPackageCard } from './cardImage.js';
 import { formatBeginnerTaskMessage, formatTellerTaskMessage } from './messageTemplates.js';
 import { getBeginnerTaskProducts, getTellerProducts } from './apiClient.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const QR_IMAGE_PATH = path.join(__dirname, '..', 'qr.png');
 
 const SCHEDULER_KEY = process.env.SCHEDULER_API_KEY;
 const TARGET_JID = process.env.WHATSAPP_TARGET_JID;
@@ -19,6 +25,10 @@ const TARGET_JID = process.env.WHATSAPP_TARGET_JID;
 // `npm run test-send` run would cause.
 export function startHealthServer(port = process.env.PORT || 3000, state = {}) {
   const server = http.createServer((req, res) => {
+    if (req.method === 'GET' && req.url === '/qr') {
+      handleQrImage(req, res);
+      return;
+    }
     if (req.method === 'POST' && req.url.startsWith('/debug/test-send')) {
       handleTestSend(req, res, state);
       return;
@@ -28,6 +38,22 @@ export function startHealthServer(port = process.env.PORT || 3000, state = {}) {
   });
   server.listen(port, () => console.log(`Health server listening on :${port}`));
   return server;
+}
+
+function handleQrImage(req, res) {
+  try {
+    if (!fs.existsSync(QR_IMAGE_PATH)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'QR code not generated yet - restart the bot and check back in a few seconds' }));
+      return;
+    }
+    const imageBuffer = fs.readFileSync(QR_IMAGE_PATH);
+    res.writeHead(200, { 'Content-Type': 'image/png' });
+    res.end(imageBuffer);
+  } catch (err) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: err.message }));
+  }
 }
 
 async function handleTestSend(req, res, state) {
