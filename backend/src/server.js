@@ -330,7 +330,11 @@ app.use(helmet());
 // Only the real frontend can make browser-based requests here. Requests with no Origin
 // header (curl, server-to-server calls like the WhatsApp bot's) are unaffected - CORS
 // only governs what a browser will let a webpage's JS read, not server-to-server calls.
-const ALLOWED_ORIGINS = ['https://trades-psi.vercel.app'];
+const ALLOWED_ORIGINS = [
+  'https://trades-psi.vercel.app'
+  'https://amazondailytrade.com',
+  'https://www.amazondailytrade.com',
+];
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || ALLOWED_ORIGINS.includes(origin)) {
