@@ -13,6 +13,19 @@ function isValidAdminJid(jid) {
   return typeof jid === 'string' && /^\d+@s\.whatsapp\.net$/.test(jid);
 }
 
+function isAdminMessage(msg) {
+  const adminJid = ADMIN_JID.toLowerCase();
+  const candidates = [
+    msg.key?.remoteJid,
+    msg.key?.remoteJidAlt,
+    msg.key?.participant,
+    msg.key?.participantAlt,
+    msg.message?.extendedTextMessage?.contextInfo?.participant,
+    msg.message?.extendedTextMessage?.contextInfo?.participantAlt
+  ];
+  return candidates.some((jid) => typeof jid === 'string' && jid.toLowerCase() === adminJid);
+}
+
 async function relayPendingMessages(sock) {
   let pending;
   try {
@@ -84,7 +97,7 @@ export function startAdminChatBridge(sock) {
   sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const msg of messages || []) {
       if (!msg.key || msg.key.fromMe) continue;
-      if (msg.key.remoteJid !== ADMIN_JID) continue;
+      if (!isAdminMessage(msg)) continue;
       await handleIncomingAdminMessage(msg);
     }
   });

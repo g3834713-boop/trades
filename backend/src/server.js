@@ -1301,7 +1301,7 @@ app.post('/chat/admin-reply', requireSchedulerKey, async (req, res) => {
     );
     const preview = message.length > 120 ? message.slice(0, 117) + '...' : message;
     createNotification(userId, 'chat_reply', 'New message from Support', preview, { actionUrl: 'mine.html#chat' }).catch(() => {});
-    pushToUser(userId, { type: 'chat_reply', message: rows[0].message, created_at: rows[0].created_at });
+    pushToUser(userId, { type: 'chat_reply', id: rows[0].id, message: rows[0].message, created_at: rows[0].created_at });
     res.json(rows[0]);
   } catch (err) {
     console.error('Post admin reply error:', err);

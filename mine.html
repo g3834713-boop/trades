@@ -2307,6 +2307,7 @@
 
         async function openLiveChat() {
             const mount = document.getElementById('chatMessagesList');
+            ensureLiveChatReplyListener();
             if (mount) mount.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;">Loading conversation…</div>';
             try {
                 chatMessagesCache = await window.API.getChatMessages();
@@ -2315,9 +2316,6 @@
                 console.error('Failed to load chat messages:', err);
                 if (mount) mount.innerHTML = '<div style="text-align: center; color: var(--danger-text); font-size: 13px; padding: 20px 0;">Failed to load conversation</div>';
             }
-            // live-socket.js already holds the connection open for the whole page -
-            // just make sure this listener is wired once.
-            ensureLiveChatReplyListener();
         }
 
         function closeChatModal() {
